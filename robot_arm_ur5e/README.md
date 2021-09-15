@@ -4,7 +4,7 @@ This module is intended for running ur program via dashboard server.
 ## Usage
 
 ```python
-from ur_dashboard_runner import URRobot
+from robot_arm_ur5e import URRobot
 
 ur_robot = URRobot("192.168.132.154")
 if not ur_robot.is_remote_mode():
