@@ -7,10 +7,10 @@ Universal Robot e-Series
 import logging
 import socket
 import time
+from threading import Lock, Timer
 from typing import Optional
 
 from program_list import PREDEFINED_PROGRAM
-from utils import rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -36,26 +36,35 @@ class URRobot:
         self._socket.settimeout(timeout)
         self._socket.connect((ip, port))
 
-    @rate_limit(secs=0.1)
+        self._mutex_lock = Lock()
+
     def send_cmd(self, cmd: str) -> str:
+        """
+        Threading-safe socket communication function,
+        which will send string command to the robot
+        dashboard server.
+        """
         cmd = cmd.strip("\n") + "\n"
-        self._socket.sendall(cmd.encode())
-        logger.debug("Send command: {}".format(cmd))
+        self._mutex_lock.acquire()
 
-        response = ""
-        retries = 0
-        while not response and retries < 20:
-            retries += 1
-            time.sleep(0.1)
-            block = self._socket.recv(2048).decode(encoding="utf-8")
-            response += block
-            if response and not block:
-                break
+        try:
+            self._socket.sendall(cmd.encode())
+            logger.debug("Send command: {}".format(cmd))
+            response = ""
+            retries = 0
+            while not response and retries < 20:
+                retries += 1
+                time.sleep(0.1)
+                block = self._socket.recv(2048).decode(encoding="utf-8")
+                response += block
+                if response and not block:
+                    break
+            if retries == 20:
+                raise URRobotError("Maximum retries reached, but still no response.")
+            logger.debug("Receive response: {}".format(response))
+        finally:
+            Timer(0.1, self._mutex_lock.release).start()
 
-        if retries == 20:
-            raise URRobotError("Maximum retries reached, but still no response.")
-
-        logger.debug("Receive response: {}".format(response))
         return response
 
     def run(self, name: str, return_before_finished: bool = True):
