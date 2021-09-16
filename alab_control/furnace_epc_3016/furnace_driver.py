@@ -1,6 +1,7 @@
 import logging
 import struct
 from csv import DictReader
+from datetime import timedelta
 from enum import Enum, unique
 from pathlib import Path
 from threading import Lock
@@ -19,7 +20,6 @@ class RegisterPermission(Enum):
     RW = 1
 
 
-@unique
 class RegisterDType(Enum):
     BOOL = "?"
     EINT32 = "i"
@@ -193,6 +193,19 @@ class FurnaceRegister:
         """
         return {name: info.address for name, info in self._register.items()}
 
+    @property
+    def address(self):
+        """
+        The address to the modbus server
+        """
+        return self._address
+
+    def close(self):
+        """
+        Close the modbus connection
+        """
+        self._modbus_client.close()
+
     def __getitem__(self, register_name: str) -> Any:
         """
         Read value from register
@@ -278,15 +291,6 @@ class FurnaceController(FurnaceRegister):
     """
     Implement higher-level functionalities over EPC 3016 heat controller register
     """
-    @property
-    def address(self):
-        """
-        The address to the modbus server
-        """
-        return self._address
-
-    def close(self):
-        self._modbus_client.close()
 
     @property
     def current_temperature(self) -> float:
@@ -369,9 +373,9 @@ class FurnaceController(FurnaceRegister):
             i: int,
             segment_type: SegmentType,
             target_setpoint: Optional[float] = None,
-            duration_min: Optional[int] = None,
+            duration: Optional[timedelta] = None,
             ramp_rate_per_sec: Optional[float] = None,
-            time_to_target_min: Optional[int] = None,
+            time_to_target: Optional[timedelta] = None,
     ):
         """
         Build segment i with all the parameters given
@@ -381,10 +385,10 @@ class FurnaceController(FurnaceRegister):
             segment_type: refer to :obj:`SegmentType`
             target_setpoint: the temperature you want to reach in the
                 end of the segment (only for RAMP_RATE/RAMP_TIME)
-            duration_min: the duration in min (only for DWELL)
+            duration: the duration (only for DWELL)
             ramp_rate_per_sec: the rate of temperature change per sec
                 (degree C / sec) (only for RAMP_RATE)
-            time_to_target_min: the time needed to reach the final
+            time_to_target: the time needed to reach the final
                 temperate (only for RAMP_TIME)
         """
         if not 1 <= i <= 25:
@@ -402,12 +406,12 @@ class FurnaceController(FurnaceRegister):
             if self["Program.1.DwellUnits"] != TimeUnit.MINUTE.value:
                 self["Program.1.DwellUnits"] = TimeUnit.MINUTE.value
             self["Segment.{}.TargetSetpoint".format(i)] = target_setpoint
-            self["Segment.{}.TimeToTarget".format(i)] = time_to_target_min
+            self["Segment.{}.TimeToTarget".format(i)] = int(time_to_target.total_seconds() / 60)
 
         elif segment_type is SegmentType.DWELL:
             if self["Program.1.DwellUnits"] != TimeUnit.MINUTE.value:
                 self["Program.1.DwellUnits"] = TimeUnit.MINUTE.value
-            self["Segment.{}.Duration".format(i)] = duration_min
+            self["Segment.{}.Duration".format(i)] = int(duration.total_seconds() / 60)
 
         else:
             if segment_type is not segment_type.END:
