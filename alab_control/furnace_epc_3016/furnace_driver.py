@@ -127,7 +127,13 @@ class RegisterInfo(NamedTuple):
         return (self.bytes + 1) // 2
 
 
-class WriteError(Exception):
+class FurnaceReadError(Exception):
+    """
+    Error raised when failing to read register
+    """
+
+
+class FurnaceWriteError(Exception):
     """
     Error raised when failing to write to register
     """
@@ -161,6 +167,7 @@ class FurnaceRegister:
             port=self._port,
             unit_id=slave_id,
             timeout=timeout,
+            auto_open=True,
         )
         self._mutex_lock = Lock()
         self._register = self.load_register_list()
@@ -206,55 +213,46 @@ class FurnaceRegister:
         """
         self._modbus_client.close()
 
-    def __getitem__(self, register_name: str) -> Any:
+    def __getitem__(self, register_name: str) -> int:
         """
         Read value from register
 
         Raises:
             KeyError: when the specified register_name is not in the register list
+            FurnaceReadError: when the read request was not conducted successfully
         """
         if register_name not in self._register:
             raise KeyError("{} is not a valid register name".format(register_name))
         register_info = self._register[register_name]
-        dtype = register_info.dtype
 
         self._mutex_lock.acquire()
 
         try:
-            # for bool type, we use read_coils
-            if dtype == RegisterDType.BOOL:
-                value = self._modbus_client.read_coils(register_info.address)[0]
-                if value is None:
-                    raise KeyError("{} is not a valid register name".format(register_name))
-            else:
-                reg_list: List[int] = self._modbus_client.read_holding_registers(
-                    register_info.address, reg_nb=register_info.register_length
-                )
-                if None in reg_list:
-                    raise KeyError("{} is not a valid register name".format(register_name))
-
-                value = register_info.dtype_struct.unpack(
-                    b''.join(struct.pack(">H", reg) for reg in reg_list)
-                )[0]
+            value = self._modbus_client.read_holding_registers(
+                register_info.address, reg_nb=1
+            )
+            if value is None:
+                raise FurnaceReadError("Cannot read register {}".format(register_name))
         finally:
             self._mutex_lock.release()
 
         logger.debug("Read register {}: {}".format(register_name, value))
-        return value
+        return value[0]
 
-    def __setitem__(self, register_name: str, value: Any):
+    def __setitem__(self, register_name: str, value: int):
         """
         Write to register
 
         Raises:
             KeyError: when the specified register_name is not in the register list
-            WriteError: when the write request was not conducted successfully
+            FurnaceWriteError: when the write request was not conducted successfully
         """
         if register_name not in self._register:
             raise KeyError("{} is not a valid register name".format(register_name))
 
+        if not isinstance(value, int):
+            raise TypeError("Expect value as int, but get {}".format(type(value)))
         register_info = self._register[register_name]
-        dtype = register_info.dtype
 
         if register_info.permission == RegisterPermission.RO:
             raise PermissionError("Register {} is read-only.".format(register_name))
@@ -262,29 +260,15 @@ class FurnaceRegister:
         self._mutex_lock.acquire()
 
         try:
-            # for bool type, we use write_single_coil
-            if dtype == RegisterDType.BOOL:
-                if not isinstance(value, bool):
-                    raise TypeError("{} requires bool value, but get {}".format(register_name, type(value)))
-                response = self._modbus_client.write_single_coil(register_info.address, value)
-            elif register_info.register_length == 1:  # for 16-bit data type
-                # first convert the value to uint16
-                packed_value = struct.unpack(">H", register_info.dtype_struct.pack(value))[0]
-                response = self._modbus_client.write_single_register(register_info.address, packed_value)
-            else:
-                # first convert the value to list of uint16
-                packed_values = list(struct.unpack(
-                    ">" + "H" * register_info.register_length,
-                    register_info.dtype_struct.pack(value)
-                ))
-                response = self._modbus_client.write_multiple_registers(register_info.address, packed_values)
+            # first convert the value to uint16
+            response = self._modbus_client.write_single_register(register_info.address, value)
         finally:
             self._mutex_lock.release()
 
         logger.debug("Write to register {}: {}".format(register_name, value))
 
         if response is None:
-            raise WriteError("Fails to write to register: {}".format(register_name))
+            raise FurnaceWriteError("Fails to write to register: {}".format(register_name))
 
 
 class FurnaceController(FurnaceRegister):
@@ -293,7 +277,7 @@ class FurnaceController(FurnaceRegister):
     """
 
     @property
-    def current_temperature(self) -> float:
+    def current_temperature(self) -> int:
         """
         Current temperature in degree C
         """
@@ -301,11 +285,11 @@ class FurnaceController(FurnaceRegister):
         return temperature
 
     @property
-    def current_target_temperature(self) -> float:
+    def current_target_temperature(self) -> int:
         """
         Current target temperature in degree C
         """
-        temperature = self["Loop.Main.SP"]
+        temperature = self["Loop.Main.TargetSP"]
         return temperature
 
     @property
@@ -368,6 +352,15 @@ class FurnaceController(FurnaceRegister):
         """
         return self["WorkingProgram.NumConfSegments"]
 
+    def _read_segment_i(self, i: int):
+        return {
+            "segment_type": SegmentType(self["Segment.{}.SegmentType".format(i)]),
+            "target_setpoint": self["Segment.{}.TargetSetpoint".format(i)],
+            "duration": self["Segment.{}.Duration".format(i)],
+            "ramp_rate": self["Segment.{}.RampRate".format(i)],
+            "time_to_target": self["Segment.{}.TimeToTarget".format(i)],
+        }
+
     def _configure_segment_i(
             self,
             i: int,
@@ -389,7 +382,7 @@ class FurnaceController(FurnaceRegister):
             ramp_rate_per_sec: the rate of temperature change per sec
                 (degree C / sec) (only for RAMP_RATE)
             time_to_target: the time needed to reach the final
-                temperate (only for RAMP_TIME)
+                temperature (only for RAMP_TIME)
         """
         if not 1 <= i <= 25:
             raise ValueError("i should be in 1 ~ 25, but get {}.".format(i))
@@ -397,21 +390,24 @@ class FurnaceController(FurnaceRegister):
         self["Segment.{}.SegmentType".format(i)] = segment_type.value
 
         if segment_type is SegmentType.RAMP_RATE:
-            if self["Program.1.RampUnit"] != TimeUnit.SECOND.value:
-                self["Program.1.RampUnit"] = TimeUnit.SECOND.value
-            self["Segment.{}.TargetSetpointt".format(i)] = target_setpoint
-            self["Segment.{}.RampRate".format(i)] = ramp_rate_per_sec
+            if self["Program.1.RampUnits"] != TimeUnit.SECOND.value:
+                self["Program.1.RampUnits"] = TimeUnit.SECOND.value
+            self["Segment.{}.TargetSetpoint".format(i)] = int(target_setpoint)
+            self["Segment.{}.RampRate".format(i)] = int(ramp_rate_per_sec * 10)
 
         elif segment_type is SegmentType.RAMP_TIME:
-            if self["Program.1.DwellUnits"] != TimeUnit.MINUTE.value:
-                self["Program.1.DwellUnits"] = TimeUnit.MINUTE.value
-            self["Segment.{}.TargetSetpoint".format(i)] = target_setpoint
-            self["Segment.{}.TimeToTarget".format(i)] = int(time_to_target.total_seconds() / 60)
+            if self["Program.1.DwellUnits"] != TimeUnit.SECOND.value:
+                self["Program.1.DwellUnits"] = TimeUnit.SECOND.value
+            self["Segment.{}.TargetSetpoint".format(i)] = int(target_setpoint)
+            self["Segment.{}.TimeToTarget".format(i)] = int(time_to_target.total_seconds())
 
         elif segment_type is SegmentType.DWELL:
-            if self["Program.1.DwellUnits"] != TimeUnit.MINUTE.value:
-                self["Program.1.DwellUnits"] = TimeUnit.MINUTE.value
-            self["Segment.{}.Duration".format(i)] = int(duration.total_seconds() / 60)
+            if self["Program.1.DwellUnits"] != TimeUnit.SECOND.value:
+                self["Program.1.DwellUnits"] = TimeUnit.SECOND.value + 1
+            self["Segment.{}.Duration".format(i)] = int(duration.total_seconds())
+
+        elif segment_type is SegmentType.STEP:
+            self["Segment.{}.TargetSetpoint".format(i)] = int(target_setpoint)
 
         else:
             if segment_type is not segment_type.END:
