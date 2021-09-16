@@ -1,4 +1,4 @@
-# ur_dashboard_runner
+# robot_arm_ur5e
 This module is intended for running ur program via dashboard server.
 
 ## Usage
