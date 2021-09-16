@@ -137,8 +137,6 @@ class FurnaceRegister:
     """
     An abstraction of furnace register
     """
-    TEMP_UNIT = TemperatureUnit.DEGREE_C
-    TIME_UNIT = TimeUnit.SECOND
 
     def __init__(
             self,
@@ -311,7 +309,11 @@ class FurnaceRegister:
     def run_program(self):
         """
         Start to run current program
+
+        We only use the first program for convenience
         """
+        if self["Programmer.Run.ProgramNumber"] != 1:
+            self["Programmer.Run.ProgramNumber"] = 1
         self["Programmer.Setup.Run"] = 1
 
     def hold_program(self):
@@ -331,6 +333,17 @@ class FurnaceRegister:
         Whether the program is running
         """
         return self.program_mode == ProgramMode.RUN
+
+    @property
+    def left_time(self) -> int:
+        """
+        Left time of current running program (program 1)
+
+        if no program is running, return 0
+        """
+        if not self.is_running():
+            return 0
+        return self["Programmer.Run.ProgramTimeLeft"]
 
     @property
     def current_segment(self) -> int:
@@ -393,7 +406,7 @@ class FurnaceRegister:
 
         else:
             if segment_type is not segment_type.END:
-                raise NotImplementedError("We have not implemented {} type".format(segment_type.name))
+                raise NotImplementedError("We have not implemented {} segment type".format(segment_type.name))
 
 
 if __name__ == '__main__':
