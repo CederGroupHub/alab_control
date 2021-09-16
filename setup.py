@@ -9,7 +9,7 @@ setup(
     description='Drivers for alab devices',
     zip_safe=False,
     install_requires=[
-        "pyModbusTCP"
+        "pyModbusTCP",
     ],
     include_package_data=True
 )
