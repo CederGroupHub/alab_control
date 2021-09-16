@@ -38,6 +38,9 @@ class URRobot:
 
         self._mutex_lock = Lock()
 
+    def close(self):
+        self._socket.close()
+
     def send_cmd(self, cmd: str) -> str:
         """
         Threading-safe socket communication function,
