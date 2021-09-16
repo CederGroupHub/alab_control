@@ -273,6 +273,11 @@ class FurnaceRegister:
         if response is None:
             raise WriteError("Fails to write to register: {}".format(register_name))
 
+
+class FurnaceController(FurnaceRegister):
+    """
+    Implement higher-level functionalities over EPC 3016 heat controller register
+    """
     @property
     def address(self):
         """
