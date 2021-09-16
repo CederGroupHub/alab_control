@@ -86,6 +86,20 @@ class TemperatureUnit(Enum):
 
         raise TypeError("Unsupported type for conversion: {} to {}".format(self, target))
 
+
+@unique
+class SegmentType(Enum):
+    """
+    Different type of segment
+    """
+    END = 0
+    RAMP_RATE = 1
+    RAMP_TIME = 2
+    DWELL = 3
+    STEP = 4
+    CALL = 5
+
+
 class RegisterInfo(NamedTuple):
     name: str
     description: str
@@ -123,6 +137,8 @@ class FurnaceRegister:
     """
     An abstraction of furnace register
     """
+    TEMP_UNIT = TemperatureUnit.DEGREE_C
+    TIME_UNIT = TimeUnit.SECOND
 
     def __init__(
             self,
@@ -229,6 +245,9 @@ class FurnaceRegister:
         register_info = self._register[register_name]
         dtype = register_info.dtype
 
+        if register_info.permission == RegisterPermission.RO:
+            raise PermissionError("Register {} is read-only.".format(register_name))
+
         self._mutex_lock.acquire()
 
         try:
@@ -267,8 +286,114 @@ class FurnaceRegister:
         self._modbus_client.close()
 
     @property
-    def current_temperature(self):
+    def current_temperature(self) -> float:
+        """
+        Current temperature in degree C
+        """
+        temperature = self["Loop.Main.PV"]
+        return temperature
 
+    @property
+    def current_target_temperature(self) -> float:
+        """
+        Current target temperature in degree C
+        """
+        temperature = self["Loop.Main.SP"]
+        return temperature
+
+    @property
+    def program_mode(self) -> ProgramMode:
+        """
+        Current program status
+        """
+        return ProgramMode(self["Programmer.Run.Mode"])
+
+    def run_program(self):
+        """
+        Start to run current program
+        """
+        self["Programmer.Setup.Run"] = 1
+
+    def hold_program(self):
+        """
+        Hold current program
+        """
+        self["Programmer.Setup.Hold"] = 1
+
+    def reset_program(self):
+        """
+        Reset current program
+        """
+        self["Programmer.Setup.Reset"] = 1
+
+    def is_running(self) -> bool:
+        """
+        Whether the program is running
+        """
+        return self.program_mode == ProgramMode.RUN
+
+    @property
+    def current_segment(self) -> int:
+        """
+        Current segment that is running (start from 1)
+        """
+        return self["Programmer.Run.SegmentNumber"]
+
+    @property
+    def configured_segment_num(self) -> int:
+        """
+        Currently configured segment number
+        """
+        return self["WorkingProgram.NumConfSegments"]
+
+    def _configure_segment_i(
+            self,
+            i: int,
+            segment_type: SegmentType,
+            target_setpoint: Optional[float] = None,
+            duration_min: Optional[int] = None,
+            ramp_rate_per_sec: Optional[float] = None,
+            time_to_target_min: Optional[int] = None,
+    ):
+        """
+        Build segment i with all the parameters given
+
+        Args:
+            i: the order of segment
+            segment_type: refer to :obj:`SegmentType`
+            target_setpoint: the temperature you want to reach in the
+                end of the segment (only for RAMP_RATE/RAMP_TIME)
+            duration_min: the duration in min (only for DWELL)
+            ramp_rate_per_sec: the rate of temperature change per sec
+                (degree C / sec) (only for RAMP_RATE)
+            time_to_target_min: the time needed to reach the final
+                temperate (only for RAMP_TIME)
+        """
+        if not 1 <= i <= 25:
+            raise ValueError("i should be in 1 ~ 25, but get {}.".format(i))
+
+        self["Segment.{}.SegmentType".format(i)] = segment_type.value
+
+        if segment_type is SegmentType.RAMP_RATE:
+            if self["Program.1.RampUnit"] != TimeUnit.SECOND.value:
+                self["Program.1.RampUnit"] = TimeUnit.SECOND.value
+            self["Segment.{}.TargetSetpointt".format(i)] = target_setpoint
+            self["Segment.{}.RampRate".format(i)] = ramp_rate_per_sec
+
+        elif segment_type is SegmentType.RAMP_TIME:
+            if self["Program.1.DwellUnits"] != TimeUnit.MINUTE.value:
+                self["Program.1.DwellUnits"] = TimeUnit.MINUTE.value
+            self["Segment.{}.TargetSetpoint".format(i)] = target_setpoint
+            self["Segment.{}.TimeToTarget".format(i)] = time_to_target_min
+
+        elif segment_type is SegmentType.DWELL:
+            if self["Program.1.DwellUnits"] != TimeUnit.MINUTE.value:
+                self["Program.1.DwellUnits"] = TimeUnit.MINUTE.value
+            self["Segment.{}.Duration".format(i)] = duration_min
+
+        else:
+            if segment_type is not segment_type.END:
+                raise NotImplementedError("We have not implemented {} type".format(segment_type.name))
 
 
 if __name__ == '__main__':
