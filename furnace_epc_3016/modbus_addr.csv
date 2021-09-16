@@ -1,4 +1,4 @@
-﻿Parameter,Description,Type,Address (Hex),Address (Decimal),Resolution,Alterability
+parameter,description,type,hex_address,address,resolution,alterability
 Loop.Main.PV,Process Variable,float32,0x0001,1,"1dp, or if wired, inherited from wire source",RW
 Loop.Main.TargetSP,Setpoint before rate limiting,float32,0x0002,2,Same as Loop.Main.PV,RW
 Loop.Output.ManualOP,Output value while in Manual or F_Man,float32,0x0003,3,Same as Loop.Main.WorkingOutput,RW
