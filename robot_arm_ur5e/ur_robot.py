@@ -188,3 +188,6 @@ class URRobot:
     def _raise_for_unexpected_prefix(response: str, prefix: str):
         if not response.startswith(prefix):
             raise URRobotError(response)
+
+    def close(self):
+        self._socket.close()
