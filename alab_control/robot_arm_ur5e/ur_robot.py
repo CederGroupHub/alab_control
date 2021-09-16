@@ -38,6 +38,9 @@ class URRobot:
 
         self._mutex_lock = Lock()
 
+    def close(self):
+        self._socket.close()
+
     def send_cmd(self, cmd: str) -> str:
         """
         Threading-safe socket communication function,
@@ -188,6 +191,3 @@ class URRobot:
     def _raise_for_unexpected_prefix(response: str, prefix: str):
         if not response.startswith(prefix):
             raise URRobotError(response)
-
-    def close(self):
-        self._socket.close()
