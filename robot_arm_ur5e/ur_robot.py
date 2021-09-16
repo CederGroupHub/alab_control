@@ -10,7 +10,7 @@ import time
 from threading import Lock, Timer
 from typing import Optional
 
-from program_list import PREDEFINED_PROGRAM
+from .program_list import PREDEFINED_PROGRAM
 
 logger = logging.getLogger(__name__)
 

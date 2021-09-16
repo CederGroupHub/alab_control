@@ -412,7 +412,3 @@ class FurnaceController(FurnaceRegister):
         else:
             if segment_type is not segment_type.END:
                 raise NotImplementedError("We have not implemented {} segment type".format(segment_type.name))
-
-
-if __name__ == '__main__':
-    FurnaceRegister()
