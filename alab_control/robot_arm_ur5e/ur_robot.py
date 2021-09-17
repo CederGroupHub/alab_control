@@ -167,7 +167,7 @@ class URRobot:
         Returns:
             Choice of [STOPPED, PLAYING, PAUSED]
         """
-        return ProgramStatus[self.send_cmd("robotmode")]
+        return ProgramStatus[self.send_cmd("programState")]
 
     @property
     def loaded_program(self) -> Optional[str]:
