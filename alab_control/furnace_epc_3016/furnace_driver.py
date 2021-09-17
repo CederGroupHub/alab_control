@@ -5,7 +5,7 @@ from datetime import timedelta
 from enum import Enum, unique
 from pathlib import Path
 from threading import Lock
-from typing import NamedTuple, Optional, Dict, Any, List, Callable
+from typing import NamedTuple, Optional, Dict, Any, Callable
 
 from pyModbusTCP.client import ModbusClient
 
@@ -352,13 +352,13 @@ class FurnaceController(FurnaceRegister):
         """
         return self["WorkingProgram.NumConfSegments"]
 
-    def _read_segment_i(self, i: int):
+    def _read_segment_i(self, i: int) -> Dict[str, Any]:
         return {
             "segment_type": SegmentType(self["Segment.{}.SegmentType".format(i)]),
-            "target_setpoint": self["Segment.{}.TargetSetpoint".format(i)],
-            "duration": self["Segment.{}.Duration".format(i)],
-            "ramp_rate": self["Segment.{}.RampRate".format(i)],
-            "time_to_target": self["Segment.{}.TimeToTarget".format(i)],
+            "target_setpoint": float(self["Segment.{}.TargetSetpoint".format(i)]),
+            "duration": timedelta(seconds=self["Segment.{}.Duration".format(i)]),
+            "ramp_rate_per_sec": float(self["Segment.{}.RampRate".format(i)] / 10),
+            "time_to_target": timedelta(seconds=self["Segment.{}.TimeToTarget".format(i)]),
         }
 
     def _configure_segment_i(
@@ -403,7 +403,7 @@ class FurnaceController(FurnaceRegister):
 
         elif segment_type is SegmentType.DWELL:
             if self["Program.1.DwellUnits"] != TimeUnit.SECOND.value:
-                self["Program.1.DwellUnits"] = TimeUnit.SECOND.value + 1
+                self["Program.1.DwellUnits"] = TimeUnit.SECOND.value
             self["Segment.{}.Duration".format(i)] = int(duration.total_seconds())
 
         elif segment_type is SegmentType.STEP:
@@ -411,4 +411,6 @@ class FurnaceController(FurnaceRegister):
 
         else:
             if segment_type is not segment_type.END:
-                raise NotImplementedError("We have not implemented {} segment type".format(segment_type.name))
+                raise NotImplementedError(
+                    "We have not implemented {} segment type".format(segment_type.name)
+                )
