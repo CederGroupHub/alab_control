@@ -127,7 +127,7 @@ def status_checking_and_event_handler(furnace, robot, buttons):
             if robot.status == "idle" and furnace.status == "idle" and robot.mode == "STOPPED":
                 # Play button pressed (Crucible ready) [Event 0]
                 robot.status = "in"
-                robot.load("load_in_crucible.urp")  # !!!
+                robot.load("load_in_crucible")  # !!!
                 robot.play()
             if robot.mode == "PAUSED":
                 # Continue any ongoing task [Event 6]
@@ -140,7 +140,7 @@ def status_checking_and_event_handler(furnace, robot, buttons):
         if furnace.status == "idle" and furnace_status_temp == "running":
             # Furnace has done heating and cooling down [Event 2-4]
             robot.status = "out"
-            robot.load("take_out_crucible.urp")  # !!!
+            robot.load("take_out_crucible")  # !!!
             robot.play()
     robot_status_temp = robot.status
     robot.check_status()
