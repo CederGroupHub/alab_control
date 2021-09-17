@@ -69,5 +69,6 @@ class TestFurnace(unittest.TestCase):
     def test_run(self):
         self.test_config_segment()
         self.furnace.run_program()
+        time.sleep(2)
         self.assertEqual(self.furnace.program_mode.value, 2, msg="Run fails.")
         self.furnace.reset_program()

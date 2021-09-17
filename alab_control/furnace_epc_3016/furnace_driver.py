@@ -263,6 +263,8 @@ class FurnaceController(FurnaceRegister):
         """
         if self["Programmer.Run.ProgramNumber"] != 1:
             self["Programmer.Run.ProgramNumber"] = 1
+        if self.is_running():
+            raise Exception("The program is running")
         self["Programmer.Setup.Run"] = 1
         logger.info("Current program starts to run")
 
@@ -289,7 +291,7 @@ class FurnaceController(FurnaceRegister):
     @property
     def left_time(self) -> int:
         """
-        Left time of current running program (program 1)
+        Left time of current running program (program 1) in minutes
 
         if no program is running, return 0
         """
