@@ -378,7 +378,7 @@ class FurnaceController(FurnaceRegister):
                     "We have not implemented {} segment type".format(segment_type.name)
                 )
 
-        logger.log("Set a segment {} with {}".format(i, dict(
+        logger.info("Set a segment {} with {}".format(i, dict(
             segment_type=segment_type,
             target_setpoint=target_setpoint,
             duration=duration,
