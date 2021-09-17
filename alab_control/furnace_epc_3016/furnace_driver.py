@@ -1,34 +1,14 @@
 import logging
-import struct
 from csv import DictReader
 from datetime import timedelta
 from enum import Enum, unique
 from pathlib import Path
 from threading import Lock
-from typing import NamedTuple, Optional, Dict, Any, List, Callable
+from typing import NamedTuple, Optional, Dict, Any, Callable
 
 from pyModbusTCP.client import ModbusClient
 
 logger = logging.getLogger(__name__)
-
-_BYTE_ORDER = ">"  # big endian
-
-
-@unique
-class RegisterPermission(Enum):
-    RO = 0
-    RW = 1
-
-
-class RegisterDType(Enum):
-    BOOL = "?"
-    EINT32 = "i"
-    FLOAT32 = "f"
-    INT16 = "h"
-    INT32 = "i"
-    STRING_T = "s"
-    TIME_T = "i"
-    UINT8 = "B"
 
 
 @unique
@@ -104,27 +84,6 @@ class RegisterInfo(NamedTuple):
     name: str
     description: str
     address: int
-    dtype: RegisterDType
-    permission: RegisterPermission
-
-    @property
-    def real_address(self) -> int:
-        return 2 * self.address + 0x8000
-
-    @property
-    def dtype_struct(self) -> struct.Struct:
-        return struct.Struct("{0}{1}".format(_BYTE_ORDER, self.dtype.value))
-
-    @property
-    def bytes(self) -> int:
-        return struct.calcsize(self.dtype.value)
-
-    @property
-    def register_length(self) -> int:
-        """
-        Returns the number of registers to store this value
-        """
-        return (self.bytes + 1) // 2
 
 
 class FurnaceReadError(Exception):
@@ -186,9 +145,7 @@ class FurnaceRegister:
                 registers[registry_entry["parameter"]] = RegisterInfo(
                     name=registry_entry["parameter"],
                     description=registry_entry["description"],
-                    dtype=RegisterDType[registry_entry["type"].upper()],
                     address=int(registry_entry["address"]),
-                    permission=RegisterPermission[registry_entry["alterability"]],
                 )
 
         return registers
@@ -254,14 +211,12 @@ class FurnaceRegister:
             raise TypeError("Expect value as int, but get {}".format(type(value)))
         register_info = self._register[register_name]
 
-        if register_info.permission == RegisterPermission.RO:
-            raise PermissionError("Register {} is read-only.".format(register_name))
-
         self._mutex_lock.acquire()
 
         try:
-            # first convert the value to uint16
-            response = self._modbus_client.write_single_register(register_info.address, value)
+            response = self._modbus_client.write_single_register(
+                register_info.address, value
+            )
         finally:
             self._mutex_lock.release()
 
@@ -303,23 +258,27 @@ class FurnaceController(FurnaceRegister):
         """
         Start to run current program
 
-        We only use the first program for convenience
+        Notes:
+            We only use the first program for convenience
         """
         if self["Programmer.Run.ProgramNumber"] != 1:
             self["Programmer.Run.ProgramNumber"] = 1
         self["Programmer.Setup.Run"] = 1
+        logger.info("Current program starts to run")
 
     def hold_program(self):
         """
         Hold current program
         """
         self["Programmer.Setup.Hold"] = 1
+        logger.info("The program is holded")
 
     def reset_program(self):
         """
         Reset current program
         """
         self["Programmer.Setup.Reset"] = 1
+        logger.info("Program reset")
 
     def is_running(self) -> bool:
         """
@@ -352,13 +311,14 @@ class FurnaceController(FurnaceRegister):
         """
         return self["WorkingProgram.NumConfSegments"]
 
-    def _read_segment_i(self, i: int):
+    def _read_segment_i(self, i: int) -> Dict[str, Any]:
         return {
             "segment_type": SegmentType(self["Segment.{}.SegmentType".format(i)]),
-            "target_setpoint": self["Segment.{}.TargetSetpoint".format(i)],
-            "duration": self["Segment.{}.Duration".format(i)],
-            "ramp_rate": self["Segment.{}.RampRate".format(i)],
-            "time_to_target": self["Segment.{}.TimeToTarget".format(i)],
+            "target_setpoint": float(self["Segment.{}.TargetSetpoint".format(i)]),
+            "duration": timedelta(seconds=self["Segment.{}.Duration".format(i)]),
+            # Note the ramp rate is scaled by 10
+            "ramp_rate_per_sec": float(self["Segment.{}.RampRate".format(i)] / 10),
+            "time_to_target": timedelta(seconds=self["Segment.{}.TimeToTarget".format(i)]),
         }
 
     def _configure_segment_i(
@@ -372,6 +332,9 @@ class FurnaceController(FurnaceRegister):
     ):
         """
         Build segment i with all the parameters given
+
+        Notes:
+            `ramp_rate_per_sec` is scaled by 10 when writing
 
         Args:
             i: the order of segment
@@ -403,7 +366,7 @@ class FurnaceController(FurnaceRegister):
 
         elif segment_type is SegmentType.DWELL:
             if self["Program.1.DwellUnits"] != TimeUnit.SECOND.value:
-                self["Program.1.DwellUnits"] = TimeUnit.SECOND.value + 1
+                self["Program.1.DwellUnits"] = TimeUnit.SECOND.value
             self["Segment.{}.Duration".format(i)] = int(duration.total_seconds())
 
         elif segment_type is SegmentType.STEP:
@@ -411,4 +374,14 @@ class FurnaceController(FurnaceRegister):
 
         else:
             if segment_type is not segment_type.END:
-                raise NotImplementedError("We have not implemented {} segment type".format(segment_type.name))
+                raise NotImplementedError(
+                    "We have not implemented {} segment type".format(segment_type.name)
+                )
+
+        logger.info("Set a segment {} with {}".format(i, dict(
+            segment_type=segment_type,
+            target_setpoint=target_setpoint,
+            duration=duration,
+            ramp_rate_per_sec=ramp_rate_per_sec,
+            time_to_target=target_setpoint,
+        )))
