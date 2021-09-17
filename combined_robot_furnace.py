@@ -98,54 +98,59 @@ class MyButtons:
 
 # System Event Handlers, an event due to object(s)'s status changes will require actuation
 # which in turn will change object(s)'s status
-def status_checking_and_event_handler(test_furnace, test_robot, test_buttons):
+def status_checking_and_event_handler(furnace, robot, buttons):
     # when play button is pressed,
     #    # if robot is idle in task, give robot first task and play it
     #    # if robot is not idle in task, continue it
     # when pause button is pressed, pause robot and hold furnace
     # when stop button is pressed, reset furnace and stop robot, human technical assistance is required
-    test_buttons.check_status()
-    if test_buttons.play or test_buttons.pause or test_buttons.stop:
+    buttons.check_status()
+    if buttons.play or buttons.pause or buttons.stop:
         # check whether play and pause buttons are pressed together.
-        # If so, stop will be initiated because error has been detected
-        if test_buttons.play and test_buttons.pause:
-            test_buttons.stop = True
-        if test_buttons.stop:
-            test_robot.stop()
-            test_furnace.reset_program()
-            test_buttons.stop = False
-        if test_buttons.pause:
-            test_robot.pause()
-            test_furnace.furnace.hold_program()
-            test_buttons.pause = False
-        if test_buttons.play:
-            test_buttons.play = False
-            if test_robot.status == "idle" and test_furnace.status == "idle" and test_robot.mode == "STOPPED":
-                # Play button pressed (Crucible ready)
-                test_robot.status = "in"
-                test_robot.load("load_in_crucible.urp")  # !!!
-                test_robot.play()
-            if test_robot.status != "idle" and test_furnace.status != "idle" and test_robot.mode == "PAUSED":
-                # Continue any ongoing task
-                test_furnace.run_program()
-                test_robot.continue_play()
-    furnace_status_temp = test_furnace.status  # take current status
-    test_furnace.check_status()  # check new status
-    if furnace_status_temp != test_furnace.status:
-        if test_furnace.status == "idle" and furnace_status_temp == "running":
-            # Furnace has done heating and cooling down
-            test_robot.status = "out"
-            test_robot.load("take_out_crucible.urp")  # !!!
-            test_robot.play()
-    robot_status_temp = test_robot.status
-    test_robot.check_status()
-    if test_robot.status != robot_status_temp:
-        if test_robot.status == "idle" and robot_status_temp == "in":
-            # Robot has loaded in the crucible
-            test_furnace.simple_heating(SET_POINT, RAMP_TIME, DWELL_TIME)
-            test_furnace.run_program()
-        if test_robot.status == "idle" and robot_status_temp == "out":
-            # Robot has taken out the crucible
+        # if so, stop will be initiated because error has been detected
+        if buttons.play and buttons.pause:
+            buttons.play = False
+            buttons.pause = False
+            buttons.stop = True
+        if buttons.stop:
+            buttons.play = False
+            buttons.pause = False
+            buttons.stop = False
+            robot.stop()
+            furnace.reset_program()
+        if buttons.pause:
+            buttons.pause = False
+            robot.pause()
+            furnace.furnace.hold_program()
+        if buttons.play:
+            buttons.play = False
+            if robot.status == "idle" and furnace.status == "idle" and robot.mode == "STOPPED":
+                # Play button pressed (Crucible ready) [Event 0]
+                robot.status = "in"
+                robot.load("load_in_crucible")  # !!!
+                robot.play()
+            if robot.mode == "PAUSED":
+                # Continue any ongoing task [Event 6]
+                furnace.run_program()
+                robot.continue_play()
+            # Other than these two cases, the play button wont work
+    furnace_status_temp = furnace.status  # take current status
+    furnace.check_status()  # check new status
+    if furnace_status_temp != furnace.status:
+        if furnace.status == "idle" and furnace_status_temp == "running":
+            # Furnace has done heating and cooling down [Event 2-4]
+            robot.status = "out"
+            robot.load("take_out_crucible")  # !!!
+            robot.play()
+    robot_status_temp = robot.status
+    robot.check_status()
+    if robot.status != robot_status_temp:
+        if robot.status == "idle" and robot_status_temp == "in":
+            # Robot has loaded in the crucible, furnace starts heating up [Event 1]
+            furnace.simple_heating(SET_POINT, RAMP_TIME, DWELL_TIME)
+            furnace.run_program()
+        if robot.status == "idle" and robot_status_temp == "out":
+            # Robot has taken out the crucible [Event 5]
             print("Program has been successfully carried out")
 
 
@@ -155,6 +160,8 @@ furnace = MyFurnace(address=FURNACE_IP)
 robot = MyURRobot(ip=ROBOT_IP)
 buttons = MyButtons()
 
+
+# Periodic Loop 100ms
 while True:
     status_checking_and_event_handler(furnace, robot, buttons)
     time.sleep(0.1)
