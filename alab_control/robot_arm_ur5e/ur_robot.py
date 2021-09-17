@@ -48,6 +48,8 @@ class URRobot:
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.settimeout(timeout)
         self._socket.connect((ip, port))
+        time.sleep(0.1)
+        self._socket.recv(2048)
 
         self._mutex_lock = Lock()
 
