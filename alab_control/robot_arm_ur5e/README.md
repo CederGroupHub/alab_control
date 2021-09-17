@@ -11,12 +11,7 @@ if not ur_robot.is_remote_mode():
     raise OSError("The robot arm should be in remote mode.")
 
 # You may run the program by specifying the path.
-ur_robot.run("Red_rack_in_fsuccess.urp", return_before_finished=False)
-
-# You can also run program by specifying the predefined function name
-# The robot will start to run the program and return instantly before the program ends
-# when return_before_finished is set to True
-ur_robot.run("send_to_furnace_test", return_before_finished=True)
+ur_robot.run_program("Red_rack_in_fsuccess.urp")
 
 # when necessary, you can pause a running program
 ur_robot.pause()

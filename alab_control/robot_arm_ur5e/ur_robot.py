@@ -3,10 +3,10 @@ Provide simple api to load and execute a program via socket interface in
 Universal Robot e-Series
 """
 
-
 import logging
 import socket
 import time
+from enum import unique, Enum
 from threading import Lock, Timer
 from typing import Optional
 
@@ -15,8 +15,20 @@ from .program_list import PREDEFINED_PROGRAM
 logger = logging.getLogger(__name__)
 
 
+@unique
+class ProgramStatus(Enum):
+    """
+    Status of program
+    """
+    STOPPED = 0
+    PLAYING = 1
+    PAUSED = 2
+
+
 class URRobotError(Exception):
-    pass
+    """
+    Used when URRobot encounter an Exception
+    """
 
 
 class URRobot:
@@ -24,6 +36,7 @@ class URRobot:
     Refer to https://s3-eu-west-1.amazonaws.com/ur-support-site/42728/DashboardServer_e-Series.pdf
     for commands' instructions
     """
+
     def __init__(self, ip: str, port: int = 29999, timeout: float = 2):
         """
         Args:
@@ -70,24 +83,19 @@ class URRobot:
 
         return response
 
-    def run(self, name: str, return_before_finished: bool = True):
+    def run_program(self, name: str):
         """
         Run a program
 
         Args:
             name: the path of program file (*.urp) in the ur dashboard or
                 predefined name in the PREDEFINED_PROGRAM
-            return_before_finished: if set to False, the function will not
-                return until current program ends.
         """
         self.wait_for_finish()
         program_path = PREDEFINED_PROGRAM.get(name, name)
         self.load(program_path)
-        self.play()
         logger.info("Run program: {}".format(program_path))
-
-        if not return_before_finished:
-            self.wait_for_finish()
+        self.play()
 
     def is_running(self) -> bool:
         """
@@ -97,6 +105,9 @@ class URRobot:
         return "true" in response
 
     def wait_for_finish(self):
+        """
+        Block the process until finishing
+        """
         while self.is_running():
             continue
         return
@@ -137,11 +148,6 @@ class URRobot:
         response = self.send_cmd("pause")
         self._raise_for_unexpected_prefix(response, "Pausing program")
 
-    def pause_for_secs(self, secs: float):
-        self.pause()
-        time.sleep(secs=secs)
-        self.play()
-
     def continue_play(self):
         """
         Same functionality as play(), but it will check
@@ -150,18 +156,18 @@ class URRobot:
         If not recovered from pause state, it will raise
         an URRobotError
         """
-        if self.get_current_mode() != "PAUSED":
+        if self.get_current_mode() != ProgramStatus.PAUSED:
             raise URRobotError("continue_play can only be used to recover a paused program")
         self.play()
 
-    def get_current_mode(self) -> str:
+    def get_current_mode(self) -> ProgramStatus:
         """
         Get current program's status
 
         Returns:
             Choice of [STOPPED, PLAYING, PAUSED]
         """
-        return self.send_cmd("robotmode")
+        return ProgramStatus[self.send_cmd("robotmode")]
 
     @property
     def loaded_program(self) -> Optional[str]:
@@ -189,5 +195,12 @@ class URRobot:
 
     @staticmethod
     def _raise_for_unexpected_prefix(response: str, prefix: str):
+        """
+        Convenience wrapper to raise an URRotError when receiving an unexpected error
+
+        Args:
+            response: The actual response string
+            prefix: The expected string's prefix (should start with ...)
+        """
         if not response.startswith(prefix):
             raise URRobotError(response)
