@@ -264,18 +264,21 @@ class FurnaceController(FurnaceRegister):
         if self["Programmer.Run.ProgramNumber"] != 1:
             self["Programmer.Run.ProgramNumber"] = 1
         self["Programmer.Setup.Run"] = 1
+        logger.info("Current program starts to run")
 
     def hold_program(self):
         """
         Hold current program
         """
         self["Programmer.Setup.Hold"] = 1
+        logger.info("The program is holded")
 
     def reset_program(self):
         """
         Reset current program
         """
         self["Programmer.Setup.Reset"] = 1
+        logger.info("Program reset")
 
     def is_running(self) -> bool:
         """
@@ -374,3 +377,11 @@ class FurnaceController(FurnaceRegister):
                 raise NotImplementedError(
                     "We have not implemented {} segment type".format(segment_type.name)
                 )
+
+        logger.log("Set a segment {} with {}".format(i, dict(
+            segment_type=segment_type,
+            target_setpoint=target_setpoint,
+            duration=duration,
+            ramp_rate_per_sec=ramp_rate_per_sec,
+            time_to_target=target_setpoint,
+        )))
