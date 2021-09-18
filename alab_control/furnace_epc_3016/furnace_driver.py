@@ -329,9 +329,9 @@ class FurnaceController(FurnaceRegister):
         """
         current_segment_type: Optional[SegmentType] = None
         configured_segments = []
-        while (current_segment_type is None
-               or current_segment_type != SegmentType.END
-               or len(configured_segments) >= 25):
+        while (len(configured_segments) < 25
+               and (current_segment_type is None
+                    or current_segment_type != SegmentType.END)):
             current_segment = self._read_segment_i(len(configured_segments) + 1)
             current_segment_type = current_segment_type["segment_type"]
             configured_segments.append(current_segment)
