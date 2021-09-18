@@ -8,6 +8,8 @@ This program will demonstrate how a workflow between robot and furnace can be do
 6. Once the dwelling is done, the furnace turns off, and automatically send a signal when it is already cold (periodic checking is set)
 7. Robot automatically opens the furnace, take the crucible out, and close the furnace
 """
+import logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(filename)s-- %(message)s")
 
 import msvcrt
 import threading
@@ -18,10 +20,10 @@ from alab_control.furnace_epc_3016.furnace_driver import FurnaceController, Segm
 from alab_control.robot_arm_ur5e import URRobot
 
 # Input
-ROBOT_IP = "192.168.182.132"
+ROBOT_IP = "192.168.111.112"
 FURNACE_IP = "192.168.111.222"
 SET_POINT = 30  # Set point temperature in Celsius
-RAMP_TIME = 6  # Ramp time in minutes
+RAMP_TIME = 3  # Ramp time in minutes
 DWELL_TIME = 1  # Dwell time in minutes
 
 
@@ -63,9 +65,8 @@ class MyFurnace(FurnaceController):
     def simple_heating(self, set_point, ramp_time, dwell_time):
         self._configure_segment_i(i=1, segment_type=SegmentType.RAMP_TIME, target_setpoint=set_point,
                                   time_to_target=timedelta(minutes=ramp_time))
-        self._configure_segment_i(i=2, segment_type=SegmentType.DWELL, duration=timedelta(minutes=dwell_time))
-        self._configure_segment_i(i=3, segment_type=SegmentType.STEP, target_setpoint=0)
-        self._configure_segment_i(i=4, segment_type=SegmentType.END)
+        self._configure_segment_i(i=2, segment_type=SegmentType.STEP, target_setpoint=0)
+        self._configure_segment_i(i=3, segment_type=SegmentType.END)
 
 
 class MyURRobot(URRobot):
@@ -73,10 +74,16 @@ class MyURRobot(URRobot):
         super(MyURRobot, self).__init__(*args, **kwargs)
         self.status = "idle"  # idle, in, out
         self.mode = "STOPPED"  # STOPPED, PLAYING, PAUSED
+        self.previous_mode = "STOPPED"
 
     def check_status(self):
+        self.previous_mode = self.mode
         self.mode = self.get_current_mode().name
-
+        if self.previous_mode!=self.mode:
+                if self.previous_mode=="PLAYING" and self.mode=="STOPPED" and self.status=="in":
+                    self.status="idle"
+                if self.previous_mode=="PLAYING" and self.mode=="STOPPED" and self.status=="out":
+                    self.status="idle"
 
 class MyButtons:
     def __init__(self):
@@ -127,8 +134,7 @@ def status_checking_and_event_handler(furnace, robot, buttons):
             if robot.status == "idle" and furnace.status == "idle" and robot.mode == "STOPPED":
                 # Play button pressed (Crucible ready) [Event 0]
                 robot.status = "in"
-                robot.load("load_in_crucible")  # !!!
-                robot.play()
+                robot.run_program("load_in_crucible")
             if robot.mode == "PAUSED":
                 # Continue any ongoing task [Event 6]
                 furnace.run_program()
@@ -140,8 +146,7 @@ def status_checking_and_event_handler(furnace, robot, buttons):
         if furnace.status == "idle" and furnace_status_temp == "running":
             # Furnace has done heating and cooling down [Event 2-4]
             robot.status = "out"
-            robot.load("take_out_crucible")  # !!!
-            robot.play()
+            robot.run_program("take_out_crucible")
     robot_status_temp = robot.status
     robot.check_status()
     if robot.status != robot_status_temp:
