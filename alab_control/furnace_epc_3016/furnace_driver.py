@@ -4,7 +4,7 @@ from datetime import timedelta
 from enum import Enum, unique
 from pathlib import Path
 from threading import Lock
-from typing import NamedTuple, Optional, Dict, Any, Callable
+from typing import NamedTuple, Optional, Dict, Any, Callable, List
 
 from pyModbusTCP.client import ModbusClient
 
@@ -158,7 +158,7 @@ class FurnaceRegister:
         return {name: info.address for name, info in self._register.items()}
 
     @property
-    def address(self):
+    def address(self) -> str:
         """
         The address to the modbus server
         """
@@ -264,7 +264,7 @@ class FurnaceController(FurnaceRegister):
         if self["Programmer.Run.ProgramNumber"] != 1:
             self["Programmer.Run.ProgramNumber"] = 1
         if self.is_running():
-            raise Exception("The program is running")
+            raise Exception("A program is still running")
         self["Programmer.Setup.Run"] = 1
         logger.info("Current program starts to run")
 
@@ -277,7 +277,7 @@ class FurnaceController(FurnaceRegister):
 
     def reset_program(self):
         """
-        Reset current program
+        Stop current program
         """
         self["Programmer.Setup.Reset"] = 1
         logger.info("Program reset")
@@ -322,6 +322,20 @@ class FurnaceController(FurnaceRegister):
             "ramp_rate_per_sec": float(self["Segment.{}.RampRate".format(i)] / 10),
             "time_to_target": timedelta(seconds=self["Segment.{}.TimeToTarget".format(i)]),
         }
+
+    def read_configured_segments(self) -> List[Dict[str, Any]]:
+        """
+        Read all the configured segments and return them
+        """
+        current_segment_type: Optional[SegmentType] = None
+        configured_segments = []
+        while (len(configured_segments) < 25
+               and (current_segment_type is None
+                    or current_segment_type != SegmentType.END)):
+            current_segment = self._read_segment_i(len(configured_segments) + 1)
+            current_segment_type = current_segment_type["segment_type"]
+            configured_segments.append(current_segment)
+        return configured_segments
 
     def _configure_segment_i(
             self,
@@ -380,7 +394,7 @@ class FurnaceController(FurnaceRegister):
                     "We have not implemented {} segment type".format(segment_type.name)
                 )
 
-        logger.info("Set a segment {} with {}".format(i, dict(
+        logger.info("Set segment {} with {}".format(i, dict(
             segment_type=segment_type,
             target_setpoint=target_setpoint,
             duration=duration,

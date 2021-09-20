@@ -6,7 +6,7 @@ Universal Robot e-Series
 import logging
 import socket
 import time
-from enum import unique, Enum
+from enum import unique, Enum, auto
 from threading import Lock, Timer
 from typing import Optional
 
@@ -20,9 +20,24 @@ class ProgramStatus(Enum):
     """
     Status of program
     """
-    STOPPED = 0
-    PLAYING = 1
-    PAUSED = 2
+    STOPPED = auto()
+    PLAYING = auto()
+    PAUSED = auto()
+
+
+@unique
+class SafeStatus(Enum):
+    NORMAL = auto()
+    REDUCED = auto()
+    PROTECTIVE_STOP = auto()
+    RECOVERY = auto()
+    SAFEGUARD_STOP = auto()
+    SYSTEM_EMERGENCY_STOP = auto()
+    ROBOT_EMERGENCY_STOP = auto()
+    VIOLATION = auto()
+    FAULT = auto()
+    AUTOMATIC_MODE_SAFEGUARD_STOP = auto()
+    SYSTEM_THREE_POSITION_ENABLING_STOP = auto()
 
 
 class URRobotError(Exception):
@@ -93,10 +108,10 @@ class URRobot:
             name: the path of program file (*.urp) in the ur dashboard or
                 predefined name in the PREDEFINED_PROGRAM
         """
-        self.wait_for_finish()
-        program_path = PREDEFINED_PROGRAM.get(name, name)
-        self.load(program_path)
-        logger.info("Run program: {}".format(program_path))
+        if self.is_running():
+            raise URRobotError("There is still a program running!")
+        self.load(name)
+        logger.info("Run program: {}".format(name))
         self.play()
 
     def is_running(self) -> bool:
@@ -104,7 +119,12 @@ class URRobot:
         Return if there is a program running in the robot arm
         """
         response = self.send_cmd("running")
-        return "true" in response
+        if "true" in response:
+            return True
+        elif "false" in response:
+            return False
+        else:
+            raise URRobotError("Unexpected response for is_running query: {}".format(response))
 
     def wait_for_finish(self):
         """
@@ -114,27 +134,44 @@ class URRobot:
             continue
         return
 
-    def load(self, program_path: str):
+    def load(self, name: str):
         """
-        Load program in specific `program_path`
+        Load program with `name`
+
+        Args:
+            name: the path of program file (*.urp) in the ur dashboard or
+                predefined name in the PREDEFINED_PROGRAM
         """
+        program_path = PREDEFINED_PROGRAM.get(name, name)
         response = self.send_cmd("load {}".format(program_path))
-        self._raise_for_unexpected_prefix(response, "Loading program")
+        try:
+            self._raise_for_unexpected_prefix(response, "Loading program")
+        except URRobotError as e:
+            if not response.endswith(".urp"):
+                e.args = (e.args[0] + " Your file seems not to be a valid "
+                                      "program name, did you define it in "
+                                      "the predefined program dict?",)
 
     def play(self):
         """
         Play loaded program
         """
         response = self.send_cmd("play")
-        self._raise_for_unexpected_prefix(response, "Starting program")
+        try:
+            self._raise_for_unexpected_prefix(response, "Starting program")
+        except URRobotError as e:
+            # add more hints for debug
+            e.args = (e.args[0] + " Did you remember to load program or did "
+                                  "you stop the program by accident?",)
+            raise
 
     def stop(self):
         """
         Terminate the program, which cannot be started again
 
-        If there is no program running, it will return directly
+        If there is no program running (STOPPED), it will return directly
         """
-        if not self.is_running():
+        if self.get_current_mode() == ProgramStatus.STOPPED:
             return
         response = self.send_cmd("stop")
         self._raise_for_unexpected_prefix(response, "Stopped")
@@ -169,7 +206,12 @@ class URRobot:
         Returns:
             Choice of [STOPPED, PLAYING, PAUSED]
         """
-        return ProgramStatus[self.send_cmd("programState").split(" ")[0]]
+        response = self.send_cmd("programState")
+        state_string = response.split(" ")[0]
+        try:
+            return ProgramStatus[state_string]
+        except KeyError:
+            raise URRobotError("Get unexpected program status query result: {}".format(response))
 
     @property
     def loaded_program(self) -> Optional[str]:
@@ -177,15 +219,25 @@ class URRobot:
         Get the path of currently loaded program
         """
         response = self.send_cmd("get loaded program")
-        return response if "No program loaded" not in response else None
+        if response.startswith("No program loaded"):
+            return None
+        elif response.endswith(".urp") or response.endswith(".urscript"):
+            return response
+        raise URRobotError("Unexpected result for loaded_program query: {}".format(response))
 
     def is_remote_mode(self) -> bool:
         """
         Check if the machine is in remote mode
         """
-        return bool(self.send_cmd("is in remote control").capitalize())
+        response = self.send_cmd("is in remote control")
+        if response == "true":
+            return True
+        elif response == "false":
+            return False
+        else:
+            raise URRobotError("Unexpected result for is_remote_mode query: {}".format(response))
 
-    def get_safety_status(self):
+    def get_safety_status(self) -> SafeStatus:
         """
         Get current safety status
         Returns:
@@ -193,7 +245,11 @@ class URRobot:
                 SYSTEM_EMERGENCY_STOP, ROBOT_EMERGENCY_STOP, VIOLATION, FAULT,
                 AUTOMATIC_MODE_SAFEGUARD_STOP, SYSTEM_THREE_POSITION_ENABLING_STOP]
         """
-        return self.send_cmd("safetystatus")
+        response = self.send_cmd("safetystatus")
+        try:
+            return SafeStatus[response]
+        except KeyError:
+            raise URRobotError("Unexpected response for safety status query: {}".format(response))
 
     @staticmethod
     def _raise_for_unexpected_prefix(response: str, prefix: str):
