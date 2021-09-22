@@ -85,11 +85,11 @@ class SegmentType(Enum):
             duration: Optional[timedelta] = None,
             ramp_rate_per_sec: Optional[float] = None,
             time_to_target: Optional[timedelta] = None,
-    ) -> "SegmentArgs":
+    ) -> "Segment":
         """
         A convenient method to create a segment configuration
         """
-        return SegmentArgs(
+        return Segment(
             segment_type=self,
             target_setpoint=target_setpoint,
             duration=duration,
@@ -108,7 +108,7 @@ class ProgramEndType(Enum):
     TRACK = 2
 
 
-class SegmentArgs(NamedTuple):
+class Segment(NamedTuple):
     """
     The arguments for configuring
     """
@@ -307,11 +307,11 @@ class FurnaceController(FurnaceRegister):
         """
         return ProgramMode(self["Programmer.Run.Mode"])
 
-    def run_program(self, *segment_args: SegmentArgs):
+    def run_program(self, *segments: Segment):
         """
-        Set and run the program specified in segment_args
+        Set and run the program specified in segments
         """
-        self.configure_segments(*segment_args)
+        self.configure_segments(*segments)
         self.play()
 
     def play(self):
@@ -414,7 +414,7 @@ class FurnaceController(FurnaceRegister):
             configured_segments.append(current_segment)
         return configured_segments
 
-    def configure_segments(self, *segment_args: SegmentArgs):
+    def configure_segments(self, *segments: Segment):
         """
         Configure a program with several segments
 
@@ -422,14 +422,14 @@ class FurnaceController(FurnaceRegister):
             If there is no end segment in the end, we will add one automatically.
             If there is end segment in the middle, a warning will be thrown.
         """
-        segment_args = list(segment_args)
-        if segment_args[-1].segment_type != SegmentType.END:
-            segment_args.append(SegmentArgs(segment_type=SegmentType.END))
+        segments = list(segments)
+        if segments[-1].segment_type != SegmentType.END:
+            segments.append(Segment(segment_type=SegmentType.END))
 
-        for i, segment_arg in enumerate(segment_args, start=1):
-            if i != len(segment_args) - 1 and segment_arg.segment_type == SegmentType.END:
+        for i, segment_arg in enumerate(segments, start=1):
+            if i != len(segments) - 1 and segment_arg.segment_type == SegmentType.END:
                 logger.warning("Unexpected END segment in the middle of segment ({}/{}), are you sure this is really "
-                               "what you want?".format(i, len(segment_args)))
+                               "what you want?".format(i, len(segments)))
             self._configure_segment_i(i=i, **segment_arg.as_dict())
 
     def _configure_segment_i(
