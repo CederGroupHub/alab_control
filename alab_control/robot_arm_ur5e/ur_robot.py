@@ -142,6 +142,8 @@ class URRobot:
             name: the path of program file (*.urp) in the ur dashboard or
                 predefined name in the PREDEFINED_PROGRAM
         """
+        if not self.is_remote_mode():
+            raise URRobotError("The robot arm should be in remote mode.")
         program_path = PREDEFINED_PROGRAM.get(name, name)
         response = self.send_cmd("load {}".format(program_path))
         try:
@@ -156,6 +158,8 @@ class URRobot:
         """
         Play loaded program
         """
+        if not self.is_remote_mode():
+            raise URRobotError("The robot arm should be in remote mode.")
         response = self.send_cmd("play")
         try:
             self._raise_for_unexpected_prefix(response, "Starting program")
