@@ -330,7 +330,7 @@ class FurnaceController(FurnaceRegister):
         """
         Whether the program is running
         """
-        return self.program_mode == ProgramMode.RUN
+        return self.program_mode == ProgramMode.RUN or self.current_temperature >= self.SAFETY_TEMPERATURE
 
     @property
     def left_time(self) -> int:
