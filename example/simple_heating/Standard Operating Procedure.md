@@ -1,3 +1,5 @@
+## Standard Operating Procedure (SOP) for Simple Heating
+This SOP is an example for a more generalized SOP.
 1. Make sure all devices are turned on and router detects every ethernet connection (blipping LED lights).
 2. Set Robot IP address to static IP. Input the IP address according to furnace subnet.
 3. Set PC IP address according to furnace subnet by changing ethernet network properties.
