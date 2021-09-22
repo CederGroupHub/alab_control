@@ -79,6 +79,24 @@ class SegmentType(Enum):
     STEP = 4
     CALL = 5
 
+    def __call__(
+            self,
+            target_setpoint: Optional[float] = None,
+            duration: Optional[timedelta] = None,
+            ramp_rate_per_sec: Optional[float] = None,
+            time_to_target: Optional[timedelta] = None,
+    ) -> "SegmentArgs":
+        """
+        A convenient method to create a segment configuration
+        """
+        return SegmentArgs(
+            segment_type=self,
+            target_setpoint=target_setpoint,
+            duration=duration,
+            ramp_rate_per_sec=ramp_rate_per_sec,
+            time_to_target=time_to_target
+        )
+
 
 @unique
 class ProgramEndType(Enum):
@@ -135,8 +153,6 @@ class FurnaceRegister:
     """
     An abstraction of furnace register
     """
-    # temperature that allows for safe operations (in degree C)
-    SAFETY_TEMPERATURE = 40
 
     def __init__(
             self,
@@ -265,6 +281,8 @@ class FurnaceController(FurnaceRegister):
     """
     Implement higher-level functionalities over EPC 3016 heat controller register
     """
+    # temperature that allows for safe operations (in degree C)
+    _SAFETY_TEMPERATURE = 40
 
     @property
     def current_temperature(self) -> int:
@@ -326,11 +344,15 @@ class FurnaceController(FurnaceRegister):
         self["Programmer.Setup.Reset"] = 1
         logger.info("Program reset")
 
+    def stop(self):
+        self.reset_program()
+
     def is_running(self) -> bool:
         """
         Whether the program is running
         """
-        return self.program_mode == ProgramMode.RUN or self.current_temperature >= self.SAFETY_TEMPERATURE
+        return (self.program_mode == ProgramMode.RUN
+                or self.current_temperature >= self._SAFETY_TEMPERATURE)
 
     @property
     def left_time(self) -> int:
@@ -436,6 +458,7 @@ class FurnaceController(FurnaceRegister):
             time_to_target: the time needed to reach the final
                 temperature (only for RAMP_TIME)
         """
+
         def _warn_for_extra_arg(name: str, _locals):
             """
             Warning when some variable should not be set for this segment type

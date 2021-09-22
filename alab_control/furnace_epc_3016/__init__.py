@@ -1,1 +1,1 @@
-from .furnace_driver import FurnaceController
+from .furnace_driver import FurnaceController, SegmentType, SegmentArgs
