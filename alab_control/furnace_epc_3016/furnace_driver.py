@@ -80,19 +80,52 @@ class SegmentType(Enum):
     CALL = 5
 
 
+@unique
+class ProgramEndType(Enum):
+    """
+    What to do when a program ends
+    """
+    DWELL = 0
+    RESET = 1
+    TRACK = 2
+
+
+class SegmentArgs(NamedTuple):
+    """
+    The arguments for configuring
+    """
+    segment_type: SegmentType
+    target_setpoint: Optional[float] = None
+    duration: Optional[timedelta] = None
+    ramp_rate_per_sec: Optional[float] = None
+    time_to_target: Optional[timedelta] = None
+
+    def as_dict(self):
+        """
+        Returns the dict format of the segment args
+        """
+        return self._asdict()
+
+
 class RegisterInfo(NamedTuple):
     name: str
     description: str
     address: int
 
 
-class FurnaceReadError(Exception):
+class FurnaceError(Exception):
+    """
+    General exception for furnace
+    """
+
+
+class FurnaceReadError(FurnaceError):
     """
     Error raised when failing to read register
     """
 
 
-class FurnaceWriteError(Exception):
+class FurnaceWriteError(FurnaceError):
     """
     Error raised when failing to write to register
     """
@@ -102,6 +135,8 @@ class FurnaceRegister:
     """
     An abstraction of furnace register
     """
+    # temperature that allows for safe operations (in degree C)
+    SAFETY_TEMPERATURE = 40
 
     def __init__(
             self,
@@ -254,7 +289,14 @@ class FurnaceController(FurnaceRegister):
         """
         return ProgramMode(self["Programmer.Run.Mode"])
 
-    def run_program(self):
+    def run_program(self, *segment_args: SegmentArgs):
+        """
+        Set and run the program specified in segment_args
+        """
+        self.configure_segments(*segment_args)
+        self.play()
+
+    def play(self):
         """
         Start to run current program
 
@@ -263,8 +305,10 @@ class FurnaceController(FurnaceRegister):
         """
         if self["Programmer.Run.ProgramNumber"] != 1:
             self["Programmer.Run.ProgramNumber"] = 1
+        if self.program_end_type != ProgramEndType.RESET:  # we reset the program when it is finished
+            self.program_end_type = ProgramEndType.RESET
         if self.is_running():
-            raise Exception("A program is still running")
+            raise FurnaceError("A program is still running")
         self["Programmer.Setup.Run"] = 1
         logger.info("Current program starts to run")
 
@@ -313,6 +357,17 @@ class FurnaceController(FurnaceRegister):
         """
         return self["WorkingProgram.NumConfSegments"]
 
+    @property
+    def program_end_type(self) -> ProgramEndType:
+        """
+        Return the action when a program ends
+        """
+        return ProgramEndType(self["Program.1.ProgramEndType"])
+
+    @program_end_type.setter
+    def program_end_type(self, end_type: ProgramEndType):
+        self["Program.1.ProgramEndType"] = end_type.value
+
     def _read_segment_i(self, i: int) -> Dict[str, Any]:
         return {
             "segment_type": SegmentType(self["Segment.{}.SegmentType".format(i)]),
@@ -336,6 +391,24 @@ class FurnaceController(FurnaceRegister):
             current_segment_type = current_segment_type["segment_type"]
             configured_segments.append(current_segment)
         return configured_segments
+
+    def configure_segments(self, *segment_args: SegmentArgs):
+        """
+        Configure a program with several segments
+
+        Notes:
+            If there is no end segment in the end, we will add one automatically.
+            If there is end segment in the middle, a warning will be thrown.
+        """
+        segment_args = list(segment_args)
+        if segment_args[-1].segment_type != SegmentType.END:
+            segment_args.append(SegmentArgs(segment_type=SegmentType.END))
+
+        for i, segment_arg in enumerate(segment_args, start=1):
+            if i != len(segment_args) - 1 and segment_arg.segment_type == SegmentType.END:
+                logger.warning("Unexpected END segment in the middle of segment ({}/{}), are you sure this is really "
+                               "what you want?".format(i, len(segment_args)))
+            self._configure_segment_i(i=i, **segment_arg.as_dict())
 
     def _configure_segment_i(
             self,
@@ -363,6 +436,16 @@ class FurnaceController(FurnaceRegister):
             time_to_target: the time needed to reach the final
                 temperature (only for RAMP_TIME)
         """
+        def _warn_for_extra_arg(name: str, _locals):
+            """
+            Warning when some variable should not be set for this segment type
+            """
+            if name not in _locals:
+                raise KeyError("Unexpect name {} in locals.".format(name))
+            if _locals[name] is not None:
+                value = _locals[name]
+                logger.warning("{} should not be set for {}, but get {}.".format(name, segment_type, value))
+
         if not 1 <= i <= 25:
             raise ValueError("i should be in 1 ~ 25, but get {}.".format(i))
 
@@ -373,26 +456,41 @@ class FurnaceController(FurnaceRegister):
                 self["Program.1.RampUnits"] = TimeUnit.SECOND.value
             self["Segment.{}.TargetSetpoint".format(i)] = int(target_setpoint)
             self["Segment.{}.RampRate".format(i)] = int(ramp_rate_per_sec * 10)
+            _warn_for_extra_arg("duration", locals())
+            _warn_for_extra_arg("time_to_target", locals())
 
         elif segment_type is SegmentType.RAMP_TIME:
             if self["Program.1.DwellUnits"] != TimeUnit.SECOND.value:
                 self["Program.1.DwellUnits"] = TimeUnit.SECOND.value
             self["Segment.{}.TargetSetpoint".format(i)] = int(target_setpoint)
             self["Segment.{}.TimeToTarget".format(i)] = int(time_to_target.total_seconds())
+            _warn_for_extra_arg("duration", locals())
+            _warn_for_extra_arg("ramp_rate_per_sec", locals())
 
         elif segment_type is SegmentType.DWELL:
             if self["Program.1.DwellUnits"] != TimeUnit.SECOND.value:
                 self["Program.1.DwellUnits"] = TimeUnit.SECOND.value
             self["Segment.{}.Duration".format(i)] = int(duration.total_seconds())
+            _warn_for_extra_arg("target_setpoint", locals())
+            _warn_for_extra_arg("ramp_rate_per_sec", locals())
+            _warn_for_extra_arg("time_to_target", locals())
 
         elif segment_type is SegmentType.STEP:
             self["Segment.{}.TargetSetpoint".format(i)] = int(target_setpoint)
+            _warn_for_extra_arg("time_to_target", locals())
+            _warn_for_extra_arg("ramp_rate_per_sec", locals())
+            _warn_for_extra_arg("duration", locals())
+
+        elif segment_type is SegmentType.END:
+            _warn_for_extra_arg("target_setpoint", locals())
+            _warn_for_extra_arg("time_to_target", locals())
+            _warn_for_extra_arg("ramp_rate_per_sec", locals())
+            _warn_for_extra_arg("duration", locals())
 
         else:
-            if segment_type is not segment_type.END:
-                raise NotImplementedError(
-                    "We have not implemented {} segment type".format(segment_type.name)
-                )
+            raise NotImplementedError(
+                "We have not implemented {} segment type".format(segment_type.name)
+            )
 
         logger.info("Set segment {} with {}".format(i, dict(
             segment_type=segment_type,
