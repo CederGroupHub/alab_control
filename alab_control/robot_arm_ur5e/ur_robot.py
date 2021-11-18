@@ -149,11 +149,12 @@ class URRobot:
         try:
             self._raise_for_unexpected_prefix(response, "Loading program")
         except URRobotError as e:
-            if not response.endswith(".urp"):
+            if response.endswith(".urp"):
                 e.args = (e.args[0] + " Your file seems not to be a valid "
                                       "program name, did you define it in "
                                       "the predefined program dict?",)
-
+            raise
+        
     def play(self):
         """
         Play loaded program
