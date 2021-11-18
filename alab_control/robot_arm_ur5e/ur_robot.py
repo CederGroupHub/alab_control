@@ -7,7 +7,7 @@ import logging
 import socket
 import time
 from enum import unique, Enum, auto
-from threading import Lock, Timer
+from threading import Lock
 from typing import Optional
 
 from .program_list import PREDEFINED_PROGRAM
@@ -96,7 +96,8 @@ class URRobot:
                 raise URRobotError("Maximum retries reached, but still no response.")
             logger.debug("Receive response: {}".format(response))
         finally:
-            Timer(0.1, self._mutex_lock.release).start()
+            time.sleep(0.1)
+            self._mutex_lock.release()
 
         return response
 
@@ -154,7 +155,7 @@ class URRobot:
                                       "program name, did you define it in "
                                       "the predefined program dict?",)
             raise
-        
+
     def play(self):
         """
         Play loaded program
@@ -169,6 +170,12 @@ class URRobot:
             e.args = (e.args[0] + " Did you remember to load program or did "
                                   "you stop the program by accident?",)
             raise
+
+        cnt = 0
+        while not self.is_running() and cnt <= 10:
+            cnt += 1
+        else:
+            raise URRobotError("The program was not run successfully.")
 
     def stop(self):
         """

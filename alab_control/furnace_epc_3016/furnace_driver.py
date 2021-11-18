@@ -1,4 +1,5 @@
 import logging
+import time
 from csv import DictReader
 from datetime import timedelta
 from enum import Enum, unique
@@ -242,6 +243,7 @@ class FurnaceRegister:
             if value is None:
                 raise FurnaceReadError("Cannot read register {}".format(register_name))
         finally:
+            time.sleep(0.1)
             self._mutex_lock.release()
 
         logger.debug("Read register {}: {}".format(register_name, value))
@@ -269,6 +271,7 @@ class FurnaceRegister:
                 register_info.address, value
             )
         finally:
+            time.sleep(0.1)
             self._mutex_lock.release()
 
         logger.debug("Write to register {}: {}".format(register_name, value))
@@ -329,6 +332,12 @@ class FurnaceController(FurnaceRegister):
             raise FurnaceError("A program is still running")
         self["Programmer.Setup.Run"] = 1
         logger.info("Current program starts to run")
+
+        cnt = 0
+        while not self.is_running() and cnt <= 10:
+            cnt += 1
+        else:
+            raise FurnaceError("The program was not run successfully.")
 
     def hold_program(self):
         """
