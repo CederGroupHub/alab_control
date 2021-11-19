@@ -171,11 +171,8 @@ class URRobot:
                                   "you stop the program by accident?",)
             raise
 
-        cnt = 0
-        while not self.is_running() and cnt <= 10:
-            cnt += 1
-        else:
-            raise URRobotError("The program was not run successfully.")
+        while not self.is_running():
+            continue
 
     def stop(self):
         """
@@ -241,7 +238,7 @@ class URRobot:
         """
         Check if the machine is in remote mode
         """
-        response = self.send_cmd("is in remote control")
+        response = self.send_cmd("is in remote control").strip("\n ")
         if response == "true":
             return True
         elif response == "false":

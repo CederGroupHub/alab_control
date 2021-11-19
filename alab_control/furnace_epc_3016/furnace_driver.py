@@ -333,11 +333,8 @@ class FurnaceController(FurnaceRegister):
         self["Programmer.Setup.Run"] = 1
         logger.info("Current program starts to run")
 
-        cnt = 0
-        while not self.is_running() and cnt <= 10:
-            cnt += 1
-        else:
-            raise FurnaceError("The program was not run successfully.")
+        while not self.is_running():
+            continue
 
     def hold_program(self):
         """
@@ -360,7 +357,7 @@ class FurnaceController(FurnaceRegister):
         """
         Whether the program is running
         """
-        return (self.program_mode == ProgramMode.RUN
+        return (self.program_mode == ProgramMode.RUN or self.program_mode == ProgramMode.HOLDBACK
                 or self.current_temperature >= self._SAFETY_TEMPERATURE)
 
     @property
@@ -436,7 +433,7 @@ class FurnaceController(FurnaceRegister):
             segments.append(Segment(segment_type=SegmentType.END))
 
         for i, segment_arg in enumerate(segments, start=1):
-            if i != len(segments) - 1 and segment_arg.segment_type == SegmentType.END:
+            if i != len(segments) and segment_arg.segment_type == SegmentType.END:
                 logger.warning("Unexpected END segment in the middle of segment ({}/{}), are you sure this is really "
                                "what you want?".format(i, len(segments)))
             self._configure_segment_i(i=i, **segment_arg.as_dict())
