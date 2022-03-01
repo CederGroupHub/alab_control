@@ -1,1 +1,2 @@
 pyModbusTCP
+pymodbus >= 2.5.3
