@@ -91,7 +91,7 @@ class SegmentType(Enum):
             self,
             target_setpoint: Optional[float] = None,
             duration: Optional[timedelta] = None,
-            ramp_rate_per_sec: Optional[float] = None,
+            ramp_rate_per_min: Optional[float] = None,
             endt: Optional[ProgramEndType] = None,
     ) -> "Segment":
         """
@@ -101,7 +101,7 @@ class SegmentType(Enum):
             segment_type=self,
             target_setpoint=target_setpoint,
             duration=duration,
-            ramp_rate_per_sec=ramp_rate_per_sec,
+            ramp_rate_per_min=ramp_rate_per_min,
             endt=endt,
         )
 
@@ -113,7 +113,7 @@ class Segment(NamedTuple):
     segment_type: SegmentType
     target_setpoint: Optional[float] = None
     duration: Optional[timedelta] = None
-    ramp_rate_per_sec: Optional[float] = None
+    ramp_rate_per_min: Optional[float] = None
     endt: Optional[ProgramEndType] = None
 
     def as_dict(self):
@@ -155,21 +155,19 @@ class FurnaceRegister:
     def __init__(
             self,
             *,
-            slave_id: Optional[int] = 1,
             port: str = "COM3",
             baudrate: int = 9600,
             timeout: Optional[float] = 30.,
     ):
         """
         Args:
-            slave_id: the slave id of the furnace, default to 0x01
             port: the port of modbus communication
             baudrate: the baud rate for serial communication
             timeout: waiting time for response
         """
         self._port = port
-        self._slave_id = slave_id
         self._modbus_client = ModbusSerialClient(method='rtu', port=port, timeout=timeout, baudrate=baudrate)
+        self._modbus_client.connect()
         self._mutex_lock = Lock()
         self._register = self.load_register_list()
 
@@ -186,7 +184,7 @@ class FurnaceRegister:
             for registry_entry in csv_reader:
                 registers[registry_entry["parameter"]] = RegisterInfo(
                     name=registry_entry["parameter"],
-                    access=registry_entry["access"],
+                    access=int(registry_entry["access"]),
                     address=int(registry_entry["address"]),
                 )
 
@@ -221,10 +219,14 @@ class FurnaceRegister:
 
         try:
             value = self._modbus_client.read_holding_registers(
-                register_info.address, reg_nb=1
+                register_info.address, 1, unit=1
             )
-            if value is None:
-                raise FurnaceReadError("Cannot read register {}".format(register_name))
+            if isinstance(value, Exception):
+                raise FurnaceReadError(
+                    "Cannot read register {} ({})".format(register_name, register_info.address)
+                ) from value
+
+            value = value.registers
         finally:
             time.sleep(0.1)
             self._mutex_lock.release()
@@ -250,8 +252,8 @@ class FurnaceRegister:
         self._mutex_lock.acquire()
 
         try:
-            response = self._modbus_client.write_register(
-                address=register_info.address, value=value
+            response = self._modbus_client.write_registers(
+                address=register_info.address, values=value, unit=1
             )
         finally:
             time.sleep(0.1)
@@ -259,8 +261,8 @@ class FurnaceRegister:
 
         logger.debug("Write to register {}: {}".format(register_name, value))
 
-        if response is None:
-            raise FurnaceWriteError("Fails to write to register: {}".format(register_name))
+        if isinstance(response, Exception):
+            raise FurnaceWriteError("Fails to write to register: {}".format(register_name)) from response
 
 
 class FurnaceController(FurnaceRegister):
@@ -342,11 +344,13 @@ class FurnaceController(FurnaceRegister):
 
     def _read_segment_i(self, i: int) -> Dict[str, Any]:
         return {
-            "segment_type": SegmentType(self["Programmer.Program_01.Segment.{:02}.tYPE".format(i)]),
-            "target_setpoint": float(self["Programmer.Program_01.Segment.{:02}.tGt".format(i)]),
-            "duration": timedelta(seconds=self["Programmer.Program_01.Segment.{:02}.dur".format(i)]),
-            "ramp_rate_per_sec": float(self["Programmer.Program_01.Segment.{:02}.rAtE".format(i)]),
-            "endt": ProgramEndType(self["Programmer.Program_01.Segment.{:02}.endt".format(i)])
+            "segment_type": SegmentType(self["Programmer.Program_01.Segment_{:02}.tYPE".format(i)]),
+            "target_setpoint": float(self["Programmer.Program_01.Segment_{:02}.tGt".format(i)]),
+            "duration": timedelta(minutes=self["Programmer.Program_01.Segment_{:02}.dur".format(i)] / 10),
+            "ramp_rate_per_min": float(self["Programmer.Program_01.Segment_{:02}.rAtE".format(i)] / 10),
+            "endt": ProgramEndType(self["Programmer.Program_01.Segment_{:02}.endt".format(i)])
+            if self["Programmer.Program_01.Segment_{:02}.endt".format(i)] in set(item.value for item in ProgramEndType)
+            else None
         }
 
     def read_configured_segments(self) -> List[Dict[str, Any]]:
@@ -374,6 +378,10 @@ class FurnaceController(FurnaceRegister):
         segments = list(segments)
         if segments[-1].segment_type != SegmentType.END:
             segments.append(Segment(segment_type=SegmentType.END, endt=ProgramEndType.STOP))
+        if self["Programmer.Program_01.dwLU"] != TimeUnit.MINUTE.value:
+            self["Programmer.Program_01.dwLU"] = TimeUnit.MINUTE.value
+        if self["Programmer.Program_01.rmPU"] != TimeUnit.MINUTE.value:
+            self["Programmer.Program_01.rmPU"] = TimeUnit.MINUTE.value
 
         for i, segment_arg in enumerate(segments, start=1):
             if i != len(segments) and segment_arg.segment_type == SegmentType.END:
@@ -387,14 +395,11 @@ class FurnaceController(FurnaceRegister):
             segment_type: SegmentType,
             target_setpoint: Optional[float] = None,
             duration: Optional[timedelta] = None,
-            ramp_rate_per_sec: Optional[float] = None,
+            ramp_rate_per_min: Optional[float] = None,
             endt: Optional[ProgramEndType] = None,
     ):
         """
         Build segment i with all the parameters given
-
-        Notes:
-            `ramp_rate_per_sec` is scaled by 10 when writing
 
         Args:
             i: the order of segment
@@ -402,7 +407,7 @@ class FurnaceController(FurnaceRegister):
             target_setpoint: the temperature you want to reach in the
                 end of the segment (only for RAMP_RATE/RAMP_TIME)
             duration: the duration (only for DWELL)
-            ramp_rate_per_sec: the rate of temperature change per sec
+            ramp_rate_per_min: the rate of temperature change per sec
                 (degree C / sec) (only for RAMP_RATE)
             endt: ProgramEndType
         """
@@ -420,43 +425,37 @@ class FurnaceController(FurnaceRegister):
         if not 1 <= i <= 16:
             raise ValueError("i should be in 1 ~ 16, but get {}.".format(i))
 
-        self["Programmer.Program_01.Segment.{:02}.tYPE".format(i)] = segment_type.value
+        self["Programmer.Program_01.Segment_{:02}.tYPE".format(i)] = segment_type.value
 
         if segment_type is SegmentType.RAMP_RATE:
-            if self["Programmer.Program_01.rmPU"] != TimeUnit.SECOND.value:
-                self["Programmer.Program_01.rmPU"] = TimeUnit.SECOND.value
-            self["Programmer.Program_01.Segment.{:02}.tGt".format(i)] = int(target_setpoint)
-            self["Programmer.Program_01.Segment.{:02}.rAtE".format(i)] = int(ramp_rate_per_sec)
+            self["Programmer.Program_01.Segment_{:02}.tGt".format(i)] = int(target_setpoint)
+            self["Programmer.Program_01.Segment_{:02}.rAtE".format(i)] = int(ramp_rate_per_min * 10)
             _warn_for_extra_arg("duration", locals())
             _warn_for_extra_arg("endt", locals())
 
         elif segment_type is SegmentType.RAMP_TIME:
-            if self["Programmer.Program_01.dwLU"] != TimeUnit.SECOND.value:
-                self["Programmer.Program_01.dwLU"] = TimeUnit.SECOND.value
-            self["Programmer.Program_01.Segment.{:02}.tGt".format(i)] = int(target_setpoint)
-            self["Programmer.Program_01.Segment.{:02}.dur".format(i)] = int(duration.total_seconds())
-            _warn_for_extra_arg("ramp_rate_per_sec", locals())
+            self["Programmer.Program_01.Segment_{:02}.tGt".format(i)] = int(target_setpoint)
+            self["Programmer.Program_01.Segment_{:02}.dur".format(i)] = int(duration.total_seconds() / 6)
+            _warn_for_extra_arg("ramp_rate_per_min", locals())
             _warn_for_extra_arg("endt", locals())
 
         elif segment_type is SegmentType.DWELL:
-            if self["Programmer.Program_01.dwLU"] != TimeUnit.SECOND.value:
-                self["Programmer.Program_01.dwLU"] = TimeUnit.SECOND.value
-            self["Programmer.Program_01.Segment.{:02}.dur".format(i)] = int(duration.total_seconds())
+            self["Programmer.Program_01.Segment_{:02}.dur".format(i)] = int(duration.total_seconds() / 6)
             _warn_for_extra_arg("target_setpoint", locals())
-            _warn_for_extra_arg("ramp_rate_per_sec", locals())
+            _warn_for_extra_arg("ramp_rate_per_min", locals())
             _warn_for_extra_arg("endt", locals())
 
         elif segment_type is SegmentType.STEP:
-            self["Programmer.Program_01.Segment.{:02}.tGt".format(i)] = int(target_setpoint)
-            _warn_for_extra_arg("ramp_rate_per_sec", locals())
+            self["Programmer.Program_01.Segment_{:02}.tGt".format(i)] = int(target_setpoint)
+            _warn_for_extra_arg("ramp_rate_per_min", locals())
             _warn_for_extra_arg("duration", locals())
             _warn_for_extra_arg("endt", locals())
 
         elif segment_type is SegmentType.END:
-            self["Programmer.Program_01.Segment.{:02}.endt".format(i)] = endt.value
+            self["Programmer.Program_01.Segment_{:02}.endt".format(i)] = endt.value
 
             _warn_for_extra_arg("target_setpoint", locals())
-            _warn_for_extra_arg("ramp_rate_per_sec", locals())
+            _warn_for_extra_arg("ramp_rate_per_min", locals())
             _warn_for_extra_arg("duration", locals())
 
         else:
@@ -468,6 +467,6 @@ class FurnaceController(FurnaceRegister):
             segment_type=segment_type,
             target_setpoint=target_setpoint,
             duration=duration,
-            ramp_rate_per_sec=ramp_rate_per_sec,
-            endt=endt.value,
+            ramp_rate_per_min=ramp_rate_per_min,
+            endt=endt.value if endt is not None else endt,
         )))
