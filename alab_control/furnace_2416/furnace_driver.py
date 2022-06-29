@@ -267,7 +267,7 @@ class FurnaceRegister:
 
 class FurnaceController(FurnaceRegister):
     """
-    Implement higher-level functionalities over EPC 3016 heat controller register
+    Implement higher-level functionalities over 2416 heat controller register
     """
     # temperature that allows for safe operations (in degree C)
     _SAFETY_TEMPERATURE = 400
@@ -346,8 +346,8 @@ class FurnaceController(FurnaceRegister):
         return {
             "segment_type": SegmentType(self["Programmer.Program_01.Segment_{:02}.tYPE".format(i)]),
             "target_setpoint": float(self["Programmer.Program_01.Segment_{:02}.tGt".format(i)]),
-            "duration": timedelta(minutes=self["Programmer.Program_01.Segment_{:02}.dur".format(i)] / 10),
-            "ramp_rate_per_min": float(self["Programmer.Program_01.Segment_{:02}.rAtE".format(i)] / 10),
+            "duration": timedelta(minutes=float(self["Programmer.Program_01.Segment_{:02}.dur".format(i)]) / 10),
+            "ramp_rate_per_min": float(self["Programmer.Program_01.Segment_{:02}.rAtE".format(i)]) * 0.1,
             "endt": ProgramEndType(self["Programmer.Program_01.Segment_{:02}.endt".format(i)])
             if self["Programmer.Program_01.Segment_{:02}.endt".format(i)] in set(item.value for item in ProgramEndType)
             else None
