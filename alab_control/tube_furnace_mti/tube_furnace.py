@@ -1,7 +1,8 @@
+import re
 import time
-from pathlib import Path, PureWindowsPath
+from pathlib import Path
 from subprocess import Popen
-from typing import Union, Optional, Dict
+from typing import Optional, Dict
 
 import requests
 import win32com.client
@@ -20,33 +21,34 @@ class TubeFurnace:
         "write_data": "/write_data",
     }
 
-    def __init__(self,
-                 exe_path: Union[str, Path],
-                 main_vi_name: str,
-                 temperature_vi_name: str,
-                 active_x_name: str,
-                 base_url: str):
-        if isinstance(exe_path, str):
-            exe_path = Path(exe_path)
-        self.exe_path: Path = exe_path
-        self.main_vi_name = main_vi_name
-        self.temperature_vi_name = temperature_vi_name
-        self.active_x_name = active_x_name
-        self.base_url = base_url
+    def __init__(self, furnace_index: int):
+        if furnace_index < 1 or furnace_index > 4:
+            raise ValueError("Currently only support 4 furnaces")
+        self._furnace_index = furnace_index
+        self.exe_path: Path = Path(__file__).parent / "tube_furnace_MTI" / "builds" / \
+                              f"{furnace_index}" / f"Automatic loading furnace_{furnace_index}.exe"
+        self.main_vi_name = f"Automatic loading tube furnace_{furnace_index}.vi"
+        self.temperature_vi_name = f"AIbus{furnace_index}.vi"
+        self.active_x_name = f"AutomaticLoadingFurnace{furnace_index}.Application"
+        self.base_url = f"http://localhost:800{furnace_index + 4}/Automatic_loading_{furnace_index}"
 
         self._process: Optional[Popen] = None
         self._labview = None
         self._main_vi = None
         self._temperature_vi = None
-        self.start_exe()
+        self._start_exe()
         time.sleep(5)
         self._init()
 
-    def start_exe(self):
+    @property
+    def furnace_index(self) -> int:
+        return self._furnace_index
+
+    def _start_exe(self):
         """
         Start the Labview executable binary in another process.
         """
-        self._process = Popen(self.exe_path.as_posix())
+        self._process: Popen = Popen(self.exe_path.as_posix())
 
     def _init(self):
         """
@@ -82,30 +84,42 @@ class TubeFurnace:
 
     def start_program(self):
         self.autostart()
+        time.sleep(1)
         self.sample_loaded()
+        time.sleep(2)
 
-    def open_door(self, safety_open_temperature=100, pressure_min=90000, pressure_max=110000):
+    def open_door(self, safety_open_temperature=100, pressure_min=90000, pressure_max=110000, timeout=120):
         if self.PV > safety_open_temperature or self.pressure > pressure_max or self.pressure < pressure_min:
             return False
         url = self.base_url + self.URLS["flange"]
         response = requests.get(url, params={"action": "WriteFlangeOpen"})
         response.raise_for_status()
-        time.sleep(30)
-        if not self.flange_state:
-            raise FlangeError("Cannot open the door")
+        seconds = 0
+        while seconds <= timeout:
+            if not self.flange_state:
+                time.sleep(40)
+                return True
+            time.sleep(1)
+            seconds += 1
+        raise FlangeError("Timeout: cannot open the door")
 
-    def close_door(self):
+    def close_door(self, timeout=60):
         url = self.base_url + self.URLS["flange"]
         response = requests.get(url, params={"action": "WriteFlangeClose"})
         response.raise_for_status()
-        time.sleep(30)
-        if not self.flange_state:
-            raise FlangeError("Cannot close the door")
+        seconds = 0
+        while seconds < timeout:
+            if self.flange_state:
+                return True
+            time.sleep(1)
+            seconds += 1
+        raise FlangeError("Timeout: cannot close the door")
 
     def pause_door(self):
         url = self.base_url + self.URLS["flange"]
         response = requests.get(url, params={"action": "WriteFlangeStop"})
         response.raise_for_status()
+        return True
 
     @property
     def flange_state(self):
@@ -125,9 +139,11 @@ class TubeFurnace:
 
     def write_heating_profile(self, setpoints: Dict[str, int]):
         url = self.base_url + self.URLS["write_data"]
-        response = requests.post(url, data=setpoints)
+        response = requests.get(url, params=setpoints)
         response.raise_for_status()
         time.sleep(5)
+        max_temperature = int(max([v for k, v in setpoints.items() if k.startswith("C")]) * 0.9)
+        self.write_variable_to_main_vi("Maximum loop temperature", max_temperature)
 
     @property
     def PV(self):
@@ -141,7 +157,6 @@ class TubeFurnace:
     def pressure(self):
         return self.read_variable_from_main_vi("Vacuum degree")
 
-
     @property
     def flow_PV(self):
         return self.read_variable_from_main_vi("Real time flow")
@@ -151,19 +166,13 @@ class TubeFurnace:
         return self.read_variable_from_main_vi("Set flow")
 
     @property
-    def autostate(self):
-        return self.read_variable_from_main_vi("Autostate")
+    def autostate(self) -> int:
+        autostate = self.read_variable_from_main_vi("Autostate")
+        if "stopped" in autostate:
+            return -1
+        else:
+            return int(re.search(r"\d+", autostate).group())
 
 
 if __name__ == '__main__':
-
-    tube_furnace_2 = TubeFurnace(
-        exe_path=r"C:\Users\Yuxing Fei\projects\OTF-1200X-ASD\builds\2\Automatic loading furnace_2.exe",
-        main_vi_name="Automatic loading tube furnace_2.vi",
-        temperature_vi_name="AIbus2.vi",
-        active_x_name="AutomaticLoadingFurnace2.Application",
-        base_url="http://localhost:8002/Automatic_loading_2",
-    )
-    print(tube_furnace_2.read_heating_profile())
-    tube_furnace_2.write_heating_profile({"C01": 1})
-    print(tube_furnace_2.read_heating_profile())
+    tube_furnace_2 = TubeFurnace(furnace_index=2)
