@@ -1,7 +1,7 @@
 import time
 from unittest import TestCase
 
-from tube_furnace_mti.tube_furnace import TubeFurnace, FlangeError
+from tube_furnace_mti.tube_furnace import TubeFurnace, FlangeError, TubeFurnaceState
 
 
 class TestTubeFurnace(TestCase):
@@ -52,7 +52,7 @@ class TestTubeFurnace(TestCase):
         }
         self.tube_furnace.write_heating_profile(test_profile)
         self.tube_furnace.start_program()
-        while self.tube_furnace.autostate != -1:
+        while self.tube_furnace.state != TubeFurnaceState.STOPPED:
             time.sleep(4)
         self.tube_furnace.open_door()
         self.tube_furnace.close_door()
