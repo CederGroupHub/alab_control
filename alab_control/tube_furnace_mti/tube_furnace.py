@@ -248,7 +248,7 @@ class TubeFurnace:
 
     def write_heating_profile(self, setpoints: Dict[str, int]):
         """
-        Write heating profile to the machine. Currently we stopped
+        Write heating profile to the machine. The stop number is -121
 
         Args:
             setpoints: A dict like {"C01": time, "T01": temperature, ...}
@@ -257,7 +257,7 @@ class TubeFurnace:
         response = requests.get(url, params=setpoints)
         response.raise_for_status()
         time.sleep(5)
-        max_temperature = int(max([v for k, v in setpoints.items() if k.startswith("C")]) * 0.9)
+        max_temperature = max([v for k, v in setpoints.items() if k.startswith("C")]) - 5
         self.write_variable_to_main_vi("Maximum loop temperature", max_temperature)
 
     @property
