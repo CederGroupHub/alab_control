@@ -4,7 +4,7 @@ from csv import DictReader
 from datetime import timedelta
 from enum import Enum, unique
 from pathlib import Path
-from threading import Lock
+from threading import Lock, Thread
 from typing import NamedTuple, Optional, Dict, Any, Callable, List
 
 from pymodbus.client.sync import ModbusSerialClient
@@ -17,6 +17,7 @@ class ProgramMode(Enum):
     """
     The current state of machine (if it is running a program)
     """
+
     OFF = 1
     RUN = 2
     HOLD = 4
@@ -27,6 +28,7 @@ class TimeUnit(Enum):
     """
     The time unit
     """
+
     SECOND = 0
     MINUTE = 1
     HOUR = 2
@@ -63,7 +65,9 @@ class TemperatureUnit(Enum):
             elif target == TemperatureUnit.DEGREE_F:
                 return lambda t: (t - 273.15) * 1.8 + 32
 
-        raise TypeError("Unsupported type for conversion: {} to {}".format(self, target))
+        raise TypeError(
+            "Unsupported type for conversion: {} to {}".format(self, target)
+        )
 
 
 @unique
@@ -71,6 +75,7 @@ class ProgramEndType(Enum):
     """
     What to do when a program ends
     """
+
     DWELL = 0
     RESET = 1
     STOP = 2
@@ -81,6 +86,7 @@ class SegmentType(Enum):
     """
     Different type of segment
     """
+
     END = 0
     RAMP_RATE = 1
     RAMP_TIME = 2
@@ -88,11 +94,11 @@ class SegmentType(Enum):
     STEP = 4
 
     def __call__(
-            self,
-            target_setpoint: Optional[float] = None,
-            duration: Optional[timedelta] = None,
-            ramp_rate_per_min: Optional[float] = None,
-            endt: Optional[ProgramEndType] = None,
+        self,
+        target_setpoint: Optional[float] = None,
+        duration: Optional[timedelta] = None,
+        ramp_rate_per_min: Optional[float] = None,
+        endt: Optional[ProgramEndType] = None,
     ) -> "Segment":
         """
         A convenient method to create a segment configuration
@@ -110,6 +116,7 @@ class Segment(NamedTuple):
     """
     The arguments for configuring
     """
+
     segment_type: SegmentType
     target_setpoint: Optional[float] = None
     duration: Optional[timedelta] = None
@@ -153,11 +160,12 @@ class FurnaceRegister:
     """
 
     def __init__(
-            self,
-            *,
-            port: str = "COM3",
-            baudrate: int = 9600,
-            timeout: Optional[float] = 30.,
+        self,
+        *,
+        port: str = "COM3",
+        baudrate: int = 9600,
+        timeout: Optional[float] = 30.0,
+        simulation=False
     ):
         """
         Args:
@@ -166,8 +174,13 @@ class FurnaceRegister:
             timeout: waiting time for response
         """
         self._port = port
-        self._modbus_client = ModbusSerialClient(method='rtu', port=port, timeout=timeout, baudrate=baudrate)
-        self._modbus_client.connect()
+        if not simulation:
+            self._modbus_client = ModbusSerialClient(
+                method="rtu", port=port, timeout=timeout, baudrate=baudrate
+            )
+            self._modbus_client.connect()
+        else:
+            self._modbus_client = DummyFurnaceModbusClient()
         self._mutex_lock = Lock()
         self._register = self.load_register_list()
 
@@ -176,7 +189,9 @@ class FurnaceRegister:
         """
         Load register list from file, which includes the address, name, description
         """
-        with (Path(__file__).parent / "modbus_addr.csv").open("r", encoding="utf-8") as f:
+        with (Path(__file__).parent / "modbus_addr.csv").open(
+            "r", encoding="utf-8"
+        ) as f:
             csv_reader = DictReader(f)
 
             registers = {}
@@ -223,7 +238,9 @@ class FurnaceRegister:
             )
             if isinstance(value, Exception):
                 raise FurnaceReadError(
-                    "Cannot read register {} ({})".format(register_name, register_info.address)
+                    "Cannot read register {} ({})".format(
+                        register_name, register_info.address
+                    )
                 ) from value
 
             value = value.registers
@@ -262,13 +279,134 @@ class FurnaceRegister:
         logger.debug("Write to register {}: {}".format(register_name, value))
 
         if isinstance(response, Exception):
-            raise FurnaceWriteError("Fails to write to register: {}".format(register_name)) from response
+            raise FurnaceWriteError(
+                "Fails to write to register: {}".format(register_name)
+            ) from response
+
+
+class DummyRegisterReturnValue(NamedTuple):
+    """
+    Return value for dummy register
+    """
+
+    registers: int
+
+
+class DummyFurnaceModbusClient:
+    """Simulated Modbus client to spawn digital twin of furnace"""
+
+    def __init__(self):
+        self._register = FurnaceRegister.load_register_list()
+        self.dummy_register_values = {register: None for register in self._register}
+        self.dummy_register_values["Operator.MAIN.PV"] = 25  # init temp to room temp
+        self.dummy_register_values["Operator.MAIN.tSP"] = 25
+        self.dummy_register_values["Operator.RUN.StAt"] = ProgramMode.OFF.value
+        self.dummy_register_values[
+            "Program.1.ProgramEndType"
+        ] = ProgramEndType.RESET.value
+
+        self.thread = Thread(target=self.worker, daemon=True)
+        self.thread.start()
+
+    def write_registers(self, address, values, *args, **kwargs):
+        success = False  # multiple values stored at same register, just write to all.
+        for r in self._register.values():
+            if r.address == address:
+                self.dummy_register_values[r.name] = values
+                success = True
+        if success:
+            return "someresponse"
+        raise FurnaceWriteError("Invalid register address: {}".format(address))
+
+    def read_holding_registers(self, address, *args, **kwargs):
+        for r in self._register.values():
+            if r.address == address:
+                return DummyRegisterReturnValue(
+                    registers=(self.dummy_register_values[r.name],)
+                )
+        raise FurnaceReadError("Invalid register address: {}".format(address))
+
+    @property
+    def is_running(self):
+        return (
+            ProgramMode(self.dummy_register_values["Operator.RUN.StAt"])
+            == ProgramMode.RUN
+        )
+
+    def program_to_timings(self):
+        setpoints = []
+        end_timings = []
+        total_time_so_far = 0
+        current_temp = self.dummy_register_values[
+            "Operator.MAIN.PV"
+        ] = 25  # init temp to room temp
+
+        for i in range(1, 25):
+            segmode = SegmentType(
+                self.dummy_register_values[
+                    "Programmer.Program_01.Segment_{:02}.tYPE".format(i)
+                ]
+            )
+            if segmode == SegmentType.END:
+                break
+            elif segmode == SegmentType.DWELL:
+                setpoints.append(setpoints[-1])
+                duration = (
+                    self.dummy_register_values[
+                        "Programmer.Program_01.Segment_{:02}.dur".format(i)
+                    ]
+                    * 6
+                )
+            else:
+                setpoints.append(
+                    self.dummy_register_values[
+                        "Programmer.Program_01.Segment_{:02}.tGt".format(i)
+                    ]
+                )
+                if segmode == SegmentType.STEP:
+                    duration = 0.001
+                elif segmode == SegmentType.RAMP_RATE:
+                    duration = (
+                        (setpoints[-1] - current_temp)
+                        / self.dummy_register_values[
+                            "Programmer.Program_01.Segment_{:02}.rAtE".format(i)
+                        ]
+                        / 10
+                    )
+                elif segmode == SegmentType.RAMP_TIME:
+                    duration = self.dummy_register_values[
+                        "Programmer.Program_01.Segment_{:02}.dur".format(i)
+                    ]
+
+            end_timings.append(total_time_so_far + duration)
+            total_time_so_far += duration
+            current_temp = setpoints[-1]
+        return zip(setpoints, end_timings)
+
+    def run_program(self):
+        self.program_start_time = time.time()
+        self.dummy_register_values["Operator.RUN.StAt"] = ProgramMode.RUN.value
+        for setpoint, end_time in self.program_to_timings():
+            # print(setpoint)
+            self.dummy_register_values["Operator.MAIN.tSP"] = setpoint
+            while (end_time + self.program_start_time) > time.time():
+                time.sleep(0.1)
+
+        self.dummy_register_values["Operator.RUN.StAt"] = ProgramMode.OFF.value
+
+    def worker(self):
+        while True:
+            while not self.is_running:
+                time.sleep(0.1)
+
+            self.run_program()
 
 
 class FurnaceController(FurnaceRegister):
     """
     Implement higher-level functionalities over 2416 heat controller register
     """
+
     # temperature that allows for safe operations (in degree C)
     _SAFETY_TEMPERATURE = 400
 
@@ -339,18 +477,33 @@ class FurnaceController(FurnaceRegister):
         """
         Whether the program is running
         """
-        return (self.program_mode == ProgramMode.RUN
-                or self.current_temperature >= self._SAFETY_TEMPERATURE)
+        return (
+            self.program_mode == ProgramMode.RUN
+            or self.current_temperature >= self._SAFETY_TEMPERATURE
+        )
 
     def _read_segment_i(self, i: int) -> Dict[str, Any]:
         return {
-            "segment_type": SegmentType(self["Programmer.Program_01.Segment_{:02}.tYPE".format(i)]),
-            "target_setpoint": float(self["Programmer.Program_01.Segment_{:02}.tGt".format(i)]),
-            "duration": timedelta(minutes=float(self["Programmer.Program_01.Segment_{:02}.dur".format(i)]) / 10),
-            "ramp_rate_per_min": float(self["Programmer.Program_01.Segment_{:02}.rAtE".format(i)]) * 0.1,
-            "endt": ProgramEndType(self["Programmer.Program_01.Segment_{:02}.endt".format(i)])
-            if self["Programmer.Program_01.Segment_{:02}.endt".format(i)] in set(item.value for item in ProgramEndType)
-            else None
+            "segment_type": SegmentType(
+                self["Programmer.Program_01.Segment_{:02}.tYPE".format(i)]
+            ),
+            "target_setpoint": float(
+                self["Programmer.Program_01.Segment_{:02}.tGt".format(i)]
+            ),
+            "duration": timedelta(
+                minutes=float(self["Programmer.Program_01.Segment_{:02}.dur".format(i)])
+                / 10
+            ),
+            "ramp_rate_per_min": float(
+                self["Programmer.Program_01.Segment_{:02}.rAtE".format(i)]
+            )
+            * 0.1,
+            "endt": ProgramEndType(
+                self["Programmer.Program_01.Segment_{:02}.endt".format(i)]
+            )
+            if self["Programmer.Program_01.Segment_{:02}.endt".format(i)]
+            in set(item.value for item in ProgramEndType)
+            else None,
         }
 
     def read_configured_segments(self) -> List[Dict[str, Any]]:
@@ -359,9 +512,9 @@ class FurnaceController(FurnaceRegister):
         """
         current_segment_type: Optional[SegmentType] = None
         configured_segments = []
-        while (len(configured_segments) < 25
-               and (current_segment_type is None
-                    or current_segment_type != SegmentType.END)):
+        while len(configured_segments) < 25 and (
+            current_segment_type is None or current_segment_type != SegmentType.END
+        ):
             current_segment = self._read_segment_i(len(configured_segments) + 1)
             current_segment_type = current_segment["segment_type"]
             configured_segments.append(current_segment)
@@ -377,7 +530,9 @@ class FurnaceController(FurnaceRegister):
         """
         segments = list(segments)
         if segments[-1].segment_type != SegmentType.END:
-            segments.append(Segment(segment_type=SegmentType.END, endt=ProgramEndType.STOP))
+            segments.append(
+                Segment(segment_type=SegmentType.END, endt=ProgramEndType.STOP)
+            )
         if self["Programmer.Program_01.dwLU"] != TimeUnit.MINUTE.value:
             self["Programmer.Program_01.dwLU"] = TimeUnit.MINUTE.value
         if self["Programmer.Program_01.rmPU"] != TimeUnit.MINUTE.value:
@@ -385,18 +540,20 @@ class FurnaceController(FurnaceRegister):
 
         for i, segment_arg in enumerate(segments, start=1):
             if i != len(segments) and segment_arg.segment_type == SegmentType.END:
-                logger.warning("Unexpected END segment in the middle of segment ({}/{}), are you sure this is really "
-                               "what you want?".format(i, len(segments)))
+                logger.warning(
+                    "Unexpected END segment in the middle of segment ({}/{}), are you sure this is really "
+                    "what you want?".format(i, len(segments))
+                )
             self._configure_segment_i(i=i, **segment_arg.as_dict())
 
     def _configure_segment_i(
-            self,
-            i: int,
-            segment_type: SegmentType,
-            target_setpoint: Optional[float] = None,
-            duration: Optional[timedelta] = None,
-            ramp_rate_per_min: Optional[float] = None,
-            endt: Optional[ProgramEndType] = None,
+        self,
+        i: int,
+        segment_type: SegmentType,
+        target_setpoint: Optional[float] = None,
+        duration: Optional[timedelta] = None,
+        ramp_rate_per_min: Optional[float] = None,
+        endt: Optional[ProgramEndType] = None,
     ):
         """
         Build segment i with all the parameters given
@@ -420,7 +577,11 @@ class FurnaceController(FurnaceRegister):
                 raise KeyError("Unexpect name {} in locals.".format(name))
             if _locals[name] is not None:
                 value = _locals[name]
-                logger.warning("{} should not be set for {}, but get {}.".format(name, segment_type, value))
+                logger.warning(
+                    "{} should not be set for {}, but get {}.".format(
+                        name, segment_type, value
+                    )
+                )
 
         if not 1 <= i <= 16:
             raise ValueError("i should be in 1 ~ 16, but get {}.".format(i))
@@ -428,25 +589,37 @@ class FurnaceController(FurnaceRegister):
         self["Programmer.Program_01.Segment_{:02}.tYPE".format(i)] = segment_type.value
 
         if segment_type is SegmentType.RAMP_RATE:
-            self["Programmer.Program_01.Segment_{:02}.tGt".format(i)] = int(target_setpoint)
-            self["Programmer.Program_01.Segment_{:02}.rAtE".format(i)] = int(ramp_rate_per_min * 10)
+            self["Programmer.Program_01.Segment_{:02}.tGt".format(i)] = int(
+                target_setpoint
+            )
+            self["Programmer.Program_01.Segment_{:02}.rAtE".format(i)] = int(
+                ramp_rate_per_min * 10
+            )
             _warn_for_extra_arg("duration", locals())
             _warn_for_extra_arg("endt", locals())
 
         elif segment_type is SegmentType.RAMP_TIME:
-            self["Programmer.Program_01.Segment_{:02}.tGt".format(i)] = int(target_setpoint)
-            self["Programmer.Program_01.Segment_{:02}.dur".format(i)] = int(duration.total_seconds() / 6)
+            self["Programmer.Program_01.Segment_{:02}.tGt".format(i)] = int(
+                target_setpoint
+            )
+            self["Programmer.Program_01.Segment_{:02}.dur".format(i)] = int(
+                duration.total_seconds() / 6
+            )
             _warn_for_extra_arg("ramp_rate_per_min", locals())
             _warn_for_extra_arg("endt", locals())
 
         elif segment_type is SegmentType.DWELL:
-            self["Programmer.Program_01.Segment_{:02}.dur".format(i)] = int(duration.total_seconds() / 6)
+            self["Programmer.Program_01.Segment_{:02}.dur".format(i)] = int(
+                duration.total_seconds() / 6
+            )
             _warn_for_extra_arg("target_setpoint", locals())
             _warn_for_extra_arg("ramp_rate_per_min", locals())
             _warn_for_extra_arg("endt", locals())
 
         elif segment_type is SegmentType.STEP:
-            self["Programmer.Program_01.Segment_{:02}.tGt".format(i)] = int(target_setpoint)
+            self["Programmer.Program_01.Segment_{:02}.tGt".format(i)] = int(
+                target_setpoint
+            )
             _warn_for_extra_arg("ramp_rate_per_min", locals())
             _warn_for_extra_arg("duration", locals())
             _warn_for_extra_arg("endt", locals())
@@ -463,10 +636,15 @@ class FurnaceController(FurnaceRegister):
                 "We have not implemented {} segment type".format(segment_type.name)
             )
 
-        logger.info("Set segment {} with {}".format(i, dict(
-            segment_type=segment_type,
-            target_setpoint=target_setpoint,
-            duration=duration,
-            ramp_rate_per_min=ramp_rate_per_min,
-            endt=endt.value if endt is not None else endt,
-        )))
+        logger.info(
+            "Set segment {} with {}".format(
+                i,
+                dict(
+                    segment_type=segment_type,
+                    target_setpoint=target_setpoint,
+                    duration=duration,
+                    ramp_rate_per_min=ramp_rate_per_min,
+                    endt=endt.value if endt is not None else endt,
+                ),
+            )
+        )
