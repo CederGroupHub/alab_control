@@ -336,22 +336,6 @@ class DummyFurnaceModbusClient:
             self.dummy_register_values["Programmer.Run.Mode"] == ProgramMode.RUN.value
         )
 
-    def worker(self):
-        while not self.is_running:
-            time.sleep(0.1)
-            if self.dummy_register_values["Programmer.Setup.Run"] == 1:
-                self.dummy_register_values["Programmer.Setup.Run"] = 0
-                break
-
-        self.program_start_time = time.time()
-        self.dummy_register_values["Programmer.Run.Mode"] = ProgramMode.RUN.value
-        for setpoint, end_time in self.program_to_timings():
-            self.dummy_register_values["Loop.Main.TargetSP"] = setpoint
-            while (end_time + self.program_start_time) > time.time():
-                time.sleep(0.1)
-
-        self.dummy_register_values["Programmer.Run.Mode"] = ProgramMode.RESET.value
-
     def program_to_timings(self):
         setpoints = []
         end_timings = []
@@ -361,7 +345,6 @@ class DummyFurnaceModbusClient:
         ] = 25  # init temp to room temp
 
         for i in range(1, 25):
-            print(i)
             segmode = SegmentType(
                 self.dummy_register_values[f"Segment.{i}.SegmentType"]
             )
@@ -389,6 +372,27 @@ class DummyFurnaceModbusClient:
             total_time_so_far += duration
             current_temp = setpoints[-1]
         return zip(setpoints, end_timings)
+
+    def run_program(self):
+        self.program_start_time = time.time()
+        self.dummy_register_values["Programmer.Run.Mode"] = ProgramMode.RUN.value
+        for setpoint, end_time in self.program_to_timings():
+            # print(setpoint)
+            self.dummy_register_values["Loop.Main.TargetSP"] = setpoint
+            while (end_time + self.program_start_time) > time.time():
+                time.sleep(0.1)
+
+        self.dummy_register_values["Programmer.Run.Mode"] = ProgramMode.RESET.value
+
+    def worker(self):
+        while True:
+            while not self.is_running:
+                time.sleep(0.1)
+                if self.dummy_register_values["Programmer.Setup.Run"] == 1:
+                    self.dummy_register_values["Programmer.Setup.Run"] = 0
+                    break
+
+            self.run_program()
 
 
 class FurnaceController(FurnaceRegister):
