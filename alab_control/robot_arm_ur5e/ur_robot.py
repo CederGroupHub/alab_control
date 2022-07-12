@@ -7,8 +7,10 @@ import logging
 import socket
 import time
 from enum import unique, Enum, auto
-from threading import Lock
+from threading import Lock, Thread
 from typing import Optional
+
+import numpy as np
 
 from .program_list import PREDEFINED_PROGRAM
 
@@ -20,6 +22,7 @@ class ProgramStatus(Enum):
     """
     Status of program
     """
+
     STOPPED = auto()
     PLAYING = auto()
     PAUSED = auto()
@@ -46,13 +49,55 @@ class URRobotError(Exception):
     """
 
 
+class DummyRobotSocket:
+    def __init__(self):
+        self.running = False
+        self._loaded_program = None
+        self._response_buffer = ""
+
+    def sendall(self, data):
+        data = data.decode("utf-8").strip("\n")
+        if data == "running":
+            if self.running:
+                self._response_buffer = "true"
+            else:
+                self._response_buffer = "false"
+        elif data.startswith("load"):
+            self._loaded_program = "dummyprogram.urp"
+            self._response_buffer = "Loading program dummyprogram.urp"
+        elif data == "play":
+            t = Thread(target=self.play_randomduration)
+            t.start()
+            self._response_buffer = "Starting program dummyprogram.urp"
+        elif data == "get loaded program":
+            if self._loaded_program is None:
+                self._response_buffer = "No program loaded"
+            else:
+                self._response_buffer = "{}".format(self._loaded_program)
+        elif data == "is in remote control":
+            self._response_buffer = "true"
+
+    def play_randomduration(self, duration_min: int = 30, duration_max: int = 180):
+        self.running = True
+        duration = np.random.randint(duration_min, duration_max)
+        time.sleep(duration)
+        self.running = False
+
+    def recv(self, size):
+        response = f"{self._response_buffer}\n".encode()
+        self._response_buffer = ""
+        return response
+
+
 class URRobot:
     """
     Refer to https://s3-eu-west-1.amazonaws.com/ur-support-site/42728/DashboardServer_e-Series.pdf
     for commands' instructions
     """
 
-    def __init__(self, ip: str, port: int = 29999, timeout: float = 2):
+    def __init__(
+        self, ip: str, port: int = 29999, timeout: float = 2, simulation: bool = False
+    ):
         """
         Args:
             ip: the ip address to the UR Robot
@@ -60,11 +105,14 @@ class URRobot:
             timeout: timeout time in sec
         """
         # set up socket connection
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._socket.settimeout(timeout)
-        self._socket.connect((ip, port))
-        time.sleep(0.1)
-        self._socket.recv(2048)
+        if simulation:
+            self._socket = DummyRobotSocket()
+        else:
+            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self._socket.settimeout(timeout)
+            self._socket.connect((ip, port))
+            time.sleep(0.1)
+            self._socket.recv(2048)
 
         self._mutex_lock = Lock()
 
@@ -125,7 +173,9 @@ class URRobot:
         elif "false" in response:
             return False
         else:
-            raise URRobotError("Unexpected response for is_running query: {}".format(response))
+            raise URRobotError(
+                "Unexpected response for is_running query: {}".format(response)
+            )
 
     def wait_for_finish(self):
         """
@@ -151,9 +201,11 @@ class URRobot:
             self._raise_for_unexpected_prefix(response, "Loading program")
         except URRobotError as e:
             if response.endswith(".urp"):
-                e.args = (e.args[0] + " Your file seems not to be a valid "
-                                      "program name, did you define it in "
-                                      "the predefined program dict?",)
+                e.args = (
+                    e.args[0] + " Your file seems not to be a valid "
+                    "program name, did you define it in "
+                    "the predefined program dict?",
+                )
             raise
 
     def play(self):
@@ -167,8 +219,10 @@ class URRobot:
             self._raise_for_unexpected_prefix(response, "Starting program")
         except URRobotError as e:
             # add more hints for debug
-            e.args = (e.args[0] + " Did you remember to load program or did "
-                                  "you stop the program by accident?",)
+            e.args = (
+                e.args[0] + " Did you remember to load program or did "
+                "you stop the program by accident?",
+            )
             raise
 
         while not self.is_running():
@@ -205,7 +259,9 @@ class URRobot:
         an URRobotError
         """
         if self.get_current_mode() != ProgramStatus.PAUSED:
-            raise URRobotError("continue_play can only be used to recover a paused program")
+            raise URRobotError(
+                "continue_play can only be used to recover a paused program"
+            )
         self.play()
 
     def get_current_mode(self) -> ProgramStatus:
@@ -220,7 +276,9 @@ class URRobot:
         try:
             return ProgramStatus[state_string]
         except KeyError:
-            raise URRobotError("Get unexpected program status query result: {}".format(response))
+            raise URRobotError(
+                "Get unexpected program status query result: {}".format(response)
+            )
 
     @property
     def loaded_program(self) -> Optional[str]:
@@ -232,7 +290,9 @@ class URRobot:
             return None
         elif response.endswith(".urp") or response.endswith(".urscript"):
             return response
-        raise URRobotError("Unexpected result for loaded_program query: {}".format(response))
+        raise URRobotError(
+            "Unexpected result for loaded_program query: {}".format(response)
+        )
 
     def is_remote_mode(self) -> bool:
         """
@@ -244,7 +304,9 @@ class URRobot:
         elif response == "false":
             return False
         else:
-            raise URRobotError("Unexpected result for is_remote_mode query: {}".format(response))
+            raise URRobotError(
+                "Unexpected result for is_remote_mode query: {}".format(response)
+            )
 
     def get_safety_status(self) -> SafeStatus:
         """
@@ -258,7 +320,9 @@ class URRobot:
         try:
             return SafeStatus[response]
         except KeyError:
-            raise URRobotError("Unexpected response for safety status query: {}".format(response))
+            raise URRobotError(
+                "Unexpected response for safety status query: {}".format(response)
+            )
 
     @staticmethod
     def _raise_for_unexpected_prefix(response: str, prefix: str):
