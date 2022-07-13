@@ -410,6 +410,9 @@ class FurnaceController(FurnaceRegister):
     # temperature that allows for safe operations (in degree C)
     _SAFETY_TEMPERATURE = 400
 
+    def __init__(self, simulation: bool = False):
+        super(FurnaceController, self).__init__(simulation=simulation)
+
     @property
     def current_temperature(self) -> int:
         """

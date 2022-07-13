@@ -77,7 +77,7 @@ class DummyRobotSocket:
         elif data == "is in remote control":
             self._response_buffer = "true"
 
-    def play_randomduration(self, duration_min: int = 30, duration_max: int = 180):
+    def play_randomduration(self, duration_min: int = 1, duration_max: int = 3):
         self.running = True
         duration = np.random.randint(duration_min, duration_max)
         time.sleep(duration)
