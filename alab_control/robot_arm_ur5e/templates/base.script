@@ -1,0 +1,5 @@
+def unnamed():
+  {% include gripper_model + "_" + robot_model + "_header.script" indent content %}
+
+  {% block program %}{% endblock %}
+end
