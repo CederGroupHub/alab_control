@@ -181,7 +181,7 @@ class TubeFurnace:
         seconds = 0
         while seconds <= timeout:
             if not self.flange_state:
-                time.sleep(40)
+                time.sleep(50)
                 return True
             time.sleep(1)
             seconds += 1

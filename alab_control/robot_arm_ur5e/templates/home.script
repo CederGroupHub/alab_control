@@ -1,0 +1,34 @@
+{% extends "base.script" %}
+
+{% block program %}  
+  global start_p=p{{ start_pose }}
+  global start_q={{ start_qnear }}
+  global home_p=p[-.001702829216, -.233433370779, 1.079483179114, -.009006106782, -2.218472179409, 2.216378351749]
+  global home_q=[-7.931386129200746E-6, -1.57075256121637, 1.889864076787262E-5, -1.5707840681155467, -6.977711812794496E-6, -1.794496645146637E-5]
+
+  {% for pose in home_mid_poses -%}
+  global trans_p_{{ loop.index }} = p{{ pose }}
+  {% endfor %}
+
+  {% for qnear in home_mid_qnears -%}
+  global trans_q_{{ loop.index }} = {{ qnear }}
+  {% endfor %}
+
+  {% if go_home %}
+    movej(get_inverse_kin(start_p, qnear=start_q), a=1.3962634015954636, v=1.0471975511965976)
+
+    {% for pose in home_mid_poses -%}
+    movej(get_inverse_kin(trans_p_{{ loop.length - loop.index + 1 }}, qnear=trans_q_{{ loop.length - loop.index + 1 }}), a=1.3962634015954636, v=1.0471975511965976)
+    {% endfor %}
+
+    movej(get_inverse_kin(home_p, qnear=home_q), a=1.3962634015954636, v=1.0471975511965976)  
+  {% else %}
+    movej(get_inverse_kin(home_p, qnear=home_q), a=1.3962634015954636, v=1.0471975511965976)  
+
+    {% for pose in home_mid_qnears -%}
+    movej(get_inverse_kin(trans_p_{{ loop.index }}, qnear=trans_q_{{ loop.index }}), a=1.3962634015954636, v=1.0471975511965976)
+    {% endfor %}
+    
+    movej(get_inverse_kin(start_p, qnear=start_q), a=1.3962634015954636, v=1.0471975511965976)
+  {% endif %}
+{% endblock %}
