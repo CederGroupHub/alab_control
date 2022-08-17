@@ -1,15 +1,5 @@
 def {{ name | default("unnamed") }}():
-  def setSpeed(ratio):
-    socket_open("127.0.0.1", 30003)
-    socket_send_string("set speed")
-    socket_send_string(ratio)
-    socket_send_byte(10)
-    socket_close()
-  end
-
-  {% include gripper_model + "_" + robot_model + "_header.script" indent content %}
-
-  setSpeed({{ speed | default(1) }})
+  {% include robot_type + "_header.script" indent content %}
 
   {% block program %}{% endblock %}
 end

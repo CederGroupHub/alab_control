@@ -17,7 +17,7 @@ import time
 from datetime import timedelta
 
 from alab_control.furnace_epc_3016.furnace_driver import FurnaceController, SegmentType
-from alab_control.robot_arm_ur5e import URRobot
+from alab_control.robot_arm_ur5e import URRobotDashboard as URRobot
 
 # Input
 ROBOT_IP = "192.168.111.112"

@@ -46,14 +46,16 @@ class URRobotError(Exception):
     """
 
 
-class URRobot:
+class URRobotDashboard:
     """
     Refer to https://s3-eu-west-1.amazonaws.com/ur-support-site/42728/DashboardServer_e-Series.pdf
     for commands' instructions
     """
 
-    def __init__(self, ip: str, port: int = 29999, timeout: float = 2):
+    def __init__(self, ip: str, timeout: float = 2):
         """
+        The dashboard interface to UR Robot
+
         Args:
             ip: the ip address to the UR Robot
             port: port of socket
@@ -62,7 +64,7 @@ class URRobot:
         # set up socket connection
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.settimeout(timeout)
-        self._socket.connect((ip, port))
+        self._socket.connect((ip, 29999))
         time.sleep(0.1)
         self._socket.recv(2048)
 

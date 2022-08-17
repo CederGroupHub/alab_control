@@ -1,4 +1,6 @@
 import time
+from multiprocessing import Process
+from threading import Thread
 from unittest import TestCase
 
 from tube_furnace_mti.tube_furnace import TubeFurnace, FlangeError, TubeFurnaceState
@@ -56,3 +58,15 @@ class TestTubeFurnace(TestCase):
             time.sleep(4)
         self.tube_furnace.open_door()
         self.tube_furnace.close_door()
+
+
+class TestTubeFurnaces(TestCase):
+    def setUp(self) -> None:
+        self.tube_furnaces = [TubeFurnace(i+1) for i in range(4)]
+
+    def test_opening(self):
+        for tube_furnace in self.tube_furnaces:
+            self.assertTrue(tube_furnace.open_door())
+        time.sleep(50)
+        for tube_furnace in self.tube_furnaces:
+            self.assertTrue(tube_furnace.close_door())

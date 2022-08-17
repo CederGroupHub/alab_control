@@ -178,6 +178,7 @@ class TubeFurnace:
         url = self.base_url + self.URLS["flange"]
         response = requests.get(url, params={"action": "WriteFlangeOpen"})
         response.raise_for_status()
+        return True
         seconds = 0
         while seconds <= timeout:
             if not self.flange_state:
@@ -200,7 +201,9 @@ class TubeFurnace:
         url = self.base_url + self.URLS["flange"]
         response = requests.get(url, params={"action": "WriteFlangeClose"})
         response.raise_for_status()
+        return True
         seconds = 0
+
         while seconds < timeout:
             if self.flange_state:
                 return True
