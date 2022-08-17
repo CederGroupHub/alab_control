@@ -71,7 +71,7 @@ def generate_urscript(from_, to_,
     config["pick_qnear"] = start_positions[from_]["joint"]
 
     end_positions = {pos["name"]: {"pose": pos["pose"], "joint": pos["joint"]}
-                       for pos in program_doc["end_positions"]}
+                     for pos in program_doc["end_positions"]}
     config["place_pose"] = end_positions[to_]["pose"]
     config["place_qnear"] = end_positions[to_]["joint"]
 
@@ -89,6 +89,7 @@ if __name__ == '__main__':
     #     f.write(generate_urscript())
 
     import urx
+
     robot = urx.Robot("192.168.0.22")
 
     try:
@@ -169,8 +170,8 @@ if __name__ == '__main__':
             #     "name": "box_furnace_rack_to_intermediate_rack_1",
             #     "start": [f"D{i+1}" for i in range(8)],
             #     "end": [f"D{i+1}" for i in range(8)],
-                # "start": ["D8"],
-                # "end": ["D8"]
+            # "start": ["D8"],
+            # "end": ["D8"]
             # },
             # {
             #     "name": "box_furnace_rack_to_intermediate_rack_2",

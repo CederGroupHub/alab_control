@@ -49,70 +49,27 @@ class URRobotError(Exception):
     """
 
 
-class DummyRobotSocket:
-    def __init__(self):
-        self.running = False
-        self._loaded_program = None
-        self._response_buffer = ""
-
-    def sendall(self, data):
-        data = data.decode("utf-8").strip("\n")
-        if data == "running":
-            if self.running:
-                self._response_buffer = "true"
-            else:
-                self._response_buffer = "false"
-        elif data.startswith("load"):
-            self._loaded_program = "dummyprogram.urp"
-            self._response_buffer = "Loading program dummyprogram.urp"
-        elif data == "play":
-            t = Thread(target=self.play_randomduration)
-            t.start()
-            self._response_buffer = "Starting program dummyprogram.urp"
-        elif data == "get loaded program":
-            if self._loaded_program is None:
-                self._response_buffer = "No program loaded"
-            else:
-                self._response_buffer = "{}".format(self._loaded_program)
-        elif data == "is in remote control":
-            self._response_buffer = "true"
-
-    def play_randomduration(self, duration_min: int = 1, duration_max: int = 3):
-        self.running = True
-        duration = np.random.randint(duration_min, duration_max)
-        time.sleep(duration)
-        self.running = False
-
-    def recv(self, size):
-        response = f"{self._response_buffer}\n".encode()
-        self._response_buffer = ""
-        return response
-
-
 class URRobot:
     """
     Refer to https://s3-eu-west-1.amazonaws.com/ur-support-site/42728/DashboardServer_e-Series.pdf
     for commands' instructions
     """
 
-    def __init__(
-        self, ip: str, port: int = 29999, timeout: float = 2, simulation: bool = False
-    ):
+    def __init__(self, ip: str, port: int = 29999, timeout: float = 2):
         """
+        The dashboard interface to UR Robot
+
         Args:
             ip: the ip address to the UR Robot
             port: port of socket
             timeout: timeout time in sec
         """
         # set up socket connection
-        if simulation:
-            self._socket = DummyRobotSocket()
-        else:
-            self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self._socket.settimeout(timeout)
-            self._socket.connect((ip, port))
-            time.sleep(0.1)
-            self._socket.recv(2048)
+        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self._socket.settimeout(timeout)
+        self._socket.connect((ip, port))
+        time.sleep(0.1)
+        self._socket.recv(2048)
 
         self._mutex_lock = Lock()
 
