@@ -1,4 +1,8 @@
-from typing import List
+import json
+from pathlib import Path
+from typing import List, Dict
+
+from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from robot_arm_ur5e import URRobotDashboard, URRobotSecondary
 from robot_arm_ur5e.ur_robot_ssh import URRobotSSH
@@ -23,6 +27,9 @@ class Dummy:
         # secondary client is used for sending the programs to the robot arm
         self._secondary_client = URRobotSecondary(ip)
         self._ssh_client = URRobotSSH(ip)  # ssh client is used for reading programs from the robot arm
+        self.waypoints = json.load((Path(__file__).parent / "waypoints" / "dummy.json").open(encoding="utf-8"))
+        self.jinja_env = Environment(loader=FileSystemLoader((Path(__file__).parent / "templates").as_posix()),
+                                     extensions=["jinja2_workarounds.MultiLineInclude"], undefined=StrictUndefined)
 
     def is_running(self):
         return self._dashboard_client.is_running()
@@ -65,10 +72,71 @@ class Dummy:
             block=True
         )
 
+    def _home_trans(self, waypoint_doc: Dict, go_home: bool):
+        home_trans_config = {
+            "go_home": go_home,
+            "robot_type": self.robot_type,
+            "home_mid_poses": [pos["pose"] for pos in waypoint_doc["home_trans"]],
+            "home_mid_qnears": [pos["joint"] for pos in waypoint_doc["home_trans"]],
+            "start_pose": waypoint_doc["initial_position"]["pose"],
+            "start_qnear": waypoint_doc["initial_position"]["joint"]
+        }
+
+        home_trans_template = self.jinja_env.get_template("home_trans.script")
+        script = home_trans_template.render(**home_trans_config)
+        self._secondary_client.run_program(script, block=True)
+
+    def _pick_place(self, start: str, end: str, waypoint_doc: Dict):
+        start_positions = {pos["name"]: {"pose": pos["pose"], "joint": pos["joint"]}
+                           for pos in waypoint_doc["start_positions"]}
+
+        end_positions = {pos["name"]: {"pose": pos["pose"], "joint": pos["joint"]}
+                         for pos in waypoint_doc["end_positions"]}
+        pick_place_config = {
+            "robot_type": self.robot_type,
+            "approach_distance_mm": waypoint_doc["approach_distance_mm"],
+            "start_pose": waypoint_doc["initial_position"]["pose"],
+            "start_qnear": waypoint_doc["initial_position"]["joint"],
+            "pick_pose": start_positions[start]["pose"],
+            "pick_qnear": start_positions[start]["joint"],
+            "trans_poses": [pos["pose"] for pos in waypoint_doc["transition_waypoints"]],
+            "trans_qnears": [pos["joint"] for pos in waypoint_doc["transition_waypoints"]],
+            "place_pose": end_positions[end]["pose"],
+            "place_qnear": end_positions[end]["joint"],
+        }
+
+        pick_place_template = self.jinja_env.get_template("pick_place.script")
+        script = pick_place_template.render(**pick_place_config)
+        self._secondary_client.run_program(script, block=True)
+
     def move_crucibles(self, starts: List[str], ends: List[str]):
         self.check_status()
-        self._secondary_client.set_speed(1.)
-        # TODO: implement this
+        if len(starts) != len(ends):
+            raise ValueError("The number of starts and ends must be the same")
+        if len(set(starts)) != len(starts):
+            raise ValueError("There are duplicate starts")
+        if len(set(ends)) != len(ends):
+            raise ValueError("There are duplicate ends")
+
+        if not starts or not ends:
+            return
+        self._secondary_client.set_speed(.8)
+
+        waypoint_to_use = None
+
+        for waypoint in self.waypoints:
+            if set(pos["name"] for pos in waypoint["start_positions"]).issuperset(set(starts)) and \
+                    set(pos["name"] for pos in waypoint["end_positions"]).issuperset(set(ends)):
+                waypoint_to_use = waypoint
+                break
+
+        if waypoint_to_use is None:
+            raise ValueError(f"No waypoint found from {starts} to {ends}")
+
+        self._home_trans(waypoint_doc=waypoint_to_use, go_home=False)
+        for start, end in zip(starts, ends):
+            self._pick_place(start=start, end=end, waypoint_doc=waypoint_to_use)
+        self._home_trans(waypoint_doc=waypoint_to_use, go_home=True)
 
     def close(self):
         self._dashboard_client.close()
@@ -79,6 +147,6 @@ class Dummy:
 if __name__ == '__main__':
     robot = Dummy("192.168.0.22")
     try:
-        robot.move_rack("loading_rack", "loading_rack")
+        robot.move_crucibles(["loading_rack/1", "loading_rack/8"], ["transfer_rack/1", "transfer_rack/16"])
     finally:
         robot.close()

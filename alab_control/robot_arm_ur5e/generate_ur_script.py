@@ -96,17 +96,22 @@ if __name__ == '__main__':
         # config_generate(robot)
         # exit(1)
 
-        name = "box_furnace_rack_intermediate_rack"
-        with open(r"templates/Pick_BFRACK_L.script", "r", encoding="utf-8") as f:
-            program = f.read()
+        name = "loading_rack_to_transfer_rack"
+        # with open(r"templates/Pick_BFRACK_L.script", "r", encoding="utf-8") as f:
+        #     program = f.read()
 
-        robot.send_program(program)
-        #     program = [line for line in f.readlines() if not line.strip(" ").startswith("$")]
-        # with open(r"temp.script", "w", encoding="utf-8") as f:
-        #     f.write("".join(program))
-
-        exit(0)
+        # robot.send_program(program)
+        # #     program = [line for line in f.readlines() if not line.strip(" ").startswith("$")]
+        # # with open(r"temp.script", "w", encoding="utf-8") as f:
+        # #     f.write("".join(program))
         #
+        # exit(0)
+
+        i = input("Enter the approach distance (mm): ")
+        program_collection.update_one({"name": name}, {"$set": {
+            "approach_distance_mm": float(i),
+        }}, upsert=True)
+
         # i = input("Press Enter to set home trans, press -1 to stop:")
         # while i != "-1":
         #     program_collection.update_one({
@@ -130,30 +135,30 @@ if __name__ == '__main__':
         #     program_collection.update_one({
         #         "name": name
         #     }, {"$push": {"start_positions": {
-        #         "name": pos,
+        #         "name": f"loading_rack/{pos}",
         #         "pose": robot.getl(),
         #         "joint": robot.getj(),
         #     }}}, upsert=True)
-        #
-        # i = input("Press Enter to set trans, press -1 to stop:")
-        # while i != "-1":
-        #     program_collection.update_one({
-        #         "name": name
-        #     }, {"$push": {"transition_waypoints": {
-        #         "pose": robot.getl(),
-        #         "joint": robot.getj(),
-        #     }}}, upsert=True)
-        #     i = input("Press Enter to set trans, press -1 to stop:")
-        #
-        # for pos in [str(i+1) for i in range(16)]:
-        #     input(f"Press enter to set position for {pos}:")
-        #     program_collection.update_one({
-        #         "name": name
-        #     }, {"$push": {"end_positions": {
-        #         "name": pos,
-        #         "pose": robot.getl(),
-        #         "joint": robot.getj(),
-        #     }}}, upsert=True)
+
+        i = input("Press Enter to set trans, press -1 to stop:")
+        while i != "-1":
+            program_collection.update_one({
+                "name": name
+            }, {"$push": {"transition_waypoints": {
+                "pose": robot.getl(),
+                "joint": robot.getj(),
+            }}}, upsert=True)
+            i = input("Press Enter to set trans, press -1 to stop:")
+
+        for pos in [str(i+1) for i in range(16)]:
+            input(f"Press enter to set position for {pos}:")
+            program_collection.update_one({
+                "name": name
+            }, {"$push": {"end_positions": {
+                "name": f"transfer_rack/{pos}",
+                "pose": robot.getl(),
+                "joint": robot.getj(),
+            }}}, upsert=True)
 
         commnads = [
             # {
