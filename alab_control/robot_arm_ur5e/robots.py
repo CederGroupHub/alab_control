@@ -23,13 +23,22 @@ class Dummy:
 
     def __init__(self, ip):
         self.robot_type = "hande_ur5e"
-        self._dashboard_client = URRobotDashboard(ip)  # dashboard client is used for reading status from the robot arm
+        self._dashboard_client = URRobotDashboard(
+            ip
+        )  # dashboard client is used for reading status from the robot arm
         # secondary client is used for sending the programs to the robot arm
         self._secondary_client = URRobotSecondary(ip)
-        self._ssh_client = URRobotSSH(ip)  # ssh client is used for reading programs from the robot arm
-        self.waypoints = json.load((Path(__file__).parent / "waypoints" / "dummy.json").open(encoding="utf-8"))
-        self.jinja_env = Environment(loader=FileSystemLoader((Path(__file__).parent / "templates").as_posix()),
-                                     extensions=["jinja2_workarounds.MultiLineInclude"], undefined=StrictUndefined)
+        self._ssh_client = URRobotSSH(
+            ip
+        )  # ssh client is used for reading programs from the robot arm
+        self.waypoints = json.load(
+            (Path(__file__).parent / "waypoints" / "dummy.json").open(encoding="utf-8")
+        )
+        self.jinja_env = Environment(
+            loader=FileSystemLoader((Path(__file__).parent / "templates").as_posix()),
+            extensions=["jinja2_workarounds.MultiLineInclude"],
+            undefined=StrictUndefined,
+        )
 
     def is_running(self):
         return self._dashboard_client.is_running()
@@ -52,24 +61,21 @@ class Dummy:
 
         self._secondary_client.set_speed(0.4)
         self._secondary_client.run_program(
-            self._ssh_client.read_program("Pick_Handle.script"),
-            block=True
+            self._ssh_client.read_program("Pick_Handle.script"), block=True
         )
         self._secondary_client.run_program(
             self._ssh_client.read_program(f"Pick_{self.racks_positions[start]}.script"),
-            block=True
+            block=True,
         )
         self._secondary_client.run_program(
             self._ssh_client.read_program(f"Place_{self.racks_positions[end]}.script"),
-            block=True
+            block=True,
         )
         self._secondary_client.run_program(
-            self._ssh_client.read_program("Place_Handle.script"),
-            block=True
+            self._ssh_client.read_program("Place_Handle.script"), block=True
         )
         self._secondary_client.run_program(
-            self._ssh_client.read_program("home.script"),
-            block=True
+            self._ssh_client.read_program("home.script"), block=True
         )
 
     def _home_trans(self, waypoint_doc: Dict, go_home: bool):
@@ -79,7 +85,7 @@ class Dummy:
             "home_mid_poses": [pos["pose"] for pos in waypoint_doc["home_trans"]],
             "home_mid_qnears": [pos["joint"] for pos in waypoint_doc["home_trans"]],
             "start_pose": waypoint_doc["initial_position"]["pose"],
-            "start_qnear": waypoint_doc["initial_position"]["joint"]
+            "start_qnear": waypoint_doc["initial_position"]["joint"],
         }
 
         home_trans_template = self.jinja_env.get_template("home_trans.script")
@@ -87,11 +93,15 @@ class Dummy:
         self._secondary_client.run_program(script, block=True)
 
     def _pick_place(self, start: str, end: str, waypoint_doc: Dict):
-        start_positions = {pos["name"]: {"pose": pos["pose"], "joint": pos["joint"]}
-                           for pos in waypoint_doc["start_positions"]}
+        start_positions = {
+            pos["name"]: {"pose": pos["pose"], "joint": pos["joint"]}
+            for pos in waypoint_doc["start_positions"]
+        }
 
-        end_positions = {pos["name"]: {"pose": pos["pose"], "joint": pos["joint"]}
-                         for pos in waypoint_doc["end_positions"]}
+        end_positions = {
+            pos["name"]: {"pose": pos["pose"], "joint": pos["joint"]}
+            for pos in waypoint_doc["end_positions"]
+        }
         pick_place_config = {
             "robot_type": self.robot_type,
             "approach_distance_mm": waypoint_doc["approach_distance_mm"],
@@ -99,8 +109,12 @@ class Dummy:
             "start_qnear": waypoint_doc["initial_position"]["joint"],
             "pick_pose": start_positions[start]["pose"],
             "pick_qnear": start_positions[start]["joint"],
-            "trans_poses": [pos["pose"] for pos in waypoint_doc["transition_waypoints"]],
-            "trans_qnears": [pos["joint"] for pos in waypoint_doc["transition_waypoints"]],
+            "trans_poses": [
+                pos["pose"] for pos in waypoint_doc["transition_waypoints"]
+            ],
+            "trans_qnears": [
+                pos["joint"] for pos in waypoint_doc["transition_waypoints"]
+            ],
             "place_pose": end_positions[end]["pose"],
             "place_qnear": end_positions[end]["joint"],
         }
@@ -120,13 +134,16 @@ class Dummy:
 
         if not starts or not ends:
             return
-        self._secondary_client.set_speed(.8)
+        self._secondary_client.set_speed(0.8)
 
         waypoint_to_use = None
 
         for waypoint in self.waypoints:
-            if set(pos["name"] for pos in waypoint["start_positions"]).issuperset(set(starts)) and \
-                    set(pos["name"] for pos in waypoint["end_positions"]).issuperset(set(ends)):
+            if set(pos["name"] for pos in waypoint["start_positions"]).issuperset(
+                set(starts)
+            ) and set(pos["name"] for pos in waypoint["end_positions"]).issuperset(
+                set(ends)
+            ):
                 waypoint_to_use = waypoint
                 break
 
@@ -144,9 +161,12 @@ class Dummy:
         self._ssh_client.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     robot = Dummy("192.168.0.22")
     try:
-        robot.move_crucibles(["loading_rack/1", "loading_rack/8"], ["transfer_rack/1", "transfer_rack/16"])
+        robot.move_crucibles(
+            ["loading_rack/1", "loading_rack/8"],
+            ["transfer_rack/1", "transfer_rack/16"],
+        )
     finally:
         robot.close()
