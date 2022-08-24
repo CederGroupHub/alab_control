@@ -66,13 +66,16 @@ class URRobotSecondary:
         if speed < 0 or speed > 1:
             raise ValueError("Speed must be between 0 and 1")
 
-        self.run_program(f"""def set_speed():
+        self.run_program(
+            f"""def set_speed():
             socket_open("127.0.0.1", 30003)
             socket_send_string("set speed")
             socket_send_string({speed})
             socket_send_byte(10)
             socket_close()
-end""", block=True)
+end""",
+            block=True,
+        )
 
     def close(self):
         """
@@ -92,10 +95,15 @@ end""", block=True)
         Check if the robot arm is in home position
         """
         current_joint = self._robot.getj()
-        return np.allclose(current_joint, [0, -np.pi / 2, 0, -np.pi / 2, 0, 0], atol=1e-4)
+        return np.allclose(
+            current_joint, [0, -np.pi / 2, 0, -np.pi / 2, 0, 0], atol=1e-4
+        )
+
+    def __exit__(self):
+        self.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     robot = URRobotSecondary("192.168.0.22")
     print(robot.check_home())
     robot.close()

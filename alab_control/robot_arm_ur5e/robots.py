@@ -4,8 +4,8 @@ from typing import List, Dict
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
-from robot_arm_ur5e import URRobotDashboard, URRobotSecondary
-from robot_arm_ur5e.ur_robot_ssh import URRobotSSH
+from alab_control.robot_arm_ur5e import URRobotDashboard, URRobotSecondary
+from alab_control.robot_arm_ur5e.ur_robot_ssh import URRobotSSH
 
 
 class Dummy:

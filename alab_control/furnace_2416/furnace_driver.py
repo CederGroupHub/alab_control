@@ -20,6 +20,7 @@ class ProgramMode(Enum):
     OFF = 1
     RUN = 2
     HOLD = 4
+    STOP = 16
 
 
 @unique
