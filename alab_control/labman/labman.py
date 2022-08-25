@@ -1,4 +1,6 @@
 from contextlib import contextmanager
+from enum import Enum, auto
+from multiprocessing.sharedctypes import Value
 import requests
 from threading import Thread
 import time
@@ -88,8 +90,20 @@ class InputFile:
         )
 
 
+class WorkflowStatus(Enum):
+    COMPLETE = "Complete"
+    RUNNING = "Running"  # TODO check if this is a real status
+    FULL = "Full"
+    LOADING = "Loading"  # TODO internal status to indicate that this workflow is accepting InputFiles. maybe we dont want to cross Labman and ALab statuses here...
+    EMPTY = "Empty"
+    UNKNOWN = "Unknown"
+
+
 class Workflow:  # maybe this should be Quadrant instead
-    def __init__(self, prep_window: float = 300):
+    MAX_SAMPLES: int = 24
+
+    def __init__(self, name: str, prep_window: float = 300):
+        self.name = name
         self._manage_window(duration=prep_window)
         self.inputs = []
         self.required_powders = Dict[Powder, float]
@@ -109,9 +123,14 @@ class Workflow:  # maybe this should be Quadrant instead
 
     def add_input(self, input: InputFile):
         if not self.open:
-            raise WorkflowError(
+            raise WorkflowFullError(
                 "The preparation window has closed for this workflow -- cannot add any more InputFile's!"
             )
+        if self.required_jars + input.replicates > self.MAX_SAMPLES:
+            raise WorkflowFullError(
+                f"This workflow is too full ({self.required_jars}/{self.MAX_SAMPLES}) to accomodate this input ({input.replicates} replicates)!"
+            )
+
         self.inputs.append(input)
 
         for powder, mass in input.powder_dispenses.items():
@@ -123,6 +142,27 @@ class Workflow:  # maybe this should be Quadrant instead
         self.required_crucibles += input.replicates
 
 
+class Quadrant:
+    """one of the four quadrants on the Labman"""
+
+    def __init__(self, index: int):
+        if index not in [1, 2, 3, 4]:
+            raise ValueError("Quadrant index must be 1,2,3,or 4!")
+        self.current_workflow: Workflow = None
+        self.index = index
+        self.status = WorkflowStatus.UNKNOWN
+        self.available_jars = []  # will populate with indices at which jars are present
+        self.available_crucibles = []  # same concept as jars
+
+    @property
+    def num_available_jars(self):
+        return len(self.available_jars)
+
+    @property
+    def num_available_crucibles(self):
+        return len(self.available_crucibles)
+
+
 class Labman:
     API_BASEURL = Path("apibase")  # TODO url path to Labman API
     STATUS_UPDATE_WINDOW: float = (
@@ -130,14 +170,26 @@ class Labman:
     )
 
     def __init__(self):
-        self.workflows = {i + 1: None for i in range(4)}  # four quadrants, 1-4
+        self.quadrants = {
+            i + 1: Quadrant(index=i + 1) for i in range(4)
+        }  # four quadrants, 1-4
+        # self.workflows = {i + 1: None for i in range(4)}  # four quadrants, 1-4
         self.powder_stocks = {i + 1: None for i in range(24)}  # 24 stock powders, 1-24
-        self.available_jars = {i: 0 for i in self.workflows}
-        self.available_crucibles = {i: 0 for i in self.workflows}
+        self.available_jars = {
+            i: quad.num_available_jars for i, quad in self.quadrants.items()
+        }
+        self.available_crucibles = {
+            i: quad.num_available_crucibles for i, quad in self.quadrants.items()
+        }
         self.available_ethanol = 0
         self.available_powders = {}  #
 
         self.last_updated_at = 0  # first `self.update_status()` should fire
+
+    @property
+    def status(self):
+        self.update_status()
+        return self._status
 
     @property
     def heated_rack_temperature(self):
@@ -191,20 +243,27 @@ class Labman:
                 "RobotRunning": true
             }
         }
-        #TODO error messages somewhere
         """
         if (time.time() - self.last_updated_at) < self.STATUS_UPDATE_WINDOW:
             return  # we updated very recently
 
         response = requests.get(url=self.API_BASE / "GetStatus")
         result = self.__process_server_response(response)
+        self._status = result["Status"]
+        # TODO do something with error message
+
         d = result["Data"]
         self._heated_rack_temperature = d["HeatedRackTemperature"]
         self._in_automated_mode = d["IsInAutomatedMode"]
         self._rack_under_robot_control = d["IndexingRackStatus"] == "RobotControl"
         self._pipette_tip_count = d["PipetteTipCount"]
-        # TODO quadrant statuses
         self._robot_running = d["RobotRunning"]
+
+        for d in result["Data"]["QuadrantStatuses"]:
+            idx = d["QuadrantNumber"]
+            self.quadrants[idx].status = WorkflowStatus(d["Progress"])
+            # TODO handle status workflow name != expected
+            # TODO handle quadrants that do not show up in status report
 
     ### consumables
     def load_ethanol(self, volume: float):
@@ -297,3 +356,26 @@ class Labman:
             yield
         finally:
             self.__release_quadrant_access()
+
+    ### crucible requests
+    def add_inputfile(self, input: InputFile):
+        loading_quadrants = [
+            q for q in self.quadrants.values() if q.status == WorkflowStatus.LOADING
+        ]
+        # TODO rank the loading quadrants to find a workflow with the most overlapping powders
+        for q in loading_quadrants:
+            # try to load into a loading quadrant
+            try:
+                q.current_workflow.add_input(input=input)
+                return
+            except WorkflowFullError:
+                continue
+
+        for q in self.quadrants.values():
+            if q.status == WorkflowStatus.EMPTY:
+                new_workflow = Workflow()
+                new_workflow.add_input(input=input)
+                q.current_workflow = new_workflow
+                return
+
+        raise WorkflowFullError("No room to add this input -- check back later!")
