@@ -96,7 +96,7 @@ end""",
         """
         current_joint = self._robot.getj()
         return np.allclose(
-            current_joint, [0, -np.pi / 2, 0, -np.pi / 2, 0, 0], atol=1e-4
+            current_joint, [0, -np.pi / 2, 0, -np.pi / 2, 0, 0], atol=1e-2
         )
 
     def __exit__(self):
