@@ -1,7 +1,10 @@
-from threading import Thread
 import time
-from typing import Dict, Type
+from threading import Thread
+from typing import Dict
+
 from molmass import Formula
+
+from alab_control.labman.error import WorkflowError
 
 
 class Powder:
@@ -17,15 +20,15 @@ class Powder:
 
 class InputFile:
     def __init__(
-        self,
-        powder_dispenses=Dict[Powder, float],
-        heating_duration: int = 300,
-        ethanol_volume: int = 10000,
-        transfer_volume: int = 10000,
-        mixer_speed: int = 2000,
-        mixer_duration: int = 900,
-        min_transfer_mass: int = 5,
-        replicates: int = 1,
+            self,
+            powder_dispenses=Dict[Powder, float],
+            heating_duration: int = 300,
+            ethanol_volume: int = 10000,
+            transfer_volume: int = 10000,
+            mixer_speed: int = 2000,
+            mixer_duration: int = 900,
+            min_transfer_mass: int = 5,
+            replicates: int = 1,
     ):
         if transfer_volume > ethanol_volume:
             raise ValueError("`transfer_volume` must be <= `ethanol_volume`!")

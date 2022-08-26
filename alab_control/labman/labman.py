@@ -1,16 +1,20 @@
-from contextlib import contextmanager
-from enum import Enum, auto
-from multiprocessing.sharedctypes import Value
-import requests
-from threading import Thread
 import time
-from typing import Dict
+from contextlib import contextmanager
+from enum import Enum
+from pathlib import Path, PurePath
+from threading import Thread
+from typing import Dict, List, Optional
+
+import pydantic.dataclasses
+import requests
 from molmass import Formula
-from pathlib import Path
+from pydantic import Field
 
-from alab_control.labman.error import *
+from alab_control.labman.error import LabmanError, WorkflowFullError, LabmanCommunicationError, PowderLoadingError
 
 
+# powder instance should only be a string to keep consistent with the labman system
+# sometimes we use polymorphes to synthesis the same phase, e.g., Anatase and Rutile
 class Powder:
     def __init__(self, name: str, composition: str):
         self.name = name
@@ -24,23 +28,23 @@ class Powder:
 
 class InputFile:
     def __init__(
-        self,
-        powder_dispenses=Dict[Powder, float],
-        heating_duration: int = 300,
-        ethanol_volume: int = 10000,
-        transfer_volume: int = 10000,
-        mixer_speed: int = 2000,
-        mixer_duration: int = 900,
-        min_transfer_mass: int = 5,
-        replicates: int = 1,
+            self,
+            powder_dispenses=Dict[str, float],
+            heating_duration: int = 300,
+            ethanol_volume_ml: int = 5,
+            transfer_volume_ml: int = 10000,
+            mixer_speed: int = 2000,
+            mixer_duration: int = 900,
+            min_transfer_mass: int = 5,
+            replicates: int = 1,
     ):
-        if transfer_volume > ethanol_volume:
+        if transfer_volume_ml > ethanol_volume_ml:
             raise ValueError("`transfer_volume` must be <= `ethanol_volume`!")
 
         self.powder_dispenses = powder_dispenses
         self.heating_duration = heating_duration
-        self.ethanol_volume = ethanol_volume
-        self.transfer_volume = transfer_volume
+        self.ethanol_volume = ethanol_volume_ml
+        self.transfer_volume = transfer_volume_ml
         self.mixer_speed = mixer_speed
         self.mixer_duration = mixer_duration
         self.min_transfer_mass = min_transfer_mass
@@ -70,8 +74,9 @@ class InputFile:
             "TargetTransferVolume": 10000
             },
         """
-        if position not in [1, 2, 3, 4]:
-            raise ValueError("Position must be 1, 2, 3, or 4!")
+        if 1 <= position <= 16:
+            raise ValueError("`position` must be between 1 and 16!")
+
         return (
             {
                 "CrucibleReplicates": self.replicates,
@@ -80,9 +85,9 @@ class InputFile:
                 "MinimumTransferMass": self.min_transfer_mass,
                 "MixerDuration": self.mixer_duration,
                 "MixerSpeed": self.mixer_speed,
-                "Position": self.position,
+                "Position": position,
                 "PowderDispenses": [
-                    {"PowderName": powder.name, "TargetMass": mass}
+                    {"PowderName": powder, "TargetMass": mass}
                     for powder, mass in self.powder_dispenses.items()
                 ],
                 "TargetTransferVolume": self.transfer_volume,
@@ -100,13 +105,13 @@ class WorkflowStatus(Enum):
 
 
 class Workflow:  # maybe this should be Quadrant instead
-    MAX_SAMPLES: int = 24
+    MAX_SAMPLES: int = 16
 
     def __init__(self, name: str, prep_window: float = 300):
         self.name = name
         self._manage_window(duration=prep_window)
-        self.inputs = []
-        self.required_powders = Dict[Powder, float]
+        self.inputs: List[InputFile] = []
+        self.required_powders = Dict[str, float]
         self.required_ethanol_volume = 0
         self.required_jars = 0
         self.required_crucibles = 0
@@ -126,19 +131,18 @@ class Workflow:  # maybe this should be Quadrant instead
             raise WorkflowFullError(
                 "The preparation window has closed for this workflow -- cannot add any more InputFile's!"
             )
-        if self.required_jars + input.replicates > self.MAX_SAMPLES:
+        if self.required_crucibles + input.replicates > self.MAX_SAMPLES:
             raise WorkflowFullError(
-                f"This workflow is too full ({self.required_jars}/{self.MAX_SAMPLES}) to accomodate this input ({input.replicates} replicates)!"
+                f"This workflow is too full ({self.required_crucibles}/{self.MAX_SAMPLES}) to accomodate this input ({input.replicates} replicates)!"
             )
 
         self.inputs.append(input)
 
         for powder, mass in input.powder_dispenses.items():
-            if powder not in self.required_powders:
-                self.required_powders[powder] = 0
+            self.required_powders.setdefault(powder, 0)
             self.required_powders[powder] += mass
         self.required_ethanol_volume += input.ethanol_volume
-        self.required_jars += input.replicates
+        self.required_jars += 1
         self.required_crucibles += input.replicates
 
 
@@ -146,9 +150,9 @@ class Quadrant:
     """one of the four quadrants on the Labman"""
 
     def __init__(self, index: int):
-        if index not in [1, 2, 3, 4]:
+        if index not in {1, 2, 3, 4}:
             raise ValueError("Quadrant index must be 1,2,3,or 4!")
-        self.current_workflow: Workflow = None
+        self.current_workflow: Optional[Workflow] = None
         self.index = index
         self.status = WorkflowStatus.UNKNOWN
         self.available_jars = []  # will populate with indices at which jars are present
@@ -164,7 +168,7 @@ class Quadrant:
 
 
 class Labman:
-    API_BASEURL = Path("apibase")  # TODO url path to Labman API
+    API_BASE = "apibase"  # TODO url path to Labman API
     STATUS_UPDATE_WINDOW: float = (
         5  # minimum time (seconds) between getting status updates from Labman
     )
@@ -182,7 +186,7 @@ class Labman:
             i: quad.num_available_crucibles for i, quad in self.quadrants.items()
         }
         self.available_ethanol = 0
-        self.available_powders = {}  #
+        self.available_powders: Dict[str, float] = {}  #
 
         self.last_updated_at = 0  # first `self.update_status()` should fire
 
@@ -247,7 +251,7 @@ class Labman:
         if (time.time() - self.last_updated_at) < self.STATUS_UPDATE_WINDOW:
             return  # we updated very recently
 
-        response = requests.get(url=self.API_BASE / "GetStatus")
+        response = requests.get(url=self.API_BASE + "/GetStatus")
         result = self.__process_server_response(response)
         self._status = result["Status"]
         # TODO do something with error message
@@ -272,7 +276,7 @@ class Labman:
     def load_jar(self, slot: int, deck: int):
         return
 
-    def load_powder(self, powder: Powder, mass: float, slot: int):
+    def load_powder(self, powder: str, mass: float, slot: int):
         if slot not in self.powder_stocks:
             raise ValueError("Slot must be an integer between 1-24!")
         if self.powder_stocks[slot] is not None:
@@ -324,14 +328,14 @@ class Labman:
     def __take_quadrant_access(self, index: int):
         response = requests.post(
             url=self.API_BASE
-            / f"RequestIndexingRackControl?outwardFacingQuadrant={index}",
+                + f"/RequestIndexingRackControl?outwardFacingQuadrant={index}",
         )
         self.__process_server_response(response)  # will throw error if not successful
         while self.rack_under_robot_control:
             time.sleep(self.STATUS_UPDATE_WINDOW)
 
     def __release_quadrant_access(self):
-        response = requests.post(url=self.API_BASE / "ReleaseIndexingRackControl")
+        response = requests.post(url=self.API_BASE + "/ReleaseIndexingRackControl")
         self.__process_server_response(response)  # will throw error if not successful
         while not self.rack_under_robot_control:
             time.sleep(self.STATUS_UPDATE_WINDOW)
@@ -351,11 +355,9 @@ class Labman:
         """
         if index not in [1, 2, 3, 4]:
             raise LabmanError("Quadrant must be 1,2,3,or 4!")
-        try:
-            self.__take_quadrant_access(index=index)
-            yield
-        finally:
-            self.__release_quadrant_access()
+        self.__take_quadrant_access(index=index)
+        yield
+        self.__release_quadrant_access()
 
     ### crucible requests
     def add_inputfile(self, input: InputFile):
@@ -373,7 +375,7 @@ class Labman:
 
         for q in self.quadrants.values():
             if q.status == WorkflowStatus.EMPTY:
-                new_workflow = Workflow()
+                new_workflow = Workflow(name="asdas")
                 new_workflow.add_input(input=input)
                 q.current_workflow = new_workflow
                 return
