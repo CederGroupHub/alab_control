@@ -83,6 +83,13 @@ class TubeFurnace:
         """
         self._process: Popen = Popen(self.exe_path.as_posix())
 
+    def close(self):
+        """
+        Close the tube furnace software
+        """
+        self._process.terminate()
+        self._process.wait()
+
     def _init(self):
         """
         Get the reference of the labview process
@@ -158,6 +165,15 @@ class TubeFurnace:
         self.sample_loaded()
         time.sleep(2)
 
+    def stop(self):
+        """
+        Stop the program
+        """
+        url = self.base_url + self.URLS["autostop"]
+        response = requests.get(url)
+        response.raise_for_status()
+        time.sleep(1)
+
     def open_door(self, safety_open_temperature=100, pressure_min=90000, pressure_max=110000, timeout=120):
         """
         Open the flange when some conditions are met. If these conditions (temperature & pressure) are not met,
@@ -178,7 +194,6 @@ class TubeFurnace:
         url = self.base_url + self.URLS["flange"]
         response = requests.get(url, params={"action": "WriteFlangeOpen"})
         response.raise_for_status()
-        return True
         seconds = 0
         while seconds <= timeout:
             if not self.flange_state:
@@ -201,7 +216,6 @@ class TubeFurnace:
         url = self.base_url + self.URLS["flange"]
         response = requests.get(url, params={"action": "WriteFlangeClose"})
         response.raise_for_status()
-        return True
         seconds = 0
 
         while seconds < timeout:
@@ -223,7 +237,7 @@ class TubeFurnace:
         return True
 
     @property
-    def flange_state(self):
+    def flange_state(self) -> bool:
         """
         Indicates if the door is closed.
         Returns:
@@ -312,6 +326,12 @@ class TubeFurnace:
             return TubeFurnaceState.PAUSED
         else:
             return TubeFurnaceState(re.search(r"\d+", autostate).group())
+
+    def is_running(self):
+        """
+        Check if the furnace is running
+        """
+        return self.state != TubeFurnaceState.STOPPED
 
 
 if __name__ == '__main__':
