@@ -250,7 +250,7 @@ class TubeFurnace:
         Read first 10 segments of the heating profile.
 
         Returns:
-            A dict like {"C01": time, "T01": temperature, ...}
+            A dict like {"C01": temperature, "T01": time, ...}
         """
         url = self.base_url + self.URLS["read_data"]
         response = requests.get(url)
@@ -268,7 +268,7 @@ class TubeFurnace:
         Write heating profile to the machine. The stop number is -121
 
         Args:
-            setpoints: A dict like {"C01": time, "T01": temperature, ...}
+            setpoints: A dict like {"C01": temperature, "T01": time, ...}
         """
         url = self.base_url + self.URLS["write_data"]
         response = requests.get(url, params=setpoints)
