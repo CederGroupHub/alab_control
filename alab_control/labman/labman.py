@@ -1,23 +1,24 @@
 from contextlib import contextmanager
+import datetime
 from enum import Enum, auto
+import uuid
 import requests
 from threading import Thread
 import time
 from typing import Dict, List
 from pathlib import Path
+from alab_control.labman.optimize_workflow import BatchOptimizer
 
-from components import Powder, InputFile, Workflow
+from components import Powder, InputFile, Workflow, WorkflowStatus
 from error import *
-from database import PowderView, JarView, CrucibleView, ContainerPositionStatus
+from database import (
+    PowderView,
+    JarView,
+    CrucibleView,
+    ContainerPositionStatus,
+    InputFileView,
+)
 from utils import initialize_labman_database
-
-
-class WorkflowStatus(Enum):
-    COMPLETE = "Complete"
-    RUNNING = "Running"  # TODO check if this is a real status
-    FULL = "Full"
-    LOADING = "Loading"  # TODO internal status to indicate that this workflow is accepting InputFiles. maybe we dont want to cross Labman and ALab statuses here...
-    UNKNOWN = "Unknown"
 
 
 class QuadrantStatus(Enum):
@@ -164,12 +165,18 @@ class Labman:
     STATUS_UPDATE_WINDOW: float = (
         5  # minimum time (seconds) between getting status updates from Labman
     )
+    WORKFLOW_BATCHING_WINDOW: float = (
+        300  # max seconds to wait for incoming inputfiles before starting a workflow
+    )
+    MAX_BATCH_SIZE = 16  # max number of crucibles allowed in a single workflow
 
     def __init__(self):
         initialize_labman_database(overwrite_existing=False)
         self.quadrants = {i: Quadrant(i) for i in [1, 2, 3, 4]}  # four quadrants, 1-4
         self.powder_view = PowderView()
         self.last_updated_at = 0  # first `self.update_status()` should fire
+        self.pending_inputfile_view = InputFileView()
+        # self._batching_worker_thread = self._start_batching_worker()
 
     ### status update methods
 
@@ -344,46 +351,55 @@ class Labman:
             self.__release_quadrant_access()
 
     ### workflow methods
+
+    def __workflow_batching_worker(self):
+        self._timer_active = False
+        self._time_to_go = None
+        while True:
+            if self.pending_inputfile_view.num_pending > 0:
+                if self._timer_active:
+                    # if we already opened the batching window, check if its time to send a batch of inputfiles as a workflow
+                    if time.time() > self._time_to_go:
+                        self._timer_active = False
+                        self._time_to_go = None
+                        self._batch_and_submit()
+                else:
+                    # if not, lets open a batching window now
+                    self._timer_active = True
+                    self._time_to_go = time.time() + self.WORKFLOW_BATCHING_WINDOW
+            time.sleep(self.WORKFLOW_BATCHING_WINDOW / 10)
+
+    def _start_batching_worker(self):
+        thread = Thread(target=self.__workflow_batching_worker)
+        thread.daemon = True
+        thread.run()
+        return thread
+
     def add_inputfile(self, input: InputFile):
-        empty_quadrants = [
-            q for q in self.quadrants if q.status == WorkflowStatus.EMPTY
-        ]
-        # TODO rank the loading quadrants to find a workflow with the most overlapping powders
-        for q in empty_quadrants:
-            # try to load into a loading quadrant
-            try:
-                q.current_workflow.add_input(input=input)
-                if q.current_workflow.status == WorkflowStatus.FULL:
-                    self.submit_workflow(q.index)
-                return
-            except WorkflowFullError:
-                continue
+        self.pending_inputfile_view.add(input)
 
-        for q in self.quadrants.values():
-            if q.status == WorkflowStatus.EMPTY:
-                new_workflow = Workflow()
-                new_workflow.add_input(input=input)
-                q.current_workflow = new_workflow
-                return
-
-        raise WorkflowFullError(
-            "No room to add this input, all quadrants are occupied with workflows -- check back later!"
+    def build_optimal_workflow(self, inputfiles: List[InputFile]) -> List[InputFile]:
+        bo = BatchOptimizer(
+            available_powders=self.available_powders,
+            available_jars=list(self.available_jars.values()),
+            available_crucibles=list(self.available_crucibles.values()),
+            inputfiles=inputfiles,
         )
+        best_quadrant, best_inputfiles = bo.solve()
+        name = f"{datetime.datetime.now()} - {len(best_inputfiles)}"
+        wf = Workflow(name=name)
+        for i in best_inputfiles:
+            wf.add_inputfile(i)
+        return best_quadrant, wf
 
-    def submit_workflow(self, quadrant_index: int):
-        quadrant = self.quadrants[quadrant_index]
-        workflow = quadrant.current_workflow
-        if workflow.status not in [WorkflowStatus.LOADING, WorkflowStatus.FULL]:
-            raise LabmanError(
-                f"Cannot submit workflow {workflow.name}, as it is not full or loading (current workflow status = {workflow.status.name}!"
-            )
+    def submit_workflow(self, quadrant_index: int, workflow: Workflow):
+        workflow_json = workflow.to_json(
+            quadrant_index=quadrant_index,
+            available_positions=self.quadrants[quadrant_index].available_jars,
+        )  # TODO still no info on crucible locations
+        # TODO submit workflow json to server
 
-        response = requests.post(
-            url=self.API_BASE / "PotsLoaded",
-            json=workflow.to_json(
-                quadrant_index=quadrant.index,
-                available_positions=quadrant.available_jars,
-            ),
-        )
-        self.__process_server_response(response)  # will throw error if not successful
-        workflow.status = WorkflowStatus.RUNNING
+    def _batch_and_submit(self):
+        inputfiles = self.pending_inputfile_view.get_all()
+        quadrant_index, workflow = self.build_optimal_workflow(inputfiles)
+        self.submit_workflow(quadrant_index, workflow)
