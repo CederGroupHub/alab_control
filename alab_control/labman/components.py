@@ -1,7 +1,9 @@
-from threading import Thread
-import time
 from typing import Dict, Type, List
 from molmass import Formula
+from bson import ObjectId
+from datetime import datetime
+from error import WorkflowFullError
+from enum import Enum, auto
 
 class Powder:
     def __init__(self, name: str, composition: str):
@@ -25,6 +27,8 @@ class InputFile:
         mixer_duration: int = 900,
         min_transfer_mass: int = 5,
         replicates: int = 1,
+        time_added: datetime = None,
+        _id: ObjectId = None,
     ):
         if transfer_volume > ethanol_volume:
             raise ValueError("`transfer_volume` must be <= `ethanol_volume`!")
@@ -36,8 +40,33 @@ class InputFile:
         self.mixer_duration = mixer_duration
         self.min_transfer_mass = min_transfer_mass
         self.replicates = replicates
+        if time_added is None:
+            self.time_added = datetime.now()
+        else:
+            self.time_added = time_added
+        if _id is None:
+            self._id = ObjectId()
+        else:
+            self._id = _id
 
-    def to_json(self, position: int):
+    def to_json(self):
+        {
+            "CrucibleReplicates": self.replicates,
+            "HeatingDuration": self.heating_duration,
+            "EthanolDispenseVolume": self.ethanol_volume,
+            "MinimumTransferMass": self.min_transfer_mass,
+            "MixerDuration": self.mixer_duration,
+            "MixerSpeed": self.mixer_speed,
+            "PowderDispenses": [
+                {"PowderName": powder.name, "TargetMass": mass}
+                for powder, mass in self.powder_dispenses.items()
+            ],
+            "TargetTransferVolume": self.transfer_volume,
+            "_id": self._id,
+            "time_added": self.time_added,
+        },
+
+    def to_labman_json(self, position: int):
         """
         Example:
             {
@@ -70,7 +99,7 @@ class InputFile:
                 "MinimumTransferMass": self.min_transfer_mass,
                 "MixerDuration": self.mixer_duration,
                 "MixerSpeed": self.mixer_speed,
-                "Position": self.position,
+                "Position": position,
                 "PowderDispenses": [
                     {"PowderName": powder.name, "TargetMass": mass}
                     for powder, mass in self.powder_dispenses.items()
@@ -78,6 +107,28 @@ class InputFile:
                 "TargetTransferVolume": self.transfer_volume,
             },
         )
+
+    @classmethod
+    def from_json(cls, json: Dict):
+        return cls(
+            powder_dispenses=json["PowderDispenses"],
+            heating_duration=json["HeatingDuration"],
+            ethanol_volume=json["EthanolDispenseVolume"],
+            transfer_volume=json["TargetTransferVolume"],
+            mixer_speed=json["MixerSpeed"],
+            mixer_duration=json["MixerDuration"],
+            min_transfer_mass=json["MinimumTransferMass"],
+            replicates=json["CrucibleReplicates"],
+            _id=json["_id"],
+        )
+
+
+class WorkflowStatus(Enum):
+    COMPLETE = "Complete"
+    RUNNING = "Running"  # TODO check if this is a real status
+    FULL = "Full"
+    LOADING = "Loading"  # TODO internal status to indicate that this workflow is accepting InputFiles. maybe we dont want to cross Labman and ALab statuses here...
+    UNKNOWN = "Unknown"
 
 
 class Workflow:  # maybe this should be Quadrant instead
@@ -118,7 +169,5 @@ class Workflow:  # maybe this should be Quadrant instead
 
         for input, position in zip(self.inputs, available_positions):
             input: InputFile
-            data["InputFile"].append(input.to_json(position=position))
+            data["InputFile"].append(input.to_labman_json(position=position))
         return data
-
-

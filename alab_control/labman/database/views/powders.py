@@ -122,25 +122,25 @@ class PowderView:
             {"$set": powder_entry},
         )
 
-    def consume_powder(self, index: int, mass_g: float, reservation_id: ObjectId):
+    def consume_powder(self, dosinghead_index: int, mass_g: float, reservation_id: ObjectId):
         powder_entry = self.powders.find_one(
             {"reserved_mass_g.reservation_id": reservation_id}
         )
         if powder_entry is None:
             raise ValueError(f"Reservation ID {reservation_id} not found.")
-        dosinghead_entry = self.get_dosinghead(index)
+        dosinghead_entry = self.get_dosinghead(dosinghead_index)
         dosinghead_entry["mass_g"] -= mass_g
         if dosinghead_entry["mass_g"] < 0:
             raise ValueError(
-                f"Not enough mass available from dosing head {index}."
+                f"Not enough mass available from dosing head {dosinghead_index}."
             )
 
         if (
-            index not in powder_entry["dosing_heads"]
+            dosinghead_index not in powder_entry["dosing_heads"]
             or dosinghead_entry["powder_id"] != powder_entry["_id"]
         ):
             raise ValueError(
-                f"Reservation ID {reservation_id} is for {powder_entry['powder']}. Dosing head {index} contains {dosinghead_entry['powder']}!"
+                f"Reservation ID {reservation_id} is for {powder_entry['powder']}. Dosing head {dosinghead_index} contains {dosinghead_entry['powder']}!"
             )
         remaining_reservations = []
         for entry in powder_entry["reserved_mass_g"]:
@@ -170,6 +170,6 @@ class PowderView:
                 }
             )
         self.dosingheads.update_one(
-            {"index": index},
+            {"index": dosinghead_index},
             {"$set": dosinghead_entry},
         )
