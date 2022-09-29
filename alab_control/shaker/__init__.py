@@ -1,1 +1,1 @@
-from .shaker import Shaker
+from .shaker import Shaker, ShakerState
