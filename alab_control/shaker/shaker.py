@@ -23,7 +23,7 @@ class ShakerError(Exception):
     """
 
 
-class Sheaker(BaseArduinoDevice):
+class Shaker(BaseArduinoDevice):
     """
     Shaker machine for ball milling
     """
@@ -53,7 +53,7 @@ class Sheaker(BaseArduinoDevice):
         Get current status of the shaker machine and the grabber
         """
         response = self.send_request(self.ENDPOINTS["state"])
-        self.state = ShakerState(f"{response['grabber']}_{response['state']}")
+        self.state = ShakerState(f"{response['grabber'].upper()}_{response['state'].upper()}")
         return self.state
 
     def grab(self):
