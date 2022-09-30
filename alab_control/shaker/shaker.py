@@ -28,25 +28,23 @@ class Shaker(BaseArduinoDevice):
     Shaker machine for ball milling
     """
 
+    FREQUENCY = 30  # the frequency of the shaker, user should set it in the ball milling machine manually for now.
+
     # TODO: edit this after Bernard finishes
     ENDPOINTS = {
-        "grab": "/open",
-        "release": "/close",
+        "grab": "/grabber-open",
+        "release": "/grabber-close",
         "start": "/start",
         "stop": "/stop",
         "state": "/state",
     }
 
-    def __init__(self, ip_address, port: int = 80):
-        super().__init__(ip_address, port)
-        self.state: ShakerState = ShakerState.OPEN_STOPPED
-
     def is_running(self) -> bool:
         """
         Check if the shaker machine is running
         """
-        self.get_state()  # refresh the state
-        return self.state.is_shaker_running()
+        state = self.get_state()  # refresh the state
+        return state.is_shaker_running()
 
     def get_state(self) -> ShakerState:
         """
@@ -57,25 +55,52 @@ class Shaker(BaseArduinoDevice):
         return self.state
 
     def grab(self):
-        self.get_state()
-        if self.state.is_grabber_closed():
+        """
+        Close the grabber to hold the container
+        """
+        state = self.get_state()
+        if state.is_grabber_closed():
             raise ShakerError("Grabber is already closed")
         self.send_request(self.ENDPOINTS["grab"])
         time.sleep(3)  # wait for the grabber to close
-        self.get_state()
+        while not self.get_state().is_grabber_closed():
+            time.sleep(1)
 
     def release(self):
-        self.get_state()
-        if not self.state.is_grabber_closed():
+        """
+        Open the grabber to release the container
+        """
+        state = self.get_state()
+        if not state.is_grabber_closed():
             raise ShakerError("Grabber is already open")
         self.send_request(self.ENDPOINTS["grab"])
-        time.sleep(2)  # wait for the grabber to open
-        self.get_state()
+        time.sleep(1)  # wait for the grabber to open
+        while self.get_state().is_grabber_closed():
+            time.sleep(1)
+
+    def shaking(self, duration_sec: int):
+        """
+        Start the shaker machine for a given duration (seconds)
+
+        Args:
+            duration_sec: duration of shaking in seconds
+        """
+        start_time = time.time()
+        try:
+            while time.time() - start_time < duration_sec:
+                self.start()
+                time.sleep(5)
+        finally:
+            stop()
 
     def start(self):
+        """
+        Send a start command to the shaker machine
+        """
         self.send_request(self.ENDPOINTS["start"])
-        self.get_state()
 
     def stop(self):
+        """
+        Send a stop command to the shaker machine
+        """
         self.send_request(self.ENDPOINTS["stop"])
-        self.get_state()
