@@ -16,24 +16,32 @@ class BallDispenser(BaseArduinoDevice):
 
     # TODO: add state endpoint to the dispenser code
     ENDPOINTS = {
-        "dispense": "/start",
+        "start": "/start",
         "change_number": "/change",
         "state": "/state",
+        "stop": "/stop",
     }
 
-    def __init__(self, ip_address, port: int = 80):
-        super().__init__(ip_address, port)
-
-    def dispense(self):
+    def dispense_balls(self):
         """
         Dispense balls
         """
-        self.send_request(self.ENDPOINTS["dispense"], method="GET")
+        if self.get_state() == BallDispenserState.RUNNING:
+            raise RuntimeError("Dispenser is still running")
+        self.send_request(self.ENDPOINTS["start"], method="GET")
         time.sleep(5)
 
         # wait until finishes
         while self.get_state() == BallDispenserState.RUNNING:
             time.sleep(1)
+
+    def stop(self):
+        """
+        Stop the dispenser
+        """
+        if self.get_state() == BallDispenserState.STOPPED:
+            return
+        self.send_request(self.ENDPOINTS["stop"], method="GET")
 
     def change_number(self, n: int):
         """
@@ -46,7 +54,7 @@ class BallDispenser(BaseArduinoDevice):
             raise ValueError("n must be between 0 and 100")
         self.send_request(self.ENDPOINTS["change_number"], data={"n": n}, method="GET")
 
-    def get_state(self):
+    def get_state(self) -> BallDispenserState:
         """
         Get the current state of the dispenser
         """

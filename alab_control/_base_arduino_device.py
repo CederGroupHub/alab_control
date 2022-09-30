@@ -9,11 +9,10 @@ import requests
 
 
 class BaseArduinoDevice(abc.ABC):
-    def __init__(self, ip_address, port: int = 80):
+    def __init__(self, ip_address: str, port: int = 80):
         self.ip_address = ip_address
         self.port = port
 
-    @abc.abstractmethod
     def send_request(self, endpoint: str, data: Optional[Dict[str, Union[str, int, float, bytes, bool]]] = None,
                      method: str = "GET", jsonify: bool = True, suppress_error: bool = False):
         url = f"http://{self.ip_address}:{self.port}/{endpoint}"
