@@ -14,7 +14,6 @@ class BallDispenser(BaseArduinoDevice):
     Dispensing Al2O3 balls to the crucibles.
     """
 
-    # TODO: add state endpoint to the dispenser code
     ENDPOINTS = {
         "start": "/start",
         "change_number": "/change",

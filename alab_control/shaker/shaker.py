@@ -30,7 +30,6 @@ class Shaker(BaseArduinoDevice):
 
     FREQUENCY = 30  # the frequency of the shaker, user should set it in the ball milling machine manually for now.
 
-    # TODO: edit this after Bernard finishes
     ENDPOINTS = {
         "grab": "/grabber-open",
         "release": "/grabber-close",
