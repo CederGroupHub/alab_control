@@ -179,13 +179,19 @@ class Aeris:
 
         return angles, intensities
 
-    def add_to_aeris(self, sample_id:str, loc: Union[str, int]):
+    def add_to_aeris(self, sample_id: str, loc: Union[str, int]):
         """Add a sample to the Aeris' memory. This should be run when physically loading a sample onto the instrument.
 
         Args:
             sample_id (str): sample_id to associate with this sample within the Aeris' memory
             loc (Union[str, int]): Index or alias for slot sample is physically being loaded into
         """
+        slot_index = self.__get_slot(loc)
+        msg = f"@SAMPLE@ADD@SAMPLE_ID={sample_id}@AT=0,{slot_index}@END"
+        reply = self._query(msg)
+        if "fatal" in reply:
+            raise AerisException(f"Could not add sample {sample_id} to location {loc}!")
+
     def remove_from_aeris(self, sample_id: str):
         """Removes a sample from the Aeris' memory. This is necessary once the sample is physically removed from the instrument.
 
