@@ -1,3 +1,4 @@
+import re
 import numpy as np
 import xmltodict
 import socket
@@ -5,18 +6,6 @@ import time
 import os
 from typing import List, Tuple, Union, Dict
 from enum import Enum
-
-### Enumerations
-class SlotStatus(Enum):
-    UNKNOWN = "unknown"
-    FREE = "free"
-    OCCUPIED = "occupied"
-
-
-class CommandResult(Enum):
-    SUCCESS = "normal"
-    ERROR = "fatal"
-
 
 ### Exceptions
 class AerisException(Exception):
@@ -32,43 +21,90 @@ class ScanFailed(AerisException):
 
 
 class Aeris:
-    SLOTS: Dict[Union[str, int], int] = {
-        "inside": 0,
-        0: 0,
-        1: 1,
-        2: 2,
-        3: 3,
-        4: 4,
-        5: 5,
+    ALL_SLOTS: Dict[Union[str, int], int] = {
+        # "inside": 0,
+        # 0: 0,
+        "belt": 1,
+        1: 2,
+        2: 3,
+        3: 4,
+        4: 5,
+        5: 6,
     }  # key of slot locations -> aeris slot indices
-    COMMUNICATION_DELAY: float = 5  # time to wait between sending a message to Aeris and searching for a response
+    ALLOWED_SLOTS = {
+        1: 2,
+        2: 3,
+        3: 4,
+    }  # slot locations that are allowed for ALab samples
+    COMMUNICATION_DELAY: float = 0.2  # time to wait between sending a message to Aeris and searching for a response
+    FILEWRITE_TIMEOUT: float = 10  # seconds to wait after trying to read a file before considering it a failure
 
     # Replace IP, port, and directory paths with your own info
     def __init__(
         self,
-        ip: str = "10.0.0.188",
+        ip: str = "192.168.0.25",
         port: int = 702,
-        results_dir: str = "/Users/Cederexp/Documents/SharedFolder",
-        working_dir: str = "./Results",
+        results_dir: str = "/Volumes/Users/Cederexp/Documents/SharedFolder",
+        debug: bool = False,
     ):
         self.ip = ip
         self.port = port
         self.results_dir = results_dir
-        self.working_dir = working_dir
+        self._debug = debug  # if true, prints all communication to Aeris
 
-    def __get_slot(self, loc: Union[str, int]) -> int:
+    @property
+    def xrd_is_busy(self) -> bool:
+        """Check if the Aeris is currently taking an XRD measurement
+
+        Returns:
+            bool: True = diffractometer is busy, False = idle
+        """
+        msg = f"@STATUS_REQUEST@UNIT=xrd@END"
+        reply = self._query(msg)
+        hits = re.findall("READY=(\w*)", reply)
+        if len(hits) == 0:
+            raise AerisException("Could not determine if Aeris is busy!")
+        if hits[0] == "yes":
+            return False
+        return True
+
+    @property
+    def is_under_remote_control(self) -> bool:
+        """Check if the Aeris is currently under remote control
+
+        Returns:
+            bool: True = under remote control, False = not under remote control
+        """
+        msg = f"@STATUS_REQUEST@SYSTEM@END"
+        reply = self._query(msg)
+        hits = re.findall("SYSTEM=(\w*)", reply)
+        if len(hits) == 0:
+            raise AerisException(
+                "Could not determine if Aeris is under remote control!"
+            )
+        return hits[0] == "remote"
+
+    def __get_slot(
+        self, loc: Union[str, int], limit_to_allowed_slots: bool = True
+    ) -> int:
         """Return Aeris slot number for given location
 
         Args:
             loc (Union[str,int]): Index or string alias for slot
+            limit_to_allowed_slots (bool, optional): If True, only return slots that are allowed for ALab samples. if False, return all Aeris slots. Defaults to True.
 
         Returns:
             int: internal index of slot for communication to Aeris
         """
-        if loc not in self.SLOTS:
+        if limit_to_allowed_slots:
+            slotkey = self.ALLOWED_SLOTS
+        else:
+            slotkey = self.ALL_SLOTS
+        if loc not in slotkey:
             raise ValueError(
-                f"Invalid slot location! Valid locations are: {self.SLOTS.keys()}"
+                f"Invalid slot location! Valid locations are: {slotkey.keys()}"
             )
+        return slotkey[loc]
 
     def _query(self, msg: str) -> str:
         """Send a message to the Aeris, return the reply
@@ -81,67 +117,65 @@ class Aeris:
         """
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((self.ip, self.port))
+            if self._debug:
+                print("sent: ", msg)
             msg_bytes = bytes(msg, encoding="utf-8")
             s.sendall(msg_bytes)
             data = s.recv(1024)
+            if self._debug:
+                print("recv: ", repr(data))
             time.sleep(
                 self.COMMUNICATION_DELAY
             )  # TODO do we actually need this here? seems unlikely
 
         return str(data)
 
-    def slot_status(self, loc: Union[str, int]) -> SlotStatus:
-        """Check occupancy status of a given slot
+    def is_slot_empty(self, loc: Union[str, int]) -> bool:
+        """Check if a given slot is empty. This checks the Aeris' proximity sensor results (ie checks if a sample is physically present in the slot, regardless of whether a sample has been added to the Aeris database at this slot)
 
         Args:
             loc (Union[str,int]): Index or alias for slot
 
         Returns:
-            SlotStatus: Current occupancy status of slot
+            bool: True if slot is empty, False otherwise
         """
+        slot_index = self.__get_slot(loc, limit_to_allowed_slots=False)
+        data = self._query(f"@STATUS_REQUEST@LOCATION=0,{slot_index}@END")
+        for output in str(data).split("@"):
+            if "STATE" in output:
+                status = output.split("=")[1]
 
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((self.ip, self.port))
-            mssg = bytes("@STATUS_REQUEST@LOCATION=0,%s@END" % loc, encoding="utf-8")
-            s.sendall(mssg)
-            data = s.recv(1024)
-            print(repr(data))
-            time.sleep(5)
-            for output in str(data).split("@"):
-                if "STATE" in output:
-                    status = output.split("=")[1]
-            return status
+        if status == "free":
+            return True
+        elif status == "occupied":
+            return False
+        else:
+            raise AerisException(
+                "Could not determine if slot {loc} is empty -- Aeris returned {status}!"
+            )
 
     def scan(
         self,
-        loc: Union[str, int],
-        sample_id: str = "unknown_sample",
+        sample_id: str,
         program: str = "10-140_2-min",
-    ) -> Tuple[np.array, np.array]:
+    ):
         """perform an XRD measurement using an existing program
 
         Args:
-            loc (Union[str,int]): Index or alias for slot containing sample
             sample_id (str, optional): sample_id that Aeris should assign to this scan. Defaults to "unknown_sample".
             program (str, optional): Scan program that the Aeris should use to acquire data. This must be created beforehand. Defaults to "10-140_2-min".
 
         Raises:
             ScanFailed: Scan failed for some reason
-
-        Returns:
-            Tuple(np.array, np.array): angles and intensities of scan
         """
-        slot_index = self.__get_slot(loc)
+        # slot_index = self.__get_slot(loc)
 
-        msg = f"@SAMPLE@ADD@SAMPLE_ID={sample_id}@APPLICATION={program}@AT=0,{slot_index}@MEASURE=yes@END"
+        msg = f"@SAMPLE@MEASURE@SAMPLE_ID={sample_id}@APPLICATION={program}@END"
         reply = self._query(msg)
         if "fatal" in reply:
             raise ScanFailed(
-                f"Scan failed for program {program} on sample_id {sample_id} in location {loc}!"
+                f"Scan failed for program {program} on sample_id {sample_id}!"
             )
-
-        angles, intensities = self.load_scan_results(sample_id)
-        return angles, intensities
 
     def load_scan_results(self, sample_id: str) -> Tuple[np.array, np.array]:
         """Load scan results from Aeris
@@ -157,7 +191,8 @@ class Aeris:
         while filename not in os.listdir(self.results_dir):
             if (time.time() - t_start) > self.FILEWRITE_TIMEOUT:
                 raise ScanFailed(f"Scan results for {sample_id} not found!")
-            time.sleep(1)
+            time.sleep(self.FILEWRITE_TIMEOUT / 10)
+
         with open(os.path.join(self.results_dir, filename), "r", encoding="utf-8") as f:
             xrd_dict = xmltodict.parse(f.read())
             min_angle = float(
@@ -179,7 +214,29 @@ class Aeris:
 
         return angles, intensities
 
-    def add_to_aeris(self, sample_id: str, loc: Union[str, int]):
+    def scan_and_return_results(
+        self, sample_id: str, program: str = "10-140_2-min"
+    ) -> Tuple[np.array, np.array]:
+        """Perform an XRD scan and return the results. Blocks until results are available.
+
+        Args:
+            sample_id (str): sample_id that Aeris should assign to this scan
+            program (str, optional): Scan program that the Aeris should use to acquire data. This must be created beforehand. Defaults to "10-140_2-min".
+
+        Returns:
+            Tuple[np.array, np.array]: arrays of 2theta and intensity values
+        """
+        self.scan(sample_id, program)
+        while self.xrd_is_busy:
+            time.sleep(2)
+        return self.load_scan_results(sample_id)
+
+    def add(
+        self,
+        sample_id: str,
+        loc: Union[str, int],
+        default_program: str = "10-140_2-min",
+    ):
         """Add a sample to the Aeris' memory. This should be run when physically loading a sample onto the instrument.
 
         Args:
@@ -187,12 +244,12 @@ class Aeris:
             loc (Union[str, int]): Index or alias for slot sample is physically being loaded into
         """
         slot_index = self.__get_slot(loc)
-        msg = f"@SAMPLE@ADD@SAMPLE_ID={sample_id}@AT=0,{slot_index}@END"
+        msg = f"@SAMPLE@ADD@APPLICATION={default_program}@SAMPLE_ID={sample_id}@AT=0,{slot_index}@END"
         reply = self._query(msg)
         if "fatal" in reply:
             raise AerisException(f"Could not add sample {sample_id} to location {loc}!")
 
-    def remove_from_aeris(self, sample_id: str):
+    def remove(self, sample_id: str):
         """Removes a sample from the Aeris' memory. This is necessary once the sample is physically removed from the instrument.
 
         Args:
@@ -205,31 +262,47 @@ class Aeris:
                 f"Could not remove sample_id {sample_id} from the Aeris' memory"
             )
 
+    def remove_by_slot(self, loc: Union[str, int]):
+        """Removes a sample from the Aeris' memory. This is necessary once the sample is physically removed from the instrument.
+
+        Args:
+            loc (Union[str, int]): Index or alias for slot sample is physically being loaded into
+        """
+        slot_index = self.__get_slot(loc, limit_to_allowed_slots=False)
+        msg = f"@SAMPLE@REMOVE@SAMPLE_ID@AT=0,{slot_index}@END"
+        reply = self._query(msg)
+        if "fatal" in reply:
+            raise AerisException(
+                f"Could not remove sample from location {loc} from the Aeris' memory"
+            )
+
     def move(
         self,
         initial_loc: Union[str, int],
         target_loc: Union[str, int],
-        sample_id: str = "unknown_sample",
     ):
         """Move a sample from one location to another
 
         Args:
             initial_loc (Union[str,int]): Index or alias for slot to move sample from
             target_loc (Union[str,int]): Index or alias for slot to move sample to
-            sample_id (str, optional): Name of the sample. Defaults to "unknown_sample".
 
         Raises:
             AerisException: _description_
         """
-        initial_slot = self.__get_slot(initial_loc)
-        target_slot = self.__get_slot(target_loc)
+        initial_slot = self.__get_slot(initial_loc, limit_to_allowed_slots=False)
+        target_slot = self.__get_slot(target_loc, limit_to_allowed_slots=False)
 
-        msg = f"@SAMPLE@MOVE@SAMPLE_ID={sample_id}@AT=0,{initial_slot}@TO=0,{target_slot}@END"
+        # msg = f"@SAMPLE@MOVE@SAMPLE_ID={sample_id}@AT=0,{initial_slot}@TO=0,{target_slot}@END"
+        msg = f"@SAMPLE@MOVE@SAMPLE_ID@AT=0,{initial_slot}@TO=0,{target_slot}@END"
         reply = self._query(msg)
         if "fatal" in reply:
             raise AerisException(
-                f"Failed to move sample_id {sample_id} from location {initial_loc} to location {target_loc}!"
+                f"Failed to move sample from location {initial_loc} to location {target_loc}!"
             )
+
+    def move_arm_out_of_the_way(self):
+        self.move(5, 4)
 
 
 # # Write XRD data to file
