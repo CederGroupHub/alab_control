@@ -5,6 +5,7 @@ from datetime import datetime
 from error import WorkflowFullError
 from enum import Enum, auto
 
+
 class Powder:
     def __init__(self, name: str, composition: str):
         self.name = name
@@ -50,7 +51,7 @@ class InputFile:
             self._id = _id
 
     def to_json(self):
-        {
+        return {
             "CrucibleReplicates": self.replicates,
             "HeatingDuration": self.heating_duration,
             "EthanolDispenseVolume": self.ethanol_volume,
@@ -58,13 +59,13 @@ class InputFile:
             "MixerDuration": self.mixer_duration,
             "MixerSpeed": self.mixer_speed,
             "PowderDispenses": [
-                {"PowderName": powder.name, "TargetMass": mass}
+                {"PowderName": powder, "TargetMass": mass}
                 for powder, mass in self.powder_dispenses.items()
             ],
             "TargetTransferVolume": self.transfer_volume,
             "_id": self._id,
             "time_added": self.time_added,
-        },
+        }
 
     def to_labman_json(self, position: int):
         """
@@ -90,28 +91,16 @@ class InputFile:
             "TargetTransferVolume": 10000
             },
         """
-
-        return (
-            {
-                "CrucibleReplicates": self.replicates,
-                "HeatingDuration": self.heating_duration,
-                "EthanolDispenseVolume": self.ethanol_volume,
-                "MinimumTransferMass": self.min_transfer_mass,
-                "MixerDuration": self.mixer_duration,
-                "MixerSpeed": self.mixer_speed,
-                "Position": position,
-                "PowderDispenses": [
-                    {"PowderName": powder.name, "TargetMass": mass}
-                    for powder, mass in self.powder_dispenses.items()
-                ],
-                "TargetTransferVolume": self.transfer_volume,
-            },
-        )
+        j = self.to_json()
+        j["Position"] = position
+        return j
 
     @classmethod
     def from_json(cls, json: Dict):
         return cls(
-            powder_dispenses=json["PowderDispenses"],
+            powder_dispenses={
+                v["PowderName"]: v["TargetMass"] for v in json["PowderDispenses"]
+            },
             heating_duration=json["HeatingDuration"],
             ethanol_volume=json["EthanolDispenseVolume"],
             transfer_volume=json["TargetTransferVolume"],
@@ -138,10 +127,11 @@ class Workflow:  # maybe this should be Quadrant instead
     def __init__(self, name: str):
         self.name = name
         self.inputs = []
-        self.required_powders = Dict[Powder, float]
+        self.required_powders: Dict[Powder, float] = {}
         self.required_ethanol_volume = 0
         self.required_jars = 0
         self.required_crucibles = 0
+        self.validated = False
         self.status = WorkflowStatus.LOADING
 
     def add_input(self, input: InputFile):
@@ -171,3 +161,6 @@ class Workflow:  # maybe this should be Quadrant instead
             input: InputFile
             data["InputFile"].append(input.to_labman_json(position=position))
         return data
+
+    def __len__(self):
+        return len(self.inputs)

@@ -161,7 +161,7 @@ class Quadrant:
 
 
 class Labman:
-    API_BASEURL = Path("apibase")  # TODO url path to Labman API
+    API_BASE = Path("apibase")  # TODO url path to Labman API
     STATUS_UPDATE_WINDOW: float = (
         5  # minimum time (seconds) between getting status updates from Labman
     )
@@ -389,15 +389,40 @@ class Labman:
         name = f"{datetime.datetime.now()} - {len(best_inputfiles)}"
         wf = Workflow(name=name)
         for i in best_inputfiles:
-            wf.add_inputfile(i)
+            wf.add_input(i)
         return best_quadrant, wf
 
     def submit_workflow(self, quadrant_index: int, workflow: Workflow):
+        if not self.workflow_is_valid(workflow):
+            raise LabmanError("Workflow is not valid!")
+        with self.access_quadrant(
+            quadrant_index
+        ):  # TODO do we need to be under manual control to start a workflow?
+            workflow_json = workflow.to_json(
+                quadrant_index=quadrant_index,
+                available_positions=self.quadrants[quadrant_index].available_jars,
+            )  # TODO still no info on crucible locations
+            response = requests.post(
+                url=self.API_BASE / "PotsLoaded", json=workflow_json
+            )
+            data = self.__process_server_response(response)
+            # TODO check response and update some stuff
+
+    def workflow_is_valid(self, workflow: Workflow) -> bool:
         workflow_json = workflow.to_json(
-            quadrant_index=quadrant_index,
-            available_positions=self.quadrants[quadrant_index].available_jars,
-        )  # TODO still no info on crucible locations
-        # TODO submit workflow json to server
+            quadrant_index=1,
+            available_positions=[i + 1 for i in range(16)],
+        )  # dummy quadrant/positions
+        response = requests.post(
+            url=self.API_BASE / "ValidateWorkflow", json=workflow_json["InputFile"]
+        )
+        data = self.__process_server_response(response)
+
+        if data["Data"]["Result"] == "NoError":
+            return True
+        else:
+            # TODO parse error message and do something useful here
+            return False
 
     def _batch_and_submit(self):
         inputfiles = self.pending_inputfile_view.get_all()
