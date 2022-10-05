@@ -31,8 +31,8 @@ class Shaker(BaseArduinoDevice):
     FREQUENCY = 30  # the frequency of the shaker, user should set it in the ball milling machine manually for now.
 
     ENDPOINTS = {
-        "grab": "/grabber-open",
-        "release": "/grabber-close",
+        "grab": "/grabber-close",
+        "release": "/grabber-open",
         "start": "/start",
         "stop": "/stop",
         "state": "/state",
@@ -50,8 +50,8 @@ class Shaker(BaseArduinoDevice):
         Get current status of the shaker machine and the grabber
         """
         response = self.send_request(self.ENDPOINTS["state"])
-        self.state = ShakerState(f"{response['grabber'].upper()}_{response['state'].upper()}")
-        return self.state
+        state = ShakerState[f"{response['grabber'].upper()}_{response['state'].upper()}"]
+        return state
 
     def grab(self):
         """
@@ -88,9 +88,9 @@ class Shaker(BaseArduinoDevice):
         try:
             while time.time() - start_time < duration_sec:
                 self.start()
-                time.sleep(5)
+                time.sleep(5 if duration_sec >= 20 else 2)
         finally:
-            stop()
+            self.stop()
 
     def start(self):
         """

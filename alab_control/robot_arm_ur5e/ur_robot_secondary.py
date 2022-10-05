@@ -18,8 +18,8 @@ class URRobotSecondary:
     def setup_connection(self):
         for i in range(10):
             try:
-                time.sleep(0.1)
                 self._robot = URRobot(host=self.ip)
+                time.sleep(0.2)
             except (TimeoutException, timeout):
                 print(f"Failed to connect to {self.ip}, retrying... {i+1}/10")
                 continue

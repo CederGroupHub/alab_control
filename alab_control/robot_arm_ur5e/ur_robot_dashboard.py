@@ -116,6 +116,7 @@ class URRobotDashboard:
         self.load(name)
         logger.info("Run program: {}".format(name))
         self.play()
+        self.wait_for_finish()
 
     def is_running(self) -> bool:
         """
@@ -172,7 +173,6 @@ class URRobotDashboard:
             e.args = (e.args[0] + " Did you remember to load program or did "
                                   "you stop the program by accident?",)
             raise
-
         while not self.is_running():
             continue
 
