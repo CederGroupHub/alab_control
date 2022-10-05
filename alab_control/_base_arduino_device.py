@@ -15,7 +15,7 @@ class BaseArduinoDevice(abc.ABC):
 
     def send_request(self, endpoint: str, data: Optional[Dict[str, Union[str, int, float, bytes, bool]]] = None,
                      method: str = "GET", jsonify: bool = True, suppress_error: bool = False):
-        url = f"http://{self.ip_address}:{self.port}/{endpoint}"
+        url = f"http://{self.ip_address}:{self.port}{endpoint}"
         time.sleep(0.1)
         response = requests.request(method=method, url=url, data=data)
         if not suppress_error:

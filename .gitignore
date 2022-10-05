@@ -138,3 +138,5 @@ dmypy.json
 # Pyre type checker
 .pyre/
 /tempearture/result.pkl
+
+.DS_Store

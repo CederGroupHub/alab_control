@@ -57,4 +57,4 @@ class BallDispenser(BaseArduinoDevice):
         """
         Get the current state of the dispenser
         """
-        return BallDispenserState(self.send_request(self.ENDPOINTS["state"], method="GET")["state"].upper())
+        return BallDispenserState[self.send_request(self.ENDPOINTS["state"], method="GET")["state"].upper()]

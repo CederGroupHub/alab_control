@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>A-Lab</title>
+</head>
+
+<style>
+    .root {
+        display: flex;
+        flex-direction: row;
+        justify-content: space-around;
+        align-items: center;
+
+    }
+
+    .p {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100vh;
+        font-family: Arial, Helvetica, sans-serif;
+    }
+
+    .q {
+        padding: 32px 48px;
+        margin: 24px 48px;
+        border: 1px solid #ccc;
+        width: 35%;
+        font-size: 1.2em;
+        border-radius: 4px;
+        background-color: #f1f1f1;
+        font-family: 'Courier New', Courier, monospace;
+        text-align: center;
+    }
+
+    .buttons {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .button {
+        padding: 16px 32px;
+        margin: 16px 0;
+        border: 2px solid #666;
+        border-radius: 4px;
+        background-color: #f1f1f1;
+        font-family: 'Courier New', Courier, monospace;
+        text-align: center;
+        cursor: pointer;
+        font-size: 14pt;
+    }
+
+    .button:disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+
+    .button:hover {
+        background-color: #ddd;
+    }
+
+    .button:active {
+        background-color: #bbb;
+    }
+
+    .button:focus {
+        outline: none;
+    }
+
+    .button:disabled:focus {
+        outline: none;
+    }
+
+    .button:disabled:hover {
+        background-color: #ccc;
+    }
+
+    .button:disabled:active {
+        background-color: #ccc;
+    }
+
+
+    .red {
+        color: red;
+    }
+</style>
+
+<body>
+    <div class="root">
+        <div class="p" style="width: 50vh">
+            <h2>Status of Devices</h2>
+            <div class="q">
+                Robot Arm (<span id="robot-arm" class="red"></span>)
+            </div>
+
+            <div class="q">
+                Shaker (<span id="shaker" class="red"></span>)
+            </div>
+
+            <div class="q">
+                Ball Dispenser (<span id="ball_dispenser" class="red"></span>)
+            </div>
+
+            <div class="q">
+                Cap Dispenser (<span id="Cap Dispenser" class="red"></span>)
+            </div>
+
+        </div>
+        <div class="p">
+            <h2>Status of Devices</h2>
+            <div class="buttons">
+                <button id="robot-arm-button" class="button">Sample Processing</button>
+                <button id="grab-button" class="button">Grab/Release</button>
+                <button id="shaker-button" class="button">Shaking</button>
+                <button id="ball-dispenser-button" class="button">Dispensing Balls</button>
+
+            </div>
+            <div class="buttons">
+                <button id="cap-dispenser-button-1" class="button">Open Cap Dispenser 1</button>
+            </div>
+        </div>
+    </div>
+
+</body>
+
+<script>
+    const robotArmButton = document.getElementById('robot-arm-button');
+    const grabButton = document.getElementById('grab-button');
+    const shakerButton = document.getElementById('shaker-button');
+    const ballDispenserButton = document.getElementById('ball-dispenser-button');
+    const capDispenserButton1 = document.getElementById('cap-dispenser-button-1');
+
+    robotArmButton.onclick = () => {
+        fetch('/sample_processing')
+            .then((response) => {
+                return response.json();
+            })
+            .then((data) => {
+                console.log(data);
+            });
+    };
+
+    shakerButton.onclick = () => {
+        fetch('/shaking?duration_sec=120')
+            .then((response) => {
+                return response.json();
+            })
+            .then((data) => {
+                console.log(data);
+            });
+    };
+
+    grabButton.onclick = () => {
+        fetch('/grab')
+            .then((response) => {
+                return response.json();
+            })
+            .then((data) => {
+                console.log(data);
+            });
+    };
+
+    ballDispenserButton.onclick = () => {
+        fetch('/dispensing_balls')
+            .then((response) => {
+                return response.json();
+            })
+            .then((data) => {
+                console.log(data);
+            });
+    };
+
+    capDispenserButton1.onclick = () => {
+        fetch('/cap_dispenser?n=1')
+            .then((response) => {
+                return response.json();
+            })
+            .then((data) => {
+                console.log(data);
+            });
+    };
+
+    function update() {
+        fetch('/status')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('robot-arm').innerHTML = data.robot;
+                document.getElementById('shaker').innerHTML = data.shaker;
+                document.getElementById('ball_dispenser').innerHTML = data.ball_dispenser;
+                document.getElementById('Cap Dispenser').innerHTML = data.cap_dispenser[0];
+                return data;
+            }).then(data => {
+                document.getElementById('robot-arm-button').disabled = data.robot === 'RUNNING';
+                document.getElementById('shaker-button').disabled = data.shaker.includes('RUNNING');
+                document.getElementById('grab-button').disabled = data.shaker.includes('RUNNING');
+                document.getElementById('ball-dispenser-button').disabled = data.ball_dispenser === 'RUNNING';
+                document.getElementById('cap-dispenser-button-1').disabled = data.cap_dispenser[0] === 'OPEN';
+                document.getElementById('cap-dispenser-button-1').innerText = data.cap_dispenser[0] === 'OPEN' ? 'Close Cap Dispenser 1' : 'Open Cap Dispenser 1';
+            });
+    }
+    setInterval(update, 500);
+</script>
+
+</html>
