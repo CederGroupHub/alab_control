@@ -1,11 +1,133 @@
 import json
+from multiprocessing.sharedctypes import Value
 from pathlib import Path
-from typing import List, Dict
+import types
+from typing import Callable, List, Dict, Literal, Optional, Union
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
+import numpy as np
 
 from alab_control.robot_arm_ur5e import URRobotDashboard, URRobotSecondary
 from alab_control.robot_arm_ur5e.ur_robot_ssh import URRobotSSH
+
+
+class BaseURRobot:
+    """
+    Base class shared among different ur robot arms.
+    """
+
+    HEADER_FILE_NAME = "empty.script"
+
+    def __init__(self, ip_address: str) -> None:
+        self.ip_address = ip_address
+        self.ssh = URRobotSSH(ip=ip_address)
+        self.secondary = URRobotSecondary(ip=ip_address)
+        self.dashboard = URRobotDashboard(ip=ip_address)
+
+    def run_program(
+            self, 
+            program: str, 
+            fmt: Optional[Literal["urp_path", "urscript", "urscript_path"]] = None,
+            block: bool = True,
+    ):
+        """
+        Run single program in the robot arm.
+
+        Currently we support to submit program by:
+            (1) specify the urp path in the robot arm's ``/programs`` folder (urp_path)
+            (2) specify the urscript path in the robot arm's ``/programs`` folder (urscript_path)
+            (3) submit a program string directly (urscript)
+
+        Args:
+            program: can be either a path of program or a urscript program
+            fmt: the format of the program arg. If not specified, the function will
+              imply the format based on the content of program.
+            block: the function will wait until the program is finished.
+        """
+        if fmt is None:
+            if program.endswith(".urp"):
+                fmt = "urp_path"
+            elif program.endswith(".script"):
+                fmt = "urscript_path"
+            elif program.startswith("def"):
+                fmt = "urscript"
+            else:
+                raise ValueError("Cannot infer the format from the program string. "
+                                 "Please specifiy the fmt manually.")
+
+        if fmt == "urp_path":
+            self.dashboard.run_program(program, block=block)
+        elif fmt == "urscript_path":
+            program_content = self.ssh.read_program(program, header_file_name=self.HEADER_FILE_NAME)
+            self.secondary.run_program(program_content, block=block)
+        elif fmt == "urscript":
+            self.secondary.run_program(program, block=block)
+        else:
+            raise ValueError(f"Unknown fmt value: {fmt}. "
+                              "Currently we support ['urp_path', 'urscript', 'urscript_path'].")
+
+    def run_programs(self, programs: List[Union[str, Callable[[], None]]]):
+        """
+        Helper function to run multiple robot arm programs one by one. The program can also
+        be a callable that controls other device to do other operations
+
+        Args:
+            programs: The programs can be (1) a program string that will be sent to the ``run_program``;
+              (2) a callable that have not arguments, it will be called 
+        """
+        # do something type check first
+        for program in programs:
+            if not isinstance(program, str) and not callable(program):
+                raise ValueError(f"Expect str or a callable, but get {type(program)}")
+        
+        for program in programs:
+            if isinstance(program, str):
+                self.run_program(program=program, block=True)
+            else:
+                program()
+    
+    def set_speed(self, speed: float):
+        """
+        Set the speed of robot arm running, should be a value between 0 and 1.
+        """
+        self.secondary.set_speed(speed)
+
+    def is_running(self) -> bool:
+        """
+        Check if there is any program running in the robot arm
+        """
+        return self.dashboard.is_running()
+
+    def is_remote_mode(self) -> bool:
+        """
+        Check if the robot arm is put in remote mode.
+        """
+        return self.dashboard.is_remote_mode()
+
+    def movej(
+            self,
+            joints: Union[List[float], np.ndarray], 
+            acc: float = 0.1, 
+            vel: float = 0.05, 
+            wait: bool = True, 
+            relative: bool = False,
+            threshold: bool = None
+    ):
+        """
+        Movej function
+        """
+        self.secondary.movej(joints, acc=acc, vel=vel, wait=wait, relative=relative, threshold=threshold)
+
+    def check_joints(self, target_joints: Union[List[float], np.ndarray]):
+        return self.secondary.check_joints(target_joints=target_joints)
+    
+    def close(self):
+        """
+        Close all the connections to the robot arm
+        """
+        self.ssh.close()
+        self.secondary.close()
+        self.dashboard.close()
 
 
 class Dummy:
@@ -22,7 +144,6 @@ class Dummy:
     }
 
     def __init__(self, ip):
-        self.__home = None
         self.robot_type = "hande_ur5e"
         self._dashboard_client = URRobotDashboard(
             ip
@@ -161,19 +282,9 @@ class Dummy:
         self._secondary_client.close()
         self._ssh_client.close()
 
-    def go_to_crucible_home(self):
-        if self.__home == "crucible":
-            return
-        else:
-            self._dashboard_client.run_program("Home.urp")
-        self.__home = "crucible"
 
-    def go_to_rack_home(self):
-        if self.__home == "rack":
-            return
-        else:
-            self._dashboard_client.run_program("RackHome.urp")
-        self.__home = "rack"
+class CharDummy(BaseURRobot):
+    pass
 
 
 if __name__ == "__main__":

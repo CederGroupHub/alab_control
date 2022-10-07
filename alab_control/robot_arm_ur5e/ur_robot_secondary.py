@@ -1,5 +1,5 @@
 import time
-from typing import Optional, List
+from typing import List, Union
 
 import numpy as np
 from _socket import timeout
@@ -8,25 +8,23 @@ from urx.ursecmon import TimeoutException
 
 
 class URRobotSecondary:
-    robot_type: Optional[str] = None
-
     def __init__(self, ip: str):
         self.ip = ip
-        self._robot: Optional[URRobot] = None
-        self.setup_connection()
-
-    def setup_connection(self):
-        for i in range(10):
-            try:
-                self._robot = URRobot(host=self.ip)
-                time.sleep(0.2)
-            except (TimeoutException, timeout):
-                print(f"Failed to connect to {self.ip}, retrying... {i+1}/10")
-                continue
-            else:
-                break
-        else:
-            raise TimeoutError("Could not connect to robot arm")
+        try:
+            self._robot: URRobot = URRobot(host=self.ip)
+        except (TimeoutException, timeout) as exc:
+            raise Exception("Something wrong with the UR Robot secondary port. Try again later.") from exc
+    
+    def movej(
+            self,
+            joints: Union[List[float], np.ndarray], 
+            acc: float = 0.1, 
+            vel: float = 0.05, 
+            wait: bool = True, 
+            relative: bool = False,
+            threshold: bool = None
+    ):
+        self._robot.movej(joints, acc=acc, vel=vel, wait=wait, relative=relative, threshold=threshold)
 
     def run_program(self, program: str, block: bool = False):
         """
@@ -81,8 +79,7 @@ end""",
         """
         Close the connection to the robot arm
         """
-        if self._robot is not None:
-            self._robot.close()
+        self._robot.close()
 
     def stop(self):
         """
@@ -90,17 +87,25 @@ end""",
         """
         self._robot.stop()
 
-    def check_home(self):
+    def check_home(self) -> bool:
         """
         Check if the robot arm is in home position
         """
-        current_joint = self._robot.getj()
-        return np.allclose(
-            current_joint, [0, -np.pi / 2, 0, -np.pi / 2, 0, 0], atol=1e-2
-        )
+        return self.check_joint([0, -np.pi / 2, 0, -np.pi / 2, 0, 0])
 
-    def __exit__(self):
-        self.close()
+    def check_joints(self, target_joints: Union[np.ndarray, List[float]]) -> bool:
+        """ 
+        Check if the robot arm is in the given position
+
+        Args:
+            target_joints: a 6-element array with the angle of each joint.
+        """
+        if len(target_joints) != 6:
+            raise ValueError("The target_joint should have 6 elements.")
+        current_joints = self._robot.getj()
+        return np.allclose(
+            current_joints, target_joints, atol=1e-2
+        )
 
 
 if __name__ == "__main__":
