@@ -11,10 +11,10 @@ class ShakerState(IntEnum):
     CLOSE_RUNNING = 3  # 11
 
     def is_grabber_closed(self) -> bool:
-        return self.value & 1 == 1
+        return self.value & 2 == 2
 
     def is_shaker_running(self) -> bool:
-        return self.value & 2 == 2
+        return self.value & 1 == 1
 
 
 class ShakerError(Exception):
@@ -61,9 +61,8 @@ class Shaker(BaseArduinoDevice):
         if state.is_grabber_closed():
             raise ShakerError("Grabber is already closed")
         self.send_request(self.ENDPOINTS["grab"])
-        time.sleep(3)  # wait for the grabber to close
         while not self.get_state().is_grabber_closed():
-            time.sleep(1)
+            time.sleep(0.1)
 
     def release(self):
         """
@@ -72,10 +71,9 @@ class Shaker(BaseArduinoDevice):
         state = self.get_state()
         if not state.is_grabber_closed():
             raise ShakerError("Grabber is already open")
-        self.send_request(self.ENDPOINTS["grab"])
-        time.sleep(1)  # wait for the grabber to open
+        self.send_request(self.ENDPOINTS["release"])
         while self.get_state().is_grabber_closed():
-            time.sleep(1)
+            time.sleep(0.1)
 
     def shaking(self, duration_sec: int):
         """
