@@ -5,7 +5,7 @@ from alab_control._base_arduino_device import BaseArduinoDevice
 
 class CapperState(Enum):
     OPEN = "open"
-    CLOSED = "closed"
+    CLOSE = "closed"
 
 
 class Capper(BaseArduinoDevice):
@@ -33,6 +33,6 @@ class Capper(BaseArduinoDevice):
         """
         Close the capper
         """
-        if self.get_state() == CapperState.CLOSED:
+        if self.get_state() == CapperState.CLOSE:
             return
         self.send_request("/close", method="GET")

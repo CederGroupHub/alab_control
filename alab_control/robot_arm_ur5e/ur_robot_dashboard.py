@@ -103,13 +103,14 @@ class URRobotDashboard:
 
         return response
 
-    def run_program(self, name: str):
+    def run_program(self, name: str, block: bool = True):
         """
         Run a program
 
         Args:
             name: the path of program file (*.urp) in the ur dashboard or
                 predefined name in the PREDEFINED_PROGRAM
+            block: whether to wait and return until the program is finished.
         """
         if self.is_running():
             raise URRobotError("There is still a program running!")
