@@ -90,6 +90,19 @@ class Shaker(BaseArduinoDevice):
         finally:
             self.stop()
 
+    def grab_and_shaking(self, duration_sec: int):
+        """
+        Grab the container, shake it and then release it.
+
+        Args:
+            duration_sec: duration of shaking in seconds
+        """
+        self.grab()
+        time.sleep(2)
+        self.shaking(duration_sec=duration_sec)
+        time.sleep(3)
+        self.release()
+
     def start(self):
         """
         Send a start command to the shaker machine

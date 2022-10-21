@@ -32,7 +32,7 @@ class BallDispenser(BaseArduinoDevice):
 
         # wait until finishes
         while self.get_state() == BallDispenserState.RUNNING:
-            time.sleep(1)
+            time.sleep(0.2)
 
     def stop(self):
         """
