@@ -37,7 +37,7 @@ class TestTubeFurnace(TestCase):
             "C02": 30,
             "T02": 2,
             "C03": 30,
-            "T04": -121,
+            "T03": -121,
         }
         self.tube_furnace.write_heating_profile(test_profile)
         profile = self.tube_furnace.read_heating_profile()
@@ -50,7 +50,7 @@ class TestTubeFurnace(TestCase):
             "C02": 30,
             "T02": 2,
             "C03": 30,
-            "T04": -121,
+            "T03": -121,
         }
         self.tube_furnace.write_heating_profile(test_profile)
         self.tube_furnace.start_program()
