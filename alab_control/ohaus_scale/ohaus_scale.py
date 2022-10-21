@@ -3,7 +3,7 @@ import socket
 
 
 class OhausScale:
-    def __init__(self, ip: str, timeout: int = 2):
+    def __init__(self, ip: str, timeout: int = 15):
         self.ip = ip
         self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._socket.settimeout(timeout)
