@@ -12,18 +12,20 @@ class CapDispenserState(Enum):
 class CapDispenser(BaseArduinoDevice):
     ENDPOINTS = {
         "state": "/state",
+        "open": "/open",
+        "close": "/close",
     }
     """
     Endpoints are:
     /state
-    /open%20n=1
-    /open%20n=2
-    /open%20n=3
-    /open%20n=4
-    /close%20n=1
-    /close%20n=2
-    /close%20n=3
-    /close%20n=4
+    /open?n=1
+    /open?n=2
+    /open?n=3
+    /open?n=4
+    /close?n=1
+    /close?n=2
+    /close?n=3
+    /close?n=4
     """
 
     def __init__(self, ip_address: str, port: int = 80):
@@ -33,6 +35,7 @@ class CapDispenser(BaseArduinoDevice):
     def get_state(self) -> CapDispenserState:
         """
         Get the current state of the cap dispenser
+        whether it is running or not.
         """
         return CapDispenserState[self.send_request(self.ENDPOINTS["state"], method="GET")["state"].upper()]
 
@@ -46,10 +49,9 @@ class CapDispenser(BaseArduinoDevice):
             raise RuntimeError("Cannot open the cap dispenser while it is running")
         if self.is_open[n - 1]:
             raise RuntimeError("Cannot open the cap dispenser while it is open")
-        command = f"/open%20n={n}"
-        self.send_request(command, method="GET")
+        self.send_request(self.ENDPOINTS["open"], method="GET", data={"n": n})
         while self.get_state() == CapDispenserState.RUNNING:
-            time.sleep(1)
+            time.sleep(0.2)
 
         self.is_open[n - 1] = True
 
@@ -63,9 +65,8 @@ class CapDispenser(BaseArduinoDevice):
             raise RuntimeError("Cannot open the cap dispenser while it is running")
         if not self.is_open[n - 1]:
             raise RuntimeError("Cannot close the cap dispenser while it is closed")
-        command = f"/close%20n={n}"
-        self.send_request(command, method="GET")
+        self.send_request(self.ENDPOINTS["close"], method="GET", data={"n": n})
         while self.get_state() == CapDispenserState.RUNNING:
-            time.sleep(1)
+            time.sleep(0.2)
 
         self.is_open[n - 1] = False
