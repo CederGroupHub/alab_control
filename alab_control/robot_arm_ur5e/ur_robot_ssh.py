@@ -23,6 +23,11 @@ class URRobotSSH:
                 program_file = replace_header(program_file, get_header(header_file))
         return program_file
 
+    def write_program(self, file_name: str, program_string: str, base: str = "/programs"):
+        with self._ssh.open_sftp() as sftp:
+            with sftp.open((Path(base) / file_name).as_posix(), "w") as f:
+                f.write(program_string)
+
     def close(self):
         self._ssh.close()
 
