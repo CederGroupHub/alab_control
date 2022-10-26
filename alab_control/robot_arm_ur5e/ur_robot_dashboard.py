@@ -52,7 +52,7 @@ class URRobotDashboard:
     for commands' instructions
     """
 
-    def __init__(self, ip: str, timeout: float = 2):
+    def __init__(self, ip: str, timeout: float = 5):
         """
         The dashboard interface to UR Robot
 
