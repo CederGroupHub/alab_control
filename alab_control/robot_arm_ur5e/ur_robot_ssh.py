@@ -1,25 +1,9 @@
-import re
 from pathlib import Path
 from typing import Optional
 
 import paramiko
 
-
-def get_header(file_string: str):
-    return re.search(
-        r"# begin: URCap Installation Node.*# end: URCap Installation Node",
-        file_string,
-        re.DOTALL
-    ).group(0)
-
-
-def replace_header(orginal_file: str, new_header: str):
-    return re.sub(
-        r"# begin: URCap Installation Node.*# end: URCap Installation Node",
-        new_header,
-        orginal_file,
-        flags=re.DOTALL
-    )
+from alab_control.robot_arm_ur5e.utils import get_header, replace_header
 
 
 class URRobotSSH:

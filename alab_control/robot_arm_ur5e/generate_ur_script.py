@@ -90,13 +90,13 @@ if __name__ == '__main__':
 
     import urx
 
-    robot = urx.Robot("192.168.0.22")
+    robot = urx.Robot("192.168.0.23")
 
     try:
         # config_generate(robot)
         # exit(1)
-
-        name = "loading_rack_to_transfer_rack"
+        name = "dumping_station"
+        type_ = "vial"
         # with open(r"templates/Pick_BFRACK_L.script", "r", encoding="utf-8") as f:
         #     program = f.read()
 
@@ -110,36 +110,22 @@ if __name__ == '__main__':
         i = input("Enter the approach distance (mm): ")
         program_collection.update_one({"name": name}, {"$set": {
             "approach_distance_mm": float(i),
+            "type": type_,
         }}, upsert=True)
 
-        # i = input("Press Enter to set home trans, press -1 to stop:")
-        # while i != "-1":
-        #     program_collection.update_one({
-        #         "name": name
-        #     }, {"$push": {"home_trans": {
-        #         "pose": robot.getl(),
-        #         "joint": robot.getj(),
-        #     }}}, upsert=True)
-        #     i = input("Press Enter to set trans, press -1 to stop:")
-        #
-        # input("Press Enter to set start point:")
-        # program_collection.update_one({
-        #     "name": name
-        # }, {"$set": {"initial_position": {
-        #     "pose": robot.getl(),
-        #     "joint": robot.getj(),
-        # }}}, upsert=True)
-        #
-        # for pos in ["1", "2", "3", "4", "5", "6", "7", "8"]:
-        #     input(f"Press enter to set position for {pos}:")
-        #     program_collection.update_one({
-        #         "name": name
-        #     }, {"$push": {"start_positions": {
-        #         "name": f"loading_rack/{pos}",
-        #         "pose": robot.getl(),
-        #         "joint": robot.getj(),
-        #     }}}, upsert=True)
+        i = input("Enter gripper open distance (mm): ")
+        program_collection.update_one({"name": name}, {"$set": {
+            "gripper_open_mm": float(i),
+        }}, upsert=True)
 
+        input("Press Enter to set start point:")
+        program_collection.update_one({
+            "name": name
+        }, {"$set": {"start_pos": {
+            "pose": robot.getl(),
+            "joint": robot.getj(),
+        }}}, upsert=True)
+        
         i = input("Press Enter to set trans, press -1 to stop:")
         while i != "-1":
             program_collection.update_one({
@@ -150,15 +136,35 @@ if __name__ == '__main__':
             }}}, upsert=True)
             i = input("Press Enter to set trans, press -1 to stop:")
 
-        for pos in [str(i+1) for i in range(16)]:
+        for pos in ["1"]:
             input(f"Press enter to set position for {pos}:")
             program_collection.update_one({
                 "name": name
-            }, {"$push": {"end_positions": {
-                "name": f"transfer_rack/{pos}",
+            }, {"$push": {"pick_position": {
+                "name": f"{pos}",
                 "pose": robot.getl(),
                 "joint": robot.getj(),
             }}}, upsert=True)
+
+        # i = input("Press Enter to set trans, press -1 to stop:")
+        # while i != "-1":
+        #     program_collection.update_one({
+        #         "name": name
+        #     }, {"$push": {"transition_waypoints": {
+        #         "pose": robot.getl(),
+        #         "joint": robot.getj(),
+        #     }}}, upsert=True)
+        #     i = input("Press Enter to set trans, press -1 to stop:")
+
+        # for pos in [str(i+1) for i in range(16)]:
+        #     input(f"Press enter to set position for {pos}:")
+        #     program_collection.update_one({
+        #         "name": name
+        #     }, {"$push": {"end_positions": {
+        #         "name": f"transfer_rack/{pos}",
+        #         "pose": robot.getl(),
+        #         "joint": robot.getj(),
+        #     }}}, upsert=True)
 
         commnads = [
             # {

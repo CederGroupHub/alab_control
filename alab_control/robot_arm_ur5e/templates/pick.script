@@ -1,0 +1,193 @@
+{% extends "base.script" %}
+
+{% block program %}  
+  def calculate_point_to_move_towards(feature, direction, position_distance):
+    local posDir=[direction[0], direction[1], direction[2]]
+    if (norm(posDir) < 1e-6):
+      return get_target_waypoint()
+    end
+    local direction_vector_normalized=normalize(posDir)
+    local displacement_pose=p[direction_vector_normalized[0] * position_distance,direction_vector_normalized[1] * position_distance,direction_vector_normalized[2] * position_distance,0,0,0]
+    local wanted_displacement_in_base_frame=pose_sub(pose_trans(feature, displacement_pose), feature)
+    return pose_add(get_target_waypoint(), wanted_displacement_in_base_frame)
+  end
+
+  global approach_distance = {{ approach_distance_mm }} / 1000
+  global gripper_open_distance_mm = {{ gripper_open_mm }}
+
+  global start_p=p{{ start_pose }}
+  global start_q={{ start_qnear }}
+
+  global pick_p=p{{ pick_pose }}
+  global pick_q={{ pick_qnear }}
+
+  global approach_pick_p=pose_add(pick_p, p[0, 0, approach_distance, 0, 0, 0])
+
+  {% for pose in trans_poses -%}
+  global trans_p_{{ loop.index }} = p{{ pose }}
+  {% endfor %}
+
+  {% for qnear in trans_qnears -%}
+  global trans_q_{{ loop.index }} = {{ qnear }}
+  {% endfor %}
+
+  joint_positions = get_actual_joint_positions()
+  expected_joint_positions = start_q
+  is_at_start_position = True
+  is_at_start_position = is_at_start_position and norm(joint_positions[0] - expected_joint_positions[0]) < 0.008
+  is_at_start_position = is_at_start_position and norm(joint_positions[1] - expected_joint_positions[1]) < 0.008
+  is_at_start_position = is_at_start_position and norm(joint_positions[2] - expected_joint_positions[2]) < 0.008
+  is_at_start_position = is_at_start_position and norm(joint_positions[3] - expected_joint_positions[3]) < 0.008
+  is_at_start_position = is_at_start_position and norm(joint_positions[4] - expected_joint_positions[4]) < 0.008
+  is_at_start_position = is_at_start_position and norm(joint_positions[5] - expected_joint_positions[5]) < 0.008
+
+  if (not is_at_start_position):
+    popup("Not in the specified start position, stopped.")
+    halt
+  end
+
+  $ 1 "BeforeStart"
+  # begin: URCap Program Node
+  #   Source: Robotiq_Grippers, 1.8.8.13523, Robotiq Inc.
+  #   Type: Gripper Activate
+  $ 2 "Gripper Activate"
+  
+  kill rq_gripper_communication_thread
+  rq_gripper_communication_thread_started = False
+  rq_close_gripper_socket("1")
+  rq_close_gripper_socket("2")
+  rq_close_gripper_socket("3")
+  rq_close_gripper_socket("4")
+  
+  rq_init_comm_if_connected(9, "1")
+  rq_init_comm_if_connected(2, "2")
+  rq_init_comm_if_connected(3, "3")
+  rq_init_comm_if_connected(4, "4")
+  rq_print_connected_grippers()
+  rq_gripper_communication_thread = run rq_gripper_communication()
+  
+  while(not rq_gripper_communication_thread_started):
+      sleep(0.008)
+  end
+  
+  rq_set_max_current_for_all_grippers()
+  
+  reset_and_activate = False
+  
+  rq_activate_all_grippers(False)
+  # end: URCap Program Node
+  # begin: URCap Program Node
+  #   Source: Robotiq_Grippers, 1.8.8.13523, Robotiq Inc.
+  #   Type: Gripper
+  $ 3 "Gripper Open (1)"
+  if not(gripper_connected[0]):
+    popup("Gripper 1 must be connected to run this program.", "No connection", False, True, True)
+  end
+  if not(rq_is_gripper_activated("1")):
+    popup("Gripper 1 is not activated. Go to Installation tab > Gripper to activate it and run the program again.", "Not activated", False, True, True)
+  end
+  rq_move_and_wait_mm(gripper_open_distance_mm)
+  # end: URCap Program Node
+  $ 4 "MoveJ"
+  $ 5 "start" "breakAfter"
+  movej(get_inverse_kin(start_p, qnear=start_q), a=1.3962634015954636, v=1.0471975511965976)
+
+  {% for pose in trans_poses -%}
+  movej(get_inverse_kin(trans_p_{{ loop.index }}, qnear=trans_q_{{ loop.index }}), a=1.3962634015954636, v=1.0471975511965976)
+  {% endfor %}
+  $ 6 "Robot Program"
+  $ 7 "MoveL"
+  $ 8 "approach_pick" "breakAfter"
+  movel(approach_pick_p, a=1.2, v=0.25)
+  sleep(0.5)
+
+  $ 9 "Direction: Base Z-"
+  global move_thread_flag_9=0
+  thread move_thread_9():
+    enter_critical
+    move_thread_flag_9 = 1
+    local towardsPos=calculate_point_to_move_towards(p[0.0,0.0,0.0,0.0,0.0,0.0], [0.0,0.0,-1.0], approach_distance)
+    movel(towardsPos, a=0.6, v=0.025)
+    move_thread_flag_9 = 2
+    exit_critical
+  end
+  move_thread_flag_9 = 0
+  move_thread_han_9 = run move_thread_9()
+  while (True):
+    local targetTcpDirection=get_target_tcp_speed()
+    local stepsToRetract=tool_contact(direction=targetTcpDirection)
+    if (stepsToRetract > 0):
+      kill move_thread_han_9
+      stopl(3.0)
+      local backTrackMovement=get_actual_joint_positions_history(stepsToRetract)
+      local contactPose=get_forward_kin(backTrackMovement)
+      local posDir=[targetTcpDirection[0],targetTcpDirection[1],targetTcpDirection[2]]
+      local retractTo=contactPose
+      if (norm(posDir) > 1e-6):
+        local normalizedPosDir=normalize(posDir)
+        local additionalRetraction=p[normalizedPosDir[0] * 0.01, normalizedPosDir[1] * 0.01, normalizedPosDir[2] * 0.01, 0, 0, 0]
+        retractTo = pose_sub(contactPose, additionalRetraction)
+      end
+      movel(retractTo, a=3.0, v=0.1)
+      $ 10 "Until (tool_contact_detection)"
+      $ 11 "Popup: robot arm touches something"
+      popup("robot arm touches something", "Error", False, True, blocking=True)
+      break
+    end
+    sleep(1.0E-10)
+    if (move_thread_flag_9 > 1):
+      join move_thread_han_9
+      $ 12 "Until (distance)"
+      break
+    end
+    sync()
+  end
+
+  $ 13 "pick" "breakAfter"
+  movel(pick_p, a=1.2, v=0.25)
+  # begin: URCap Program Node
+  #   Source: Robotiq_Grippers, 1.8.8.13523, Robotiq Inc.
+  #   Type: Gripper
+  $ 14 "Gripper Close (1)"
+  if not(gripper_connected[0]):
+    popup("Gripper 1 must be connected to run this program.", "No connection", False, True, True)
+  end
+  if not(rq_is_gripper_activated("1")):
+    popup("Gripper 1 is not activated. Go to Installation tab > Gripper to activate it and run the program again.", "Not activated", False, True, True)
+  end
+  rq_set_pos_spd_for(255,0, 200, "1")
+  rq_wait_pos_spe_for_request(255, 0, 200, "1")
+  rq_go_to("1")
+  rq_wait("1")
+  # end: URCap Program Node
+  # begin: URCap Program Node
+  #   Source: Robotiq_Grippers, 1.8.8.13523, Robotiq Inc.
+  #   Type: Grip Check
+  $ 15 "Grip Check"
+  # begin: URCap Program Node
+  #   Source: Robotiq_Grippers, 1.8.8.13523, Robotiq Inc.
+  #   Type: If
+  $ 16 "If grip validated          " "noBreak"
+  if (rq_is_object_detected(1)):
+    $ 17 "'continue'" "noBreak"
+    # 'continue'
+    # end: URCap Program Node
+    # begin: URCap Program Node
+    #   Source: Robotiq_Grippers, 1.8.8.13523, Robotiq Inc.
+    #   Type: Else
+    $ 18 "Else" "noBreak"
+  else:
+    $ 19 "Popup: fail to pick" "noBreak"
+    popup("fail to pick", "Error", False, True, blocking=True)
+    halt
+    # end: URCap Program Node
+  end
+  # end: URCap Program Node
+  $ 20 "approach_pick" "breakAfter"
+  movel(approach_pick_p, a=1.2, v=0.25)
+
+  {% for pose in trans_poses -%}
+  movej(get_inverse_kin(trans_p_{{ loop.length - loop.index + 1 }}, qnear=trans_q_{{ loop.length - loop.index + 1 }}), a=1.3962634015954636, v=1.0471975511965976)
+  {% endfor %}
+  movej(get_inverse_kin(start_p, qnear=start_q), a=1.3962634015954636, v=1.0471975511965976)
+{% endblock %}
