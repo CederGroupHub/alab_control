@@ -25,10 +25,10 @@ class BaseURRobot:
         self.dashboard = URRobotDashboard(ip=ip_address)
 
     def run_program(
-            self, 
-            program: str, 
-            fmt: Optional[Literal["urp_path", "urscript", "urscript_path"]] = None,
-            block: bool = True,
+        self,
+        program: str,
+        fmt: Optional[Literal["urp_path", "urscript", "urscript_path"]] = None,
+        block: bool = True,
     ):
         """
         Run single program in the robot arm.
@@ -52,19 +52,25 @@ class BaseURRobot:
             elif program.startswith("def"):
                 fmt = "urscript"
             else:
-                raise ValueError("Cannot infer the format from the program string. "
-                                 "Please specifiy the fmt manually.")
+                raise ValueError(
+                    "Cannot infer the format from the program string. "
+                    "Please specifiy the fmt manually."
+                )
 
         if fmt == "urp_path":
             self.dashboard.run_program(program, block=block)
         elif fmt == "urscript_path":
-            program_content = self.ssh.read_program(program, header_file_name=self.HEADER_FILE_NAME)
+            program_content = self.ssh.read_program(
+                program, header_file_name=self.HEADER_FILE_NAME
+            )
             self.secondary.run_program(program_content, block=block)
         elif fmt == "urscript":
             self.secondary.run_program(program, block=block)
         else:
-            raise ValueError(f"Unknown fmt value: {fmt}. "
-                              "Currently we support ['urp_path', 'urscript', 'urscript_path'].")
+            raise ValueError(
+                f"Unknown fmt value: {fmt}. "
+                "Currently we support ['urp_path', 'urscript', 'urscript_path']."
+            )
 
     def run_programs(self, programs: List[Union[str, Callable[[], None]]]):
         """
@@ -73,19 +79,19 @@ class BaseURRobot:
 
         Args:
             programs: The programs can be (1) a program string that will be sent to the ``run_program``;
-              (2) a callable that have not arguments, it will be called 
+              (2) a callable that have not arguments, it will be called
         """
         # do something type check first
         for program in programs:
             if not isinstance(program, str) and not callable(program):
                 raise ValueError(f"Expect str or a callable, but get {type(program)}")
-        
+
         for program in programs:
             if isinstance(program, str):
                 self.run_program(program=program, block=True)
             else:
                 program()
-    
+
     def set_speed(self, speed: float):
         """
         Set the speed of robot arm running, should be a value between 0 and 1.
@@ -105,22 +111,24 @@ class BaseURRobot:
         return self.dashboard.is_remote_mode()
 
     def movej(
-            self,
-            joints: Union[List[float], np.ndarray], 
-            acc: float = 0.1, 
-            vel: float = 0.05, 
-            wait: bool = True, 
-            relative: bool = False,
-            threshold: bool = None
+        self,
+        joints: Union[List[float], np.ndarray],
+        acc: float = 0.1,
+        vel: float = 0.05,
+        wait: bool = True,
+        relative: bool = False,
+        threshold: bool = None,
     ):
         """
         Movej function
         """
-        self.secondary.movej(joints, acc=acc, vel=vel, wait=wait, relative=relative, threshold=threshold)
+        self.secondary.movej(
+            joints, acc=acc, vel=vel, wait=wait, relative=relative, threshold=threshold
+        )
 
     def check_joints(self, target_joints: Union[List[float], np.ndarray]):
         return self.secondary.check_joints(target_joints=target_joints)
-    
+
     def close(self):
         """
         Close all the connections to the robot arm
@@ -281,6 +289,10 @@ class Dummy:
         self._dashboard_client.close()
         self._secondary_client.close()
         self._ssh_client.close()
+
+
+class FurnaceDummy(BaseURRobot):
+    pass
 
 
 class CharDummy(BaseURRobot):
