@@ -16,14 +16,16 @@ pick_template = env.get_template("pick.script")
 robot = CharDummy("192.168.0.23")
 
 for program_doc in programs_collection.find({}):
-    position_names = {pick_position["name"] for pick_position in program_doc["pick_position"]}
+    position_names = [pick_position["name"] for pick_position in program_doc["pick_position"]]
     for position_name in position_names:
         config = make_template_config(program_doc, position_name)
-        config["name"] = f"pick_{program_doc['name']}" + f"_{position_name}" if len(position_name) > 1 else ""
+        
+        name = f"pick_{program_doc['name']}" + (f"_{position_name}" if len(position_names) > 1 else "")
+        config["name"] = name
         pick_program = pick_template.render(**config)
-        robot.ssh.write_program(pick_program, f"pick_{program_doc['name']}" +
-                                              f"_{position_name}" if len(position_name) > 1 else "")
-        config["name"] = f"place_{program_doc['name']}" + f"_{position_name}" if len(position_name) > 1 else ""
+        robot.ssh.write_program(name + ".auto.script", pick_program)
+
+        name = f"place_{program_doc['name']}" + (f"_{position_name}" if len(position_names) > 1 else "")
+        config["name"] = name
         place_program = place_template.render(**config)
-        robot.ssh.write_program(place_program, f"place_{program_doc['name']}" +
-                                               f"_{position_name}" if len(position_name) > 1 else "")
+        robot.ssh.write_program(name + ".auto.script", place_program)
