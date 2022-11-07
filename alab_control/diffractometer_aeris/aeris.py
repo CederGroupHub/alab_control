@@ -33,8 +33,8 @@ class Aeris:
     }  # key of slot locations -> aeris slot indices
     ALLOWED_SLOTS = {
         1: 2,
-        2: 3,
-        3: 4,
+        # 2: 3,
+        # 3: 4,
     }  # slot locations that are allowed for ALab samples
     COMMUNICATION_DELAY: float = 0.2  # time to wait between sending a message to Aeris and searching for a response
     FILEWRITE_TIMEOUT: float = 10  # seconds to wait after trying to read a file before considering it a failure
@@ -42,13 +42,12 @@ class Aeris:
     # Replace IP, port, and directory paths with your own info
     def __init__(
         self,
-        ip: str = "192.168.0.25",
-        port: int = 702,
-        results_dir: str = "/Volumes/Users/Cederexp/Documents/SharedFolder",
+        ip: str = "AERISDY1042.dhcp.lbl.gov",
+        results_dir: str = r"\\sauron.lbl.gov\AerisData",
         debug: bool = False,
     ):
         self.ip = ip
-        self.port = port
+        self.port = 702
         self.results_dir = results_dir
         self._debug = debug  # if true, prints all communication to Aeris
 
@@ -229,6 +228,7 @@ class Aeris:
         self.scan(sample_id, program)
         while self.xrd_is_busy:
             time.sleep(2)
+        time.sleep(5)  # wait for the gripper to fully stop
         return self.load_scan_results(sample_id)
 
     def add(
@@ -305,9 +305,16 @@ class Aeris:
         self.move(5, 4)
 
 
-# # Write XRD data to file
-# def write_spectrum(dir, sample_id, angles, intensities):
-#     filepath = os.path.join(dir, "%s.xy" % sample_id)
-#     with open(filepath, "w+") as spec_file:
-#         for x, y in zip(angles, intensities):
-#             spec_file.write("%s %s\n" % (x, y))
+# Write XRD data to file
+def write_spectrum(dir, sample_id, angles, intensities):
+    filepath = os.path.join(dir, "%s.xy" % sample_id)
+    with open(filepath, "w+") as spec_file:
+        for x, y in zip(angles, intensities):
+            spec_file.write("%s %s\n" % (x, y))
+
+
+if __name__ == "__main__":
+    a = Aeris(debug=True)
+    print(a.add("test_remote", loc=1, default_program="10-60_2-min"))
+    print(a.scan_and_return_results("test_remote", program="10-60_2-min"))
+    print(a.remove("test_remote"))
