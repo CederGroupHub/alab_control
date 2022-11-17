@@ -40,6 +40,19 @@ class SafeStatus(Enum):
     SYSTEM_THREE_POSITION_ENABLING_STOP = auto()
 
 
+@unique
+class RobotMode(Enum):
+    NO_CONTROLLER = auto()
+    DISCONNECTED = auto()
+    CONFIRM_SAFETY = auto()
+    BOOTING = auto()
+    POWER_OFF = auto()
+    POWER_ON = auto()
+    IDLE = auto()
+    BACKDRIVE = auto()
+    RUNNING = auto()
+
+
 class URRobotError(Exception):
     """
     Used when URRobot encounter an Exception
@@ -94,7 +107,7 @@ class URRobotDashboard:
                 response += block
                 if response and not block:
                     break
-            if retries == 20:
+            if retries >= 20:
                 raise URRobotError("Maximum retries reached, but still no response.")
             logger.debug("Receive response: {}".format(response))
         finally:
@@ -137,6 +150,8 @@ class URRobotDashboard:
         """
         while self.is_running():
             continue
+        if self.get_robot_mode() not in (RobotMode.RUNNING, RobotMode.BACKDRIVE, RobotMode.IDLE):
+            raise URRobotError("Robot is not in running mode, but in {}.".format(self.get_robot_mode().name))
         return
 
     def load(self, name: str):
@@ -172,10 +187,9 @@ class URRobotDashboard:
         except URRobotError as e:
             # add more hints for debug
             e.args = (e.args[0] + " Did you remember to load program or did "
-                                  "you stop the program by accident?",)
+                                  "you stop the program by accident or is the robot"
+                                  "arm in the right start position?",)
             raise
-        while not self.is_running():
-            continue
 
     def stop(self):
         """
@@ -183,7 +197,7 @@ class URRobotDashboard:
 
         If there is no program running (STOPPED), it will return directly
         """
-        if self.get_current_mode() == ProgramStatus.STOPPED:
+        if self.get_program_status() == ProgramStatus.STOPPED:
             return
         response = self.send_cmd("stop")
         self._raise_for_unexpected_prefix(response, "Stopped")
@@ -207,11 +221,21 @@ class URRobotDashboard:
         If not recovered from pause state, it will raise
         an URRobotError
         """
-        if self.get_current_mode() != ProgramStatus.PAUSED:
+        if self.get_program_status() != ProgramStatus.PAUSED:
             raise URRobotError("continue_play can only be used to recover a paused program")
         self.play()
 
-    def get_current_mode(self) -> ProgramStatus:
+    def get_robot_mode(self) -> RobotMode:
+        """
+        Get the current robot mode
+        """
+        response = self.send_cmd("robotmode")
+        try:
+            return RobotMode[response.strip("\n")]
+        except KeyError:
+            raise URRobotError("Unexpected response for robot mode: {}".format(response))
+
+    def get_program_status(self) -> ProgramStatus:
         """
         Get current program's status
 
