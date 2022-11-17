@@ -12,21 +12,15 @@ class CapDispenserState(Enum):
 class CapDispenser(BaseArduinoDevice):
     ENDPOINTS = {
         "state": "/state",
-        "open": "/open",
-        "close": "/close",
+        "open n=1": "/open?n=1",
+        "open n=2": "/open?n=2",
+        "open n=3": "/open?n=3",
+        "open n=4": "/open?n=4",
+        "close n=1": "/close?n=1",
+        "close n=2": "/close?n=2",
+        "close n=3": "/close?n=3",
+        "close n=4": "/close?n=4",
     }
-    """
-    Endpoints are:
-    /state
-    /open?n=1
-    /open?n=2
-    /open?n=3
-    /open?n=4
-    /close?n=1
-    /close?n=2
-    /close?n=3
-    /close?n=4
-    """
 
     def __init__(self, ip_address: str, port: int = 80):
         super().__init__(ip_address, port)
@@ -49,7 +43,7 @@ class CapDispenser(BaseArduinoDevice):
             raise RuntimeError("Cannot open the cap dispenser while it is running")
         if self.is_open[n - 1]:
             raise RuntimeError("Cannot open the cap dispenser while it is open")
-        self.send_request(self.ENDPOINTS["open"], method="GET", data={"n": n})
+        self.send_request(self.ENDPOINTS[f"open n={n}"], method="GET")
         while self.get_state() == CapDispenserState.RUNNING:
             time.sleep(0.2)
 
@@ -65,7 +59,7 @@ class CapDispenser(BaseArduinoDevice):
             raise RuntimeError("Cannot open the cap dispenser while it is running")
         if not self.is_open[n - 1]:
             raise RuntimeError("Cannot close the cap dispenser while it is closed")
-        self.send_request(self.ENDPOINTS["close"], method="GET", data={"n": n})
+        self.send_request(self.ENDPOINTS[f"close n={n}"], method="GET")
         while self.get_state() == CapDispenserState.RUNNING:
             time.sleep(0.2)
 
