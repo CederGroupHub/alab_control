@@ -315,6 +315,6 @@ def write_spectrum(dir, sample_id, angles, intensities):
 
 if __name__ == "__main__":
     a = Aeris(debug=True)
-    print(a.add("test_remote", loc=1, default_program="10-60_2-min"))
+    print(a.add("test_remote", loc=1, default_program="10-100_8-minutes"))
     print(a.scan_and_return_results("test_remote", program="10-60_2-min"))
     print(a.remove("test_remote"))
