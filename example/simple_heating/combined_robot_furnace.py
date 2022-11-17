@@ -78,7 +78,7 @@ class MyURRobot(URRobot):
 
     def check_status(self):
         self.previous_mode = self.mode
-        self.mode = self.get_current_mode().name
+        self.mode = self.get_program_status().name
         if self.previous_mode!=self.mode:
                 if self.previous_mode=="PLAYING" and self.mode=="STOPPED" and self.status=="in":
                     self.status="idle"

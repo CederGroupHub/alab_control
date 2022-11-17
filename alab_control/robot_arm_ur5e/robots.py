@@ -18,10 +18,10 @@ class BaseURRobot:
 
     HEADER_FILE_NAME = "empty.script"
 
-    def __init__(self, ip_address: str) -> None:
+    def __init__(self, ip_address: str, use_secondary: bool = False) -> None:
         self.ip_address = ip_address
         self.ssh = URRobotSSH(ip=ip_address)
-        self.secondary = URRobotSecondary(ip=ip_address)
+        self.secondary = URRobotSecondary(ip=ip_address) if use_secondary else None
         self.dashboard = URRobotDashboard(ip=ip_address)
 
     def run_program(
@@ -56,6 +56,12 @@ class BaseURRobot:
                     "Cannot infer the format from the program string. "
                     "Please specifiy the fmt manually."
                 )
+
+        if fmt.startswith("urscript") and self.secondary is None:
+            raise ValueError(
+                "Cannot run urscript program when the secondary interface is not "
+                "enabled. Set `use_secondary=True` when initializing the robot arm."
+            )
 
         if fmt == "urp_path":
             self.dashboard.run_program(program, block=block)
@@ -96,6 +102,11 @@ class BaseURRobot:
         """
         Set the speed of robot arm running, should be a value between 0 and 1.
         """
+        if self.secondary is None:
+            raise ValueError(
+                "Cannot run movej program when the secondary interface is not "
+                "enabled. Set `use_secondary=True` when initializing the robot arm."
+            )
         self.secondary.set_speed(speed)
 
     def is_running(self) -> bool:
@@ -122,11 +133,24 @@ class BaseURRobot:
         """
         Movej function
         """
+        if self.secondary is None:
+            raise ValueError(
+                "Cannot run movej program when the secondary interface is not "
+                "enabled. Set `use_secondary=True` when initializing the robot arm."
+            )
         self.secondary.movej(
             joints, acc=acc, vel=vel, wait=wait, relative=relative, threshold=threshold
         )
 
     def check_joints(self, target_joints: Union[List[float], np.ndarray]):
+        """
+        Check if the target joints are valid
+        """
+        if self.secondary is None:
+            raise ValueError(
+                "Cannot run movej program when the secondary interface is not "
+                "enabled. Set `use_secondary=True` when initializing the robot arm."
+            )
         return self.secondary.check_joints(target_joints=target_joints)
 
     def close(self):
@@ -134,7 +158,8 @@ class BaseURRobot:
         Close all the connections to the robot arm
         """
         self.ssh.close()
-        self.secondary.close()
+        if self.secondary is not None:
+            self.secondary.close()
         self.dashboard.close()
 
 
