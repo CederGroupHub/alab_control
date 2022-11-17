@@ -94,3 +94,18 @@ xrd_powder_dispensing_combi
 
 xrd_sample_flattening_combi
 -   xrd_sample_flattening
+
+move_xrd_dispense_station
+-   pick_xrd_dispense_station
+-   place_xrd_dispense_station
+
+move_xrd_holder_machine
+-   pick_xrd_holder_machine
+-   place_xrd_holder_machine
+
+pick_cap_dispensers
+-   pick_cap_dispenser_A
+-   pick_cap_dispenser_B
+-   pick_cap_dispenser_C
+
+dispose
