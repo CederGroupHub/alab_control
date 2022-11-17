@@ -1,0 +1,19 @@
+<URProgram name="test_urp" installation="default" installationRelativePath="default" directory="/programs" createdIn="5.11.0.108249" lastSavedIn="5.11.0.108249" robotSerialNumber="20215501139" crcValue="1475618907">
+  <kinematics status="LINEARIZED" validChecksum="true">
+    <deltaTheta value="2.3345933011502287E-7, -0.38295357780545375, 0.47274981340081906, -0.08980259112202878, 3.117473846634799E-7, -8.377587199632727E-7"/>
+    <a value="2.493817039380288E-4, -0.3942829685961751, -0.3906757646755721, 7.769745964715759E-5, 4.33102629915231E-5, 0.0"/>
+    <d value="0.16265584772204458, -1343.5785816069124, 1348.097666597784, -4.3857137760705465, 0.09973857637902582, 0.09946699522360856"/>
+    <alpha value="1.570556099774429, 1.1821636456040717E-4, 0.007784203485268949, 1.5703076380475707, -1.5699906767404217, 0.0"/>
+    <jointChecksum value="-1303243311, -1301696317, 863490591, -1292069387, -1779752738, -1776959596"/>
+  </kinematics>
+  <children>
+    <MainProgram runOnlyOnce="true" InitVariablesNode="false">
+      <children>
+        <Script type="File">
+          <cachedContents>{{ program_string }}</cachedContents>
+          <file resolves-to="file">{{ program_path }}</file>
+        </Script>
+      </children>
+    </MainProgram>
+  </children>
+</URProgram>

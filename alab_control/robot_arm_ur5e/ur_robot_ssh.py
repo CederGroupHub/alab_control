@@ -1,3 +1,4 @@
+import gzip
 from pathlib import Path
 from typing import Optional
 
@@ -27,6 +28,12 @@ class URRobotSSH:
         with self._ssh.open_sftp() as sftp:
             with sftp.open((Path(base) / file_name).as_posix(), "w") as f:
                 f.write(program_string)
+
+    def compress_write_program(self, file_name: str, program_string: str, base: str = "/programs"):
+        with self._ssh.open_sftp() as sftp:
+            compressed_program = gzip.compress(program_string.encode("utf-8"))
+            with sftp.open((Path(base) / file_name).as_posix(), "wb") as f:
+                f.write(compressed_program)
 
     def close(self):
         self._ssh.close()
