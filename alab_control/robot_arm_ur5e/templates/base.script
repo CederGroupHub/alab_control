@@ -1,8 +1,6 @@
-def {{ name | default("unnamed") }}():
-  # begin: URCap Installation Node
-  #   Source: External Control, 1.0.5, FZI Research Center for Information Technology
-  #   Type: External Control
-  # end: URCap Installation Node
+# begin: URCap Installation Node
+#   Source: External Control, 1.0.5, FZI Research Center for Information Technology
+#   Type: External Control
+# end: URCap Installation Node
 
-  {% block program %}{% endblock %}
-end
+{% block program %}{% endblock %}
