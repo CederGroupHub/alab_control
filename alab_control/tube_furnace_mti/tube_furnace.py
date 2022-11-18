@@ -1,3 +1,4 @@
+import logging
 import re
 import time
 from enum import Enum
@@ -7,6 +8,8 @@ from typing import Optional, Dict, Any
 
 import requests
 import win32com.client
+
+logger = logging.getLogger(__name__)
 
 
 class FlangeError(Exception):
@@ -70,8 +73,10 @@ class TubeFurnace:
         # start the tube furnace software,
         # if it has already started, it will do nothing
         self._start_exe()
+        logger.info(f"Tube furnace {furnace_index} started")
         time.sleep(5)
         self._init()
+        logger.info(f"Tube furnace {furnace_index} initialized")
 
     @property
     def furnace_index(self) -> int:
@@ -89,6 +94,7 @@ class TubeFurnace:
         """
         self._process.terminate()
         self._process.wait()
+        logger.info(f"Tube furnace {self.furnace_index} closed")
 
     def _init(self):
         """
@@ -108,7 +114,9 @@ class TubeFurnace:
         Args:
             name: the label property of a controller/indicator
         """
-        return self._main_vi.getcontrolvalue(name)
+        value = self._main_vi.getcontrolvalue(name)
+        logger.debug(f"Read variable {name} from main vi: {value}")
+        return value
 
     def write_variable_to_main_vi(self, name: str, value: Any):
         """
@@ -117,6 +125,7 @@ class TubeFurnace:
             name: the label property of a controller
             value: the value you want to write
         """
+        logger.debug(f"Write variable {name} to main vi: {value}")
         self._main_vi.setcontrolvalue(name, value)
 
     def read_variable_from_temperature_vi(self, name):
@@ -126,7 +135,9 @@ class TubeFurnace:
         Args:
             name: the label property of a controller/indicator
         """
-        return self._temperature_vi.getcontrolvalue(name)
+        value = self._temperature_vi.getcontrolvalue(name)
+        logger.debug(f"Read variable {name} from temperature vi: {value}")
+        return value
 
     def write_variable_to_temperature_vi(self, name, value):
         """
@@ -135,6 +146,7 @@ class TubeFurnace:
             name: the label property of a controller
             value: the value you want to write
         """
+        logger.debug(f"Write variable {name} to temperature vi: {value}")
         self._temperature_vi.setcontrolvalue(name, value)
 
     def autostart(self):
@@ -147,6 +159,7 @@ class TubeFurnace:
         url = self.base_url + self.URLS["autostart"]
         response = requests.get(url)
         response.raise_for_status()
+        logger.debug(f"Autostart")
         time.sleep(1)
 
     def sample_loaded(self):
@@ -155,6 +168,7 @@ class TubeFurnace:
         it will go from "Waiting for sample loading" to step 1.
         """
         self._main_vi.setcontrolvalue('Sample change completed', True)  # Set Input 1
+        logger.debug("Sample loaded")
 
     def start_program(self):
         """
@@ -164,6 +178,7 @@ class TubeFurnace:
         time.sleep(1)
         self.sample_loaded()
         time.sleep(2)
+        logger.debug("Start program")
 
     def stop(self):
         """
@@ -172,6 +187,7 @@ class TubeFurnace:
         url = self.base_url + self.URLS["autostop"]
         response = requests.get(url)
         response.raise_for_status()
+        logger.debug("Stop program")
         time.sleep(1)
 
     def open_door(self, safety_open_temperature=100, pressure_min=90000, pressure_max=110000, timeout=120):
@@ -191,6 +207,7 @@ class TubeFurnace:
         """
         if self.PV > safety_open_temperature or self.pressure > pressure_max or self.pressure < pressure_min:
             return False
+        logger.debug("Opening flange")
         url = self.base_url + self.URLS["flange"]
         response = requests.get(url, params={"action": "WriteFlangeOpen"})
         response.raise_for_status()
@@ -198,6 +215,7 @@ class TubeFurnace:
         while seconds <= timeout:
             if not self.flange_state:
                 time.sleep(50)
+                logger.debug("Flange opened")
                 return True
             time.sleep(1)
             seconds += 1
@@ -213,6 +231,7 @@ class TubeFurnace:
         Returns:
             True if the door closes successfully.
         """
+        logger.debug("Closing flange")
         url = self.base_url + self.URLS["flange"]
         response = requests.get(url, params={"action": "WriteFlangeClose"})
         response.raise_for_status()
@@ -220,6 +239,7 @@ class TubeFurnace:
 
         while seconds < timeout:
             if self.flange_state:
+                logger.debug("Flange closed")
                 return True
             time.sleep(1)
             seconds += 1
@@ -231,6 +251,7 @@ class TubeFurnace:
         Returns:
             True if the door is paused successfully.
         """
+        logger.debug("Pausing flange")
         url = self.base_url + self.URLS["flange"]
         response = requests.get(url, params={"action": "WriteFlangeStop"})
         response.raise_for_status()
@@ -276,6 +297,7 @@ class TubeFurnace:
         time.sleep(5)
         max_temperature = max([v for k, v in setpoints.items() if k.startswith("C")]) - 5
         self.write_variable_to_main_vi("Maximum loop temperature", max_temperature)
+        logger.info(f"Write heating profile: {setpoints}")
 
     @property
     def PV(self):
