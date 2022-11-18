@@ -9,7 +9,5 @@ if __name__ == '__main__':
     #     f.write("\n".join(program))
     for _ in range(10):
         dummy._secondary_client.run_program(
-            dummy._ssh_client.read_program("shaking.script", header_file_name="empty.script"),
-            True
-        )
+            dummy._ssh_client.read_program("shaking.script", header_file_name="empty.script"), True)
     dummy.close()

@@ -149,6 +149,26 @@ class TubeFurnace:
         logger.debug(f"Write variable {name} to temperature vi: {value}")
         self._temperature_vi.setcontrolvalue(name, value)
 
+    def run_program(self, setpoints: Dict[str, int],
+                    door_opening_temperature: int = 150,
+                    flow_rate: int = 100, cleaning_cycles: int = 3):
+        """
+        Run the program with the given setpoints
+
+        Args:
+            setpoints: a dict of setpoints, the key is the name of the setpoint, the value is the setpoint value,
+              which should be {"C01": temperature, "T01": time, "C02": temperature, "T02": time, ...},
+              the terminate time should be -121
+            door_opening_temperature: the temperature to open the door
+            flow_rate: the flow rate of the gas
+            cleaning_cycles: the number of cleaning cycles
+        """
+        self.write_heating_profile(setpoints)
+        self.set_cleaning_cycles(cleaning_cycles)
+        self.set_door_opening_temperature(door_opening_temperature)
+        self.set_automatic_flow_rate(flow_rate)
+        self.start_program()
+
     def autostart(self):
         """
         Click the autostart button in the main interface.
@@ -348,6 +368,30 @@ class TubeFurnace:
             return TubeFurnaceState.PAUSED
         else:
             return TubeFurnaceState(re.search(r"\d+", autostate).group())
+
+    def set_cleaning_cycles(self, cycles: int):
+        """
+        Set the number of cleaning cycles
+        """
+        if cycles < 1 or cycles > 10:
+            raise ValueError("Number of cleaning cycles must be between 1 and 10")
+        self.write_variable_to_main_vi("Cleaning cycle times", cycles)
+
+    def set_door_opening_temperature(self, temperature: int):
+        """
+        Set the temperature at which the door will open automatically
+        """
+        if temperature < 0 or temperature > 400:
+            raise ValueError("Door opening temperature must be between 0 and 400")
+        self.write_variable_to_main_vi("Door opening temperature", temperature)
+
+    def set_automatic_flow_rate(self, flow_rate: int):
+        """
+        Set the flow rate in the furnace
+        """
+        if flow_rate < 0 or flow_rate > 1000:
+            raise ValueError("Flow rate must be between 0 and 100")
+        self.write_variable_to_main_vi("Automatic flow rate", flow_rate)
 
     def is_running(self):
         """
