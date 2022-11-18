@@ -391,7 +391,7 @@ class TubeFurnace:
         """
         if flow_rate < 0 or flow_rate > 1000:
             raise ValueError("Flow rate must be between 0 and 100")
-        self.write_variable_to_main_vi("Automatic flow rate", flow_rate)
+        self.write_variable_to_main_vi("Automatic  flow rate", flow_rate)
 
     def is_running(self):
         """
