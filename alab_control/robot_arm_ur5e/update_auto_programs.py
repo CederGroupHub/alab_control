@@ -1,4 +1,5 @@
 from pathlib import Path
+from xml.sax.saxutils import escape
 
 import pymongo
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
@@ -35,10 +36,12 @@ for program_doc in programs_collection.find({}):
         robot.ssh.write_program(name + ".auto.script", pick_program)
 
         urp_program = urp_template.render({
+            "program_name": name,
             "program_path": "/programs/" + name + ".auto.script",
-            "program_string": pick_program,
+            "program_string": escape(pick_program),
         })
         robot.ssh.compress_write_program(name + ".auto.urp", urp_program)
+        print(name)
 
         name = f"place_{program_doc['name']}" + (f"_{position_name}" if len(position_names) > 1 else "")
         config["name"] = name
@@ -48,6 +51,7 @@ for program_doc in programs_collection.find({}):
 
         urp_program = urp_template.render({
             "program_path": "/programs/" + name + ".auto.script",
-            "program_string": place_program,
+            "program_string": escape(place_program),
         })
         robot.ssh.compress_write_program(name + ".auto.urp", urp_program)
+        print(name)
