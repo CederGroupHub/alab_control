@@ -1,4 +1,5 @@
 import json
+import socket
 from multiprocessing.sharedctypes import Value
 from pathlib import Path
 import types
@@ -102,12 +103,11 @@ class BaseURRobot:
         """
         Set the speed of robot arm running, should be a value between 0 and 1.
         """
-        if self.secondary is None:
-            raise ValueError(
-                "Cannot run movej program when the secondary interface is not "
-                "enabled. Set `use_secondary=True` when initializing the robot arm."
-            )
-        self.secondary.set_speed(speed)
+        if not 0 <= speed <= 1:
+            raise ValueError("The speed should be a value between 0 and 1.")
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((self.ip_address, 30003))
+            s.send(f"set speed {speed}\n".encode())
 
     def is_running(self) -> bool:
         """
@@ -325,11 +325,8 @@ class CharDummy(BaseURRobot):
 
 
 if __name__ == "__main__":
-    robot = Dummy("192.168.0.22")
+    robot = BaseURRobot("192.168.0.22")
     try:
-        robot.move_crucibles(
-            ["loading_rack/1", "loading_rack/8"],
-            ["transfer_rack/1", "transfer_rack/16"],
-        )
+        robot.set_speed(0.5)
     finally:
         robot.close()
