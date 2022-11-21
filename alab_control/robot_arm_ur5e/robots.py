@@ -327,6 +327,6 @@ class CharDummy(BaseURRobot):
 if __name__ == "__main__":
     robot = BaseURRobot("192.168.0.22")
     try:
-        robot.set_speed(0.5)
+        robot.set_speed(0.8)
     finally:
         robot.close()

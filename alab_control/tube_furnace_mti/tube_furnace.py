@@ -50,6 +50,8 @@ class TubeFurnace:
         "write_data": "/write_data",
     }
 
+    SAFE_DOOR_OPENING_TEMPERATURE = 150
+
     def __init__(self, furnace_index: int):
         """
         Args:
@@ -150,7 +152,7 @@ class TubeFurnace:
         self._temperature_vi.setcontrolvalue(name, value)
 
     def run_program(self, setpoints: Dict[str, int],
-                    door_opening_temperature: int = 150,
+                    door_opening_temperature: int = SAFE_DOOR_OPENING_TEMPERATURE,
                     flow_rate: int = 100, cleaning_cycles: int = 3):
         """
         Run the program with the given setpoints
@@ -210,7 +212,8 @@ class TubeFurnace:
         logger.debug("Stop program")
         time.sleep(1)
 
-    def open_door(self, safety_open_temperature=100, pressure_min=90000, pressure_max=110000, timeout=120):
+    def open_door(self, safety_open_temperature=SAFE_DOOR_OPENING_TEMPERATURE, 
+                  pressure_min=90000, pressure_max=110000, timeout=120):
         """
         Open the flange when some conditions are met. If these conditions (temperature & pressure) are not met,
         this method will return False. If timeout is reached and the furnace still does not start to open,
@@ -355,6 +358,10 @@ class TubeFurnace:
         return self.read_variable_from_main_vi("Set flow")
 
     @property
+    def door_opening_temperature(self):
+        return self.read_variable_from_main_vi("Door opening temperature")
+
+    @property
     def state(self) -> TubeFurnaceState:
         """
         Get the state of the furnace
@@ -397,7 +404,12 @@ class TubeFurnace:
         """
         Check if the furnace is running
         """
-        return self.state != TubeFurnaceState.STOPPED
+        heater_state = self.read_variable_from_main_vi("Running state") in {"Hold", "Run"}
+        return (
+            self.state != TubeFurnaceState.STOPPED or
+            heater_state or 
+            self.PV > self.door_opening_temperature
+        )
 
 
 if __name__ == '__main__':
