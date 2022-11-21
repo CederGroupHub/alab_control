@@ -130,7 +130,9 @@ class URRobotDashboard:
         self.load(name)
         logger.info("Run program: {}".format(name))
         self.play()
-        self.wait_for_finish()
+        if block:
+            time.sleep(0.5)
+            self.wait_for_finish()
 
     def is_running(self) -> bool:
         """
@@ -230,10 +232,12 @@ class URRobotDashboard:
         Get the current robot mode
         """
         response = self.send_cmd("robotmode")
+        robot_mode_string = response.split(" ")[1].strip("\n")
+
         try:
-            return RobotMode[response.strip("\n")]
-        except KeyError:
-            raise URRobotError("Unexpected response for robot mode: {}".format(response))
+            return RobotMode[robot_mode_string]
+        except KeyError as e:
+            raise URRobotError("Unexpected response for robot mode: {}.".format(robot_mode_string)) from e
 
     def get_program_status(self) -> ProgramStatus:
         """
@@ -246,8 +250,8 @@ class URRobotDashboard:
         state_string = response.split(" ")[0]
         try:
             return ProgramStatus[state_string]
-        except KeyError:
-            raise URRobotError("Get unexpected program status query result: {}".format(response))
+        except KeyError as e:
+            raise URRobotError("Get unexpected program status query result: {}".format(response)) from e
 
     @property
     def loaded_program(self) -> Optional[str]:
