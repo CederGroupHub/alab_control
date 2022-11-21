@@ -307,7 +307,7 @@ class FurnaceController(FurnaceRegister):
         self.configure_segments(*segments)
         self.play()
 
-    def play(self):
+    def play(self, block=True):
         """
         Start to run current program
 
@@ -320,9 +320,9 @@ class FurnaceController(FurnaceRegister):
             raise FurnaceError("A program is still running")
         self.program_mode = ProgramMode.RUN
         logger.info("Current program starts to run")
-
-        while not self.is_running():
-            continue
+        if block:
+            while not self.is_running():
+                continue
 
     def hold_program(self):
         """

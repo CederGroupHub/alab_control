@@ -14,10 +14,18 @@ class BaseArduinoDevice(abc.ABC):
         self.port = port
 
     def send_request(self, endpoint: str, data: Optional[Dict[str, Union[str, int, float, bytes, bool]]] = None,
-                     method: str = "GET", jsonify: bool = True, suppress_error: bool = False):
+                     method: str = "GET", jsonify: bool = True, suppress_error: bool = False, timeout=None, max_retries=1):
         url = f"http://{self.ip_address}:{self.port}{endpoint}"
         time.sleep(0.1)
-        response = requests.request(method=method, url=url, data=data)
+        retries = 0
+        while retries < max_retries:
+            try:
+                response = requests.request(method=method, url=url, data=data, timeout=timeout)
+                break
+            except:
+                retries += 1
+                if retries >= max_retries:
+                    raise RuntimeError(f"Failed to send request to {url}")
         if not suppress_error:
             response.raise_for_status()
         if jsonify:
