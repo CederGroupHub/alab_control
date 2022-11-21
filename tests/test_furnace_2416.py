@@ -11,7 +11,7 @@ from alab_control.furnace_2416.furnace_driver import SegmentType, ProgramEndType
 
 class TestFurnace(unittest.TestCase):
     def setUp(self):
-        self.furnace = furnace_2416.FurnaceController(port="COM9", timeout=1)
+        self.furnace = furnace_2416.FurnaceController(port="COM5", timeout=1)
         self.furnace.stop()
 
     def tearDown(self):

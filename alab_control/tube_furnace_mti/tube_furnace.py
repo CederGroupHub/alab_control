@@ -367,7 +367,7 @@ class TubeFurnace:
         elif "paused" in autostate:
             return TubeFurnaceState.PAUSED
         else:
-            return TubeFurnaceState(re.search(r"\d+", autostate).group())
+            return TubeFurnaceState(int(re.search(r"\d+", autostate).group()))
 
     def set_cleaning_cycles(self, cycles: int):
         """

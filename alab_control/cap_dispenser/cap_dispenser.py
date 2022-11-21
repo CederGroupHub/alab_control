@@ -31,7 +31,7 @@ class CapDispenser(BaseArduinoDevice):
         Get the current state of the cap dispenser
         whether it is running or not.
         """
-        return CapDispenserState[self.send_request(self.ENDPOINTS["state"], method="GET")["state"].upper()]
+        return CapDispenserState[self.send_request(self.ENDPOINTS["state"], method="GET", suppress_error=True, max_retries=3, timeout=1)["state"].upper()]
 
     def open(self, n: int):
         """
@@ -43,7 +43,7 @@ class CapDispenser(BaseArduinoDevice):
             raise RuntimeError("Cannot open the cap dispenser while it is running")
         if self.is_open[n - 1]:
             raise RuntimeError("Cannot open the cap dispenser while it is open")
-        self.send_request(self.ENDPOINTS[f"open n={n}"], method="GET")
+        self.send_request(self.ENDPOINTS[f"open n={n}"], method="GET", suppress_error=True, max_retries=3, timeout=1)
         while self.get_state() == CapDispenserState.RUNNING:
             time.sleep(0.2)
 
