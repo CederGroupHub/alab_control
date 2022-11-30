@@ -109,3 +109,5 @@ pick_cap_dispensers
 -   pick_cap_dispenser_C
 
 dispose
+
+take_photo

@@ -14,6 +14,12 @@ class URRobotSSH:
         self._ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         self._ssh.connect(self.ip, username="root", password="easybot")
 
+    def read_file(self, file_path: str):
+        with self._ssh.open_sftp() as sftp:
+            with sftp.open(Path(file_path).as_posix(), "r") as f:
+                file = f.read().decode("utf-8")
+        return file
+
     def read_program(self, file_name: str, base: str = "/programs", header_file_name: Optional[str] = None) -> str:
         with self._ssh.open_sftp() as sftp:
             with sftp.open((Path(base) / file_name).as_posix(), "r") as f:
