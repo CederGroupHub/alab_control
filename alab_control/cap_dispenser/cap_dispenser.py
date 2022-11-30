@@ -8,8 +8,13 @@ class CapDispenserState(Enum):
     RUNNING = "RUNNING"
     STOPPED = "STOPPED"
 
-
 class CapDispenser(BaseArduinoDevice):
+    MAP ={
+        "A":1,
+        "B":2,
+        "C":3,
+        "D":4
+    }
     ENDPOINTS = {
         "state": "/state",
         "open n=1": "/open?n=1",
@@ -24,7 +29,10 @@ class CapDispenser(BaseArduinoDevice):
 
     def __init__(self, ip_address: str, port: int = 80):
         super().__init__(ip_address, port)
-        self.is_open = [False] * 4
+        self.is_open = {}
+        self.names=["A","B","C","D"]
+        for name in self.names:
+            self.is_open[name]=False
 
     def get_state(self) -> CapDispenserState:
         """
@@ -33,34 +41,32 @@ class CapDispenser(BaseArduinoDevice):
         """
         return CapDispenserState[self.send_request(self.ENDPOINTS["state"], method="GET", suppress_error=True, max_retries=3, timeout=1)["state"].upper()]
 
-    def open(self, n: int):
+    def open(self, name: str):
         """
         Open the cap dispenser
         """
-        if not 1 <= n <= 4:
-            raise ValueError("n must be between 1 and 4")
+        if name not in self.names:
+            raise ValueError("name must be one of the specified names in the initialization"+str(self.names))
         if self.get_state() == CapDispenserState.RUNNING:
             raise RuntimeError("Cannot open the cap dispenser while it is running")
-        if self.is_open[n - 1]:
+        if self.is_open[name]:
             raise RuntimeError("Cannot open the cap dispenser while it is open")
-        self.send_request(self.ENDPOINTS[f"open n={n}"], method="GET", suppress_error=True, max_retries=3, timeout=1)
+        self.send_request(self.ENDPOINTS[f"open n={self.MAP[name]}"], method="GET", suppress_error=True, max_retries=3, timeout=1)
         while self.get_state() == CapDispenserState.RUNNING:
             time.sleep(0.2)
+        self.is_open[name] = True
 
-        self.is_open[n - 1] = True
-
-    def close(self, n: int):
+    def close(self, name: str):
         """
         Close the cap dispenser
         """
-        if not 1 <= n <= 4:
-            raise ValueError("n must be between 1 and 4")
+        if name not in self.names:
+            raise ValueError("name must be one of the specified names in the initialization"+str(self.names))
         if self.get_state() == CapDispenserState.RUNNING:
             raise RuntimeError("Cannot open the cap dispenser while it is running")
-        if not self.is_open[n - 1]:
+        if not self.is_open[name]:
             raise RuntimeError("Cannot close the cap dispenser while it is closed")
-        self.send_request(self.ENDPOINTS[f"close n={n}"], method="GET")
+        self.send_request(self.ENDPOINTS[f"close n={self.MAP[name]}"], method="GET")
         while self.get_state() == CapDispenserState.RUNNING:
             time.sleep(0.2)
-
-        self.is_open[n - 1] = False
+        self.is_open[name] = False
