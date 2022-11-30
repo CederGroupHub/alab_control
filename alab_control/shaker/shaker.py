@@ -75,7 +75,7 @@ class Shaker(BaseArduinoDevice):
         while self.get_state().is_grabber_closed():
             time.sleep(0.1)
 
-    def shaking(self, duration_sec: int):
+    def shaking(self, duration_sec: float):
         """
         Start the shaker machine for a given duration (seconds)
 
