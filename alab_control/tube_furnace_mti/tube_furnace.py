@@ -321,6 +321,15 @@ class TubeFurnace:
         max_temperature = max([v for k, v in setpoints.items() if k.startswith("C")]) - 5
         self.write_variable_to_main_vi("Maximum loop temperature", max_temperature)
         logger.info(f"Write heating profile: {setpoints}")
+    
+    def get_PV(self):
+        """
+        Get the current temperature.
+        
+        Method instead of property, because property gave an error through `xmlrpc`:
+            `xmlrpc.client.Fault: <Fault 1: '<class \'Exception\'>:method "PV.__getstate__" is not supported'>`
+        """
+        return self.read_variable_from_main_vi("PV")
 
     @property
     def PV(self):
