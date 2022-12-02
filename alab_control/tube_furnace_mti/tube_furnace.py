@@ -7,7 +7,15 @@ from subprocess import Popen
 from typing import Optional, Dict, Any
 
 import requests
-import win32com.client
+
+try:
+    import win32com.client
+except:
+
+    class DummyClient:
+        client = None
+
+    win32com = DummyClient()
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +24,7 @@ class FlangeError(Exception):
     """
     Error about the flange of tube furnace
     """
+
     ...
 
 
@@ -23,6 +32,7 @@ class TubeFurnaceState(Enum):
     """
     Current state of tube furnace
     """
+
     PAUSED = -1
     WAITING_FOR_SAMPLE = -2
     STOPPED = 0
@@ -60,12 +70,19 @@ class TubeFurnace:
         if furnace_index < 1 or furnace_index > 4:
             raise ValueError("Currently only support 4 furnaces")
         self._furnace_index = furnace_index
-        self.exe_path: Path = Path(__file__).parent / "tube_furnace_MTI" / "builds" / \
-                              f"{furnace_index}" / f"Automatic loading furnace_{furnace_index}.exe"
+        self.exe_path: Path = (
+            Path(__file__).parent
+            / "tube_furnace_MTI"
+            / "builds"
+            / f"{furnace_index}"
+            / f"Automatic loading furnace_{furnace_index}.exe"
+        )
         self.main_vi_name = f"Automatic loading tube furnace_{furnace_index}.vi"
         self.temperature_vi_name = f"AIbus{furnace_index}.vi"
         self.active_x_name = f"AutomaticLoadingFurnace{furnace_index}.Application"
-        self.base_url = f"http://localhost:800{furnace_index + 4}/Automatic_loading_{furnace_index}"
+        self.base_url = (
+            f"http://localhost:800{furnace_index + 4}/Automatic_loading_{furnace_index}"
+        )
 
         self._process: Optional[Popen] = None
         self._labview = None
@@ -105,9 +122,14 @@ class TubeFurnace:
         self._labview = win32com.client.Dispatch(self.active_x_name)
         # the file separator must be \ instead of /
         # so we use replace to change the file separator
-        self._main_vi = self._labview.getvireference((self.exe_path / self.main_vi_name).as_posix().replace("/", "\\"))
+        self._main_vi = self._labview.getvireference(
+            (self.exe_path / self.main_vi_name).as_posix().replace("/", "\\")
+        )
         self._temperature_vi = self._labview.getvireference(
-            (self.exe_path / "AI BUS Driver" / self.temperature_vi_name).as_posix().replace("/", "\\"))
+            (self.exe_path / "AI BUS Driver" / self.temperature_vi_name)
+            .as_posix()
+            .replace("/", "\\")
+        )
 
     def read_variable_from_main_vi(self, name: str) -> Any:
         """
@@ -151,9 +173,13 @@ class TubeFurnace:
         logger.debug(f"Write variable {name} to temperature vi: {value}")
         self._temperature_vi.setcontrolvalue(name, value)
 
-    def run_program(self, setpoints: Dict[str, int],
-                    door_opening_temperature: int = SAFE_DOOR_OPENING_TEMPERATURE,
-                    flow_rate: int = 100, cleaning_cycles: int = 3):
+    def run_program(
+        self,
+        setpoints: Dict[str, int],
+        door_opening_temperature: int = SAFE_DOOR_OPENING_TEMPERATURE,
+        flow_rate: int = 100,
+        cleaning_cycles: int = 3,
+    ):
         """
         Run the program with the given setpoints
 
@@ -189,7 +215,7 @@ class TubeFurnace:
         Indicate the sample is loaded. If the machine is in autorunning mode,
         it will go from "Waiting for sample loading" to step 1.
         """
-        self._main_vi.setcontrolvalue('Sample change completed', True)  # Set Input 1
+        self._main_vi.setcontrolvalue("Sample change completed", True)  # Set Input 1
         logger.debug("Sample loaded")
 
     def start_program(self):
@@ -212,8 +238,13 @@ class TubeFurnace:
         logger.debug("Stop program")
         time.sleep(1)
 
-    def open_door(self, safety_open_temperature=SAFE_DOOR_OPENING_TEMPERATURE, 
-                  pressure_min=90000, pressure_max=110000, timeout=120):
+    def open_door(
+        self,
+        safety_open_temperature=SAFE_DOOR_OPENING_TEMPERATURE,
+        pressure_min=90000,
+        pressure_max=110000,
+        timeout=120,
+    ):
         """
         Open the flange when some conditions are met. If these conditions (temperature & pressure) are not met,
         this method will return False. If timeout is reached and the furnace still does not start to open,
@@ -228,7 +259,11 @@ class TubeFurnace:
         Returns:
             True if the door opens successfully; False if some conditions has not been met.
         """
-        if self.PV > safety_open_temperature or self.pressure > pressure_max or self.pressure < pressure_min:
+        if (
+            self.PV > safety_open_temperature
+            or self.pressure > pressure_max
+            or self.pressure < pressure_min
+        ):
             return False
         logger.debug("Opening flange")
         url = self.base_url + self.URLS["flange"]
@@ -318,7 +353,9 @@ class TubeFurnace:
         response = requests.get(url, params=setpoints)
         response.raise_for_status()
         time.sleep(5)
-        max_temperature = max([v for k, v in setpoints.items() if k.startswith("C")]) - 5
+        max_temperature = (
+            max([v for k, v in setpoints.items() if k.startswith("C")]) - 5
+        )
         self.write_variable_to_main_vi("Maximum loop temperature", max_temperature)
         logger.info(f"Write heating profile: {setpoints}")
     
@@ -413,13 +450,16 @@ class TubeFurnace:
         """
         Check if the furnace is running
         """
-        heater_state = self.read_variable_from_main_vi("Running state") in {"Hold", "Run"}
+        heater_state = self.read_variable_from_main_vi("Running state") in {
+            "Hold",
+            "Run",
+        }
         return (
-            self.state != TubeFurnaceState.STOPPED or
-            heater_state or 
-            self.PV > self.door_opening_temperature
+            self.state != TubeFurnaceState.STOPPED
+            or heater_state
+            or self.PV > self.door_opening_temperature
         )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     tube_furnace_2 = TubeFurnace(furnace_index=2)
