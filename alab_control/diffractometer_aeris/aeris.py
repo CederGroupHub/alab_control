@@ -43,7 +43,7 @@ class Aeris:
     def __init__(
         self,
         ip: str = "AERISDY1042.dhcp.lbl.gov",
-        results_dir: str = r"\\sauron.lbl.gov\AerisData",
+        results_dir: str = r"D:\\AerisData",
         debug: bool = False,
     ):
         self.ip = ip
