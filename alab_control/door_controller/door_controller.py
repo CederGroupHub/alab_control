@@ -1,6 +1,7 @@
 import time
 from enum import Enum
 import socket
+import re
 
 from alab_control._base_arduino_device import BaseArduinoDevice
 
@@ -11,33 +12,41 @@ class DoorControllerState(Enum):
     ERROR = "ERROR"
 
 class DoorController(BaseArduinoDevice):
-    def __init__(self, ip_address: str, port: int = 8888, names: list = ["A", "B", "C", "D"]):
+    def __init__(self, names: list, ip_address: str, port: int = 8888):
         super().__init__(ip_address, port)
-        self.is_open = {}
+        self.is_open = {
+            name: False for name in names
+        }
         self.names=names
-        for name in self.names:
-            self.is_open[name]=False
+        # self.get_state() #update door open status
 
     def send_request(self,data) -> str:
-        clientSocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM);
-        # Connect to the server
-        clientSocket.connect((self.ip_address,self.port));
-        # Send data to server
-        clientSocket.send(data.encode());
-        # Receive data from server
-        dataFromServer = clientSocket.recv(1024);
-        # Print to the console
-        decodedData=dataFromServer.decode()
-        clientSocket.close()
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM,) as clientSocket:
+            clientSocket.settimeout(5)
+            # Connect to the server
+            clientSocket.connect((self.ip_address,self.port));
+            # Send data to server
+            clientSocket.send(data.encode());
+            # Receive data from server
+            dataFromServer = clientSocket.recv(1024);
+            # Print to the console
+            decodedData=dataFromServer.decode()
         return decodedData
 
     def get_state(self) -> DoorControllerState:
         """
         Get the current state of the cap dispenser
-        whether it is running or not.
+        whether it is running or not. Also updates self.is_open[name] for each name
         """
         try:
-            state=self.send_request("Status\n").split(";")[0].split("State: ")[1]
+            reply=self.send_request("Status\n")
+            state = reply.split(";")[0].split("State: ")[1]
+
+            for name in self.names:
+                door_state = re.findall(f"Furnace {name}: (\w*)", reply)
+                if len(door_state) == 0:
+                    raise ValueError("Could not find door state for door "+name)
+                self.is_open[name] = door_state[0] == "Open"
         except:
             state="ERROR"
         return DoorControllerState[state]
@@ -48,18 +57,20 @@ class DoorController(BaseArduinoDevice):
         """
         if name not in self.names:
             raise ValueError("name must be one of the specified names in the initialization"+str(self.names))
-        if self.get_state() == DoorControllerState.RUNNING:
-            raise RuntimeError("Cannot open the door while the door controller is running")
+        state = self.get_state()
         if self.is_open[name]:
-            raise RuntimeError("Cannot open the door while the door is open")
+            return
+
+        if state == DoorControllerState.RUNNING:
+            raise RuntimeError("Cannot open the door while the door controller is running")
+        
         self.send_request("Open "+name+"\n")
         time.sleep(1)
         while self.get_state() == DoorControllerState.RUNNING and self.get_state() != DoorControllerState.ERROR:
             time.sleep(1)
         if self.get_state() == DoorControllerState.ERROR:
             raise RuntimeError("Door Controller is in error state")
-        else:
-            self.is_open[name] = True
+
 
     def close(self, name: str):
         """
@@ -67,15 +78,16 @@ class DoorController(BaseArduinoDevice):
         """
         if name not in self.names:
             raise ValueError("name must be one of the specified names in the initialization"+str(self.names))
-        if self.get_state() == DoorControllerState.RUNNING:
-            raise RuntimeError("Cannot close the door while the door controller is running")
+        state = self.get_state()
         if not self.is_open[name]:
-            raise RuntimeError("Cannot close the door while the door is closed")
+            return
+
+        if state == DoorControllerState.RUNNING:
+            raise RuntimeError("Cannot open the door while the door controller is running")
+        
         self.send_request("Close "+name+"\n")
         time.sleep(1)
         while self.get_state() == DoorControllerState.RUNNING and self.get_state() != DoorControllerState.ERROR:
             time.sleep(1)
         if self.get_state() == DoorControllerState.ERROR:
             raise RuntimeError("Door Controller is in error state")
-        else:
-            self.is_open[name] = False
