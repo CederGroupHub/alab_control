@@ -133,6 +133,7 @@ class URRobotDashboard:
         if block:
             time.sleep(0.5)
             self.wait_for_finish()
+            time.sleep(0.5)
 
     def is_running(self) -> bool:
         """

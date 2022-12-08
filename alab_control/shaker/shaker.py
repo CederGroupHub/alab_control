@@ -60,7 +60,7 @@ class Shaker(BaseArduinoDevice):
         state = self.get_state()
         if state.is_grabber_closed():
             raise ShakerError("Grabber is already closed")
-        self.send_request(self.ENDPOINTS["grab"])
+        self.send_request(self.ENDPOINTS["grab"], timeout=10, max_retries=3)
         while not self.get_state().is_grabber_closed():
             time.sleep(0.1)
 
@@ -71,7 +71,7 @@ class Shaker(BaseArduinoDevice):
         state = self.get_state()
         if not state.is_grabber_closed():
             raise ShakerError("Grabber is already open")
-        self.send_request(self.ENDPOINTS["release"])
+        self.send_request(self.ENDPOINTS["release"], timeout=10, max_retries=3)
         while self.get_state().is_grabber_closed():
             time.sleep(0.1)
 
@@ -107,10 +107,10 @@ class Shaker(BaseArduinoDevice):
         """
         Send a start command to the shaker machine
         """
-        self.send_request(self.ENDPOINTS["start"])
+        self.send_request(self.ENDPOINTS["start"], timeout=10, max_retries=3)
 
     def stop(self):
         """
         Send a stop command to the shaker machine
         """
-        self.send_request(self.ENDPOINTS["stop"])
+        self.send_request(self.ENDPOINTS["stop"], timeout=10, max_retries=3)
