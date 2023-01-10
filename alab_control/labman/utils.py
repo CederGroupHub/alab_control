@@ -1,5 +1,5 @@
-from .database import PowderView, CrucibleView, JarView, InputFileView, LoggingView
-from .database.data_objects import db_exists
+from database import PowderView, CrucibleView, JarView, InputFileView, LoggingView
+from database.data_objects import db_exists
 
 
 def initialize_labman_database(overwrite_existing=False):
