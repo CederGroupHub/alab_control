@@ -1,6 +1,7 @@
 from enum import Enum, auto
 from typing import List
 from ..data_objects import get_collection
+from .logging import LoggingView
 
 
 class ContainerPositionStatus(Enum):
@@ -16,7 +17,9 @@ class BaseContainerView:
     POSITION_INDICES = [i + 1 for i in range(16)]
 
     def __init__(self, containertype: str):
+        self.containertype = containertype
         self.collection = get_collection(containertype)
+        self.logging = LoggingView()
 
     def _initialize(self):
         """Initialize the jar database"""
@@ -43,6 +46,12 @@ class BaseContainerView:
             {"quadrant": quadrant, "position": position},
             {"$set": {"state": ContainerPositionStatus.READY.name}},
         )
+        self.logging.debug(
+            category=f"{self.containertype}-add",
+            message=f"Added {self.containertype} to quadrant {quadrant}, position {position}.",
+            quadrant=quadrant,
+            position=position,
+        )
 
     def remove_container(self, quadrant: int, position: int):
         if self.get_state(quadrant, position) == ContainerPositionStatus.EMPTYPOSITION:
@@ -50,6 +59,12 @@ class BaseContainerView:
         self.collection.update_one(
             {"quadrant": quadrant, "position": position},
             {"$set": {"state": ContainerPositionStatus.EMPTYPOSITION.name}},
+        )
+        self.logging.debug(
+            category=f"{self.containertype}-remove",
+            message=f"Removed {self.containertype} from quadrant {quadrant}, position {position}.",
+            quadrant=quadrant,
+            position=position,
         )
 
     def reserve_container(self, quadrant: int, position: int):
@@ -59,6 +74,12 @@ class BaseContainerView:
             {"quadrant": quadrant, "position": position},
             {"$set": {"state": ContainerPositionStatus.RESERVED.name}},
         )
+        self.logging.debug(
+            category=f"{self.containertype}-reserved",
+            message=f"{self.containertype} at quadrant {quadrant}, position {position} was reserved.",
+            quadrant=quadrant,
+            position=position,
+        )
 
     def mark_container_trash(self, quadrant: int, position: int):
         if self.get_state(quadrant, position) == ContainerPositionStatus.EMPTYPOSITION:
@@ -67,6 +88,12 @@ class BaseContainerView:
             {"quadrant": quadrant, "position": position},
             {"$set": {"state": ContainerPositionStatus.TRASH.name}},
         )
+        self.logging.debug(
+            category=f"{self.containertype}-marked-trash",
+            message=f"{self.containertype} at quadrant {quadrant}, position {position} is marked as trash.",
+            quadrant=quadrant,
+            position=position,
+        )
 
     def mark_container_completed(self, quadrant: int, position: int):
         if self.get_state(quadrant, position) == ContainerPositionStatus.EMPTYPOSITION:
@@ -74,6 +101,12 @@ class BaseContainerView:
         self.collection.update_one(
             {"quadrant": quadrant, "position": position},
             {"$set": {"state": ContainerPositionStatus.COMPLETED.name}},
+        )
+        self.logging.debug(
+            category=f"{self.containertype}-marked-complete",
+            message=f"{self.containertype} at quadrant {quadrant}, position {position} is marked as complete.",
+            quadrant=quadrant,
+            position=position,
         )
 
     def get_positions_on_quadrant_by_status(

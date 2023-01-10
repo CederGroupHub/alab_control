@@ -9,16 +9,31 @@ from typing import Dict, List
 from pathlib import Path
 from alab_control.labman.optimize_workflow import BatchOptimizer
 
-from components import Powder, InputFile, Workflow, WorkflowStatus
-from error import *
-from database import (
+from .components import Powder, InputFile, Workflow, WorkflowStatus
+from .error import (
+    LabmanCommunicationError,
+    LabmanError,
+    PowderLoadingError,
+    WorkflowError,
+    WorkflowFullError,
+)
+from .database import (
     PowderView,
     JarView,
     CrucibleView,
     ContainerPositionStatus,
     InputFileView,
+    LoggingView,
 )
-from utils import initialize_labman_database
+from .utils import initialize_labman_database
+
+
+class BatchingWorkerStatus(Enum):
+    """Status of the BatchingWorker"""
+
+    WORKING = auto()
+    STOP_REQUESTED = auto()
+    STOPPED = auto()
 
 
 class QuadrantStatus(Enum):
@@ -176,7 +191,9 @@ class Labman:
         self.powder_view = PowderView()
         self.last_updated_at = 0  # first `self.update_status()` should fire
         self.pending_inputfile_view = InputFileView()
+        self.logging = LoggingView()
         # self._batching_worker_thread = self._start_batching_worker()
+        self._batching_worker_status = BatchingWorkerStatus.STOPPED
 
     ### status update methods
 
@@ -319,18 +336,38 @@ class Labman:
             url=self.API_BASE
             / f"RequestIndexingRackControl?outwardFacingQuadrant={index}",
         )
+        self.logging.debug(
+            category="labman-quadrant-take-request",
+            message=f"Requested control of quadrant {index} under ALab control.",
+            quadrant_index=index,
+        )
         self.__process_server_response(response)  # will throw error if not successful
+        self.logging.info(
+            category="labman-quadrant-take",
+            message=f"Quadrant {index} taken under ALab control.",
+            quadrant_index=index,
+        )
         while self.rack_under_robot_control:
             time.sleep(self.STATUS_UPDATE_WINDOW)
 
     def __release_quadrant_access(self):
         response = requests.post(url=self.API_BASE / "ReleaseIndexingRackControl")
+        self.logging.debug(
+            category="labman-quadrant-release-request",
+            message=f"Requested release of the indexing rack control back to Labman.",
+        )
         self.__process_server_response(response)  # will throw error if not successful
+
         while not self.rack_under_robot_control:
             time.sleep(self.STATUS_UPDATE_WINDOW)
+        self.logging.info(
+            category="labman-quadrant-release",
+            message=f"Labman resumed control of the indexing rack.",
+        )
 
     @contextmanager
     def access_quadrant(self, index: int) -> None:
+        # TODO contextmanager is an issue for instrument control over RPC, probably do away with this!
         """Gives the user control of the Labman with a specific quadrant oriented towards the Labman opening
 
         Args:
@@ -353,9 +390,14 @@ class Labman:
     ### workflow methods
 
     def __workflow_batching_worker(self):
+        self.logging.debug(
+            category="labman-batchingworker-start",
+            message="Starting workflow batching worker thread",
+        )
         self._timer_active = False
         self._time_to_go = None
-        while True:
+        self._batching_worker_status = BatchingWorkerStatus.WORKING
+        while self._batching_worker_status == BatchingWorkerStatus.WORKING:
             if self.pending_inputfile_view.num_pending > 0:
                 if self._timer_active:
                     # if we already opened the batching window, check if its time to send a batch of inputfiles as a workflow
@@ -369,11 +411,22 @@ class Labman:
                     self._time_to_go = time.time() + self.WORKFLOW_BATCHING_WINDOW
             time.sleep(self.WORKFLOW_BATCHING_WINDOW / 10)
 
+        self._batching_worker_status = BatchingWorkerStatus.STOPPED
+        self.logging.debug(
+            category="labman-batchingworker-stop",
+            message="Stopped workflow batching worker thread",
+        )
+
     def _start_batching_worker(self):
         thread = Thread(target=self.__workflow_batching_worker)
         thread.daemon = True
         thread.run()
         return thread
+
+    def _stop_batching_worker(self):
+        self._batching_worker_status = BatchingWorkerStatus.STOP_REQUESTED
+        while self._batching_worker_status != BatchingWorkerStatus.STOPPED:
+            time.sleep(self.WORKFLOW_BATCHING_WINDOW / 100)
 
     def add_inputfile(self, input: InputFile):
         self.pending_inputfile_view.add(input)
@@ -395,17 +448,22 @@ class Labman:
     def submit_workflow(self, quadrant_index: int, workflow: Workflow):
         if not self.workflow_is_valid(workflow):
             raise LabmanError("Workflow is not valid!")
+        workflow_json = workflow.to_json(
+            quadrant_index=quadrant_index,
+            available_positions=self.quadrants[quadrant_index].available_jars,
+        )  # TODO still no info on crucible locations
         with self.access_quadrant(
             quadrant_index
         ):  # TODO do we need to be under manual control to start a workflow?
-            workflow_json = workflow.to_json(
-                quadrant_index=quadrant_index,
-                available_positions=self.quadrants[quadrant_index].available_jars,
-            )  # TODO still no info on crucible locations
             response = requests.post(
                 url=self.API_BASE / "PotsLoaded", json=workflow_json
             )
             data = self.__process_server_response(response)
+            self.logging.info(
+                category="labman-workflow-submit",
+                message=f"Workflow submitted to Labman",
+                workflow=workflow_json,
+            )
             # TODO check response and update some stuff
 
     def workflow_is_valid(self, workflow: Workflow) -> bool:
