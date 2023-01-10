@@ -26,6 +26,7 @@ from .database import (
     LoggingView,
 )
 from .utils import initialize_labman_database
+from .api import LabmanAPI
 
 
 class BatchingWorkerStatus(Enum):
@@ -176,7 +177,6 @@ class Quadrant:
 
 
 class Labman:
-    API_BASE = Path("apibase")  # TODO url path to Labman API
     STATUS_UPDATE_WINDOW: float = (
         5  # minimum time (seconds) between getting status updates from Labman
     )
@@ -194,6 +194,7 @@ class Labman:
         self.logging = LoggingView()
         # self._batching_worker_thread = self._start_batching_worker()
         self._batching_worker_status = BatchingWorkerStatus.STOPPED
+        self.API = LabmanAPI()
 
     ### status update methods
 
@@ -248,7 +249,7 @@ class Labman:
         if (time.time() - self.last_updated_at) < self.STATUS_UPDATE_WINDOW:
             return  # we updated very recently
 
-        response = requests.get(url=self.API_BASE / "GetStatus")
+        response = self.API.get_status()
         result = self.__process_server_response(response)
         self._status = result["Status"]
         # TODO do something with error message
@@ -332,10 +333,7 @@ class Labman:
 
     ### quadrant control
     def __take_quadrant_access(self, index: int):
-        response = requests.post(
-            url=self.API_BASE
-            / f"RequestIndexingRackControl?outwardFacingQuadrant={index}",
-        )
+        response = self.API.request_indexing_rack_control(index)
         self.logging.debug(
             category="labman-quadrant-take-request",
             message=f"Requested control of quadrant {index} under ALab control.",
@@ -351,7 +349,7 @@ class Labman:
             time.sleep(self.STATUS_UPDATE_WINDOW)
 
     def __release_quadrant_access(self):
-        response = requests.post(url=self.API_BASE / "ReleaseIndexingRackControl")
+        response = self.API.release_indexing_rack_control()
         self.logging.debug(
             category="labman-quadrant-release-request",
             message=f"Requested release of the indexing rack control back to Labman.",
@@ -455,9 +453,7 @@ class Labman:
         with self.access_quadrant(
             quadrant_index
         ):  # TODO do we need to be under manual control to start a workflow?
-            response = requests.post(
-                url=self.API_BASE / "PotsLoaded", json=workflow_json
-            )
+            response = self.API.submit_workflow(workflow_json)
             data = self.__process_server_response(response)
             self.logging.info(
                 category="labman-workflow-submit",
@@ -471,9 +467,7 @@ class Labman:
             quadrant_index=1,
             available_positions=[i + 1 for i in range(16)],
         )  # dummy quadrant/positions
-        response = requests.post(
-            url=self.API_BASE / "ValidateWorkflow", json=workflow_json["InputFile"]
-        )
+        response = self.API.validate_workflow(workflow_json)
         data = self.__process_server_response(response)
 
         if data["Data"]["Result"] == "NoError":
