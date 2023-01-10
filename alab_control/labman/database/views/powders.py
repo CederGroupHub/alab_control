@@ -1,5 +1,6 @@
 from ..data_objects import get_collection
 from bson import ObjectId
+from .logging import LoggingView
 
 
 class PowderView:
@@ -8,6 +9,7 @@ class PowderView:
     def __init__(self):
         self.powders = get_collection("powders")
         self.dosingheads = get_collection("dosing_heads")
+        self.logging = LoggingView()
 
         # self._lock = get_lock("powders")
 
@@ -79,6 +81,13 @@ class PowderView:
                 }
             },
         )
+        self.logging.debug(
+            category="powder-load",
+            message=f"Loaded {mass_g}g of {powder} into dosing head {index}",
+            powder=powder,
+            mass_g=mass_g,
+            dosinghead_index=index,
+        )
 
     def unload_dosinghead(self, index: int):
         # TODO check if removing this dosing head will invalidate running workflows
@@ -101,6 +110,14 @@ class PowderView:
                 {"$set": powder_entry},
             )
 
+        self.logging.debug(
+            category="powder-unload",
+            message=f"Unloaded {dosinghead_entry['mass_g']}g of {dosinghead_entry['powder']} from dosing head {index}",
+            powder=dosinghead_entry["powder"],
+            mass_g_unloaded=dosinghead_entry["mass_g"],
+            dosinghead_index=index,
+        )
+
     def reserve_powder(self, powder: str, mass_g: float, reservation_id: ObjectId):
         powder_entry = self.get_powder(powder)
         if powder_entry["mass_g"] < mass_g:
@@ -122,7 +139,9 @@ class PowderView:
             {"$set": powder_entry},
         )
 
-    def consume_powder(self, dosinghead_index: int, mass_g: float, reservation_id: ObjectId):
+    def consume_powder(
+        self, dosinghead_index: int, mass_g: float, reservation_id: ObjectId
+    ):
         powder_entry = self.powders.find_one(
             {"reserved_mass_g.reservation_id": reservation_id}
         )

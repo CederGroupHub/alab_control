@@ -23,7 +23,13 @@ class InputFileView:
 
     def add(self, inputfile: "InputFile"):
         # TODO check for duplicates
-        self.collection.insert_one(inputfile.to_json())
+        _id = self.collection.insert_one(inputfile.to_json())
+        self.logging.info(
+            category = f"inputfile-added",
+            message = f"An inputfile was added to the database",
+            inputfile = inputfile.to_json()
+            inputfile_id = _id
+        )
 
     def get(self, id: ObjectId) -> "InputFile":
         entry = self.collection.find_one({"_id": id})
@@ -31,6 +37,11 @@ class InputFileView:
 
     def remove(self, id: ObjectId):
         self.collection.delete_one({"_id": id})
+        self.logging.info(
+            category = f"inputfile-removed",
+            message = f"An inputfile was removed from the database",
+            inputfile_id = id
+        )
 
     def get_all(self) -> List["InputFile"]:
         return [InputFile.from_json(entry) for entry in self.collection.find()]
