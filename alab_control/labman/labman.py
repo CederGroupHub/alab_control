@@ -9,15 +9,15 @@ from typing import Dict, List
 from pathlib import Path
 from alab_control.labman.optimize_workflow import BatchOptimizer
 
-from .components import Powder, InputFile, Workflow, WorkflowStatus
-from .error import (
+from components import Powder, InputFile, Workflow, WorkflowStatus
+from error import (
     LabmanCommunicationError,
     LabmanError,
     PowderLoadingError,
     WorkflowError,
     WorkflowFullError,
 )
-from .database import (
+from database import (
     PowderView,
     JarView,
     CrucibleView,
@@ -25,8 +25,8 @@ from .database import (
     InputFileView,
     LoggingView,
 )
-from .utils import initialize_labman_database
-from .api import LabmanAPI
+from utils import initialize_labman_database
+from api import LabmanAPI
 
 
 class BatchingWorkerStatus(Enum):
@@ -185,7 +185,7 @@ class Labman:
     )
     MAX_BATCH_SIZE = 16  # max number of crucibles allowed in a single workflow
 
-    def __init__(self):
+    def __init__(self, url, port):
         initialize_labman_database(overwrite_existing=False)
         self.quadrants = {i: Quadrant(i) for i in [1, 2, 3, 4]}  # four quadrants, 1-4
         self.powder_view = PowderView()
@@ -194,7 +194,7 @@ class Labman:
         self.logging = LoggingView()
         # self._batching_worker_thread = self._start_batching_worker()
         self._batching_worker_status = BatchingWorkerStatus.STOPPED
-        self.API = LabmanAPI()
+        self.API = LabmanAPI(url, port)
 
     ### status update methods
 
@@ -218,36 +218,30 @@ class Labman:
         except:
             return {}  # if no json return an empty dict
 
-    def __update_status(self):
+    def __update_status(self, force:bool = False):
         """
         Example:
-        {
-            "ErrorMessage": "adipisicing",
-            "Status": "Error",
-            "Data": {
-                "HeatedRackTemperature": 90261670.70323572,
-                "IsInAutomatedMode": false,
-                "IndexingRackStatus": "RobotControl",
-                "PipetteTipCount": 39371395,
-                "ProcessErrorMessage": "incididunt in mollit nisi",
-                "QuadrantStatuses": [
-                    {
-                        "LoadedWorkflowName": "non ad ipsum p",
-                        "Progress": "Complete",
-                        "QuadrantNumber": 53088119
-                    },
-                    {
-                        "LoadedWorkflowName": "elit voluptate cillum",
-                        "Progress": "Empty",
-                        "QuadrantNumber": -5344906
-                    }
-                ],
-                "RobotRunning": true
-            }
-        }
+        {'ErrorMessage': None,
+        'Status': 'OK',
+        'Data': {
+            'CurrentOutwardQuadrantNumber': 1,
+            'HeatedRackTemperature': 23.5,
+            'InAutomatedMode': True,
+            'IndexingRackStatus': 'UserControl',
+            'PipetteTipCount': 123,
+            'ProcessErrorMessage': None,
+            'QuadrantStatuses': [
+                {'LoadedWorkflowName': None,
+                'Progress': 'Empty',
+                'QuadrantNumber': 1},
+            {'LoadedWorkflowName': None, 'Progress': 'Empty', 'QuadrantNumber': 2},
+            {'LoadedWorkflowName': None, 'Progress': 'Empty', 'QuadrantNumber': 3},
+            {'LoadedWorkflowName': None, 'Progress': 'Empty', 'QuadrantNumber': 4}],
+            'RobotRunning': True}}
         """
-        if (time.time() - self.last_updated_at) < self.STATUS_UPDATE_WINDOW:
-            return  # we updated very recently
+        if not force:
+            if (time.time() - self.last_updated_at) < self.STATUS_UPDATE_WINDOW:
+                return  # we updated very recently
 
         response = self.API.get_status()
         result = self.__process_server_response(response)
@@ -256,14 +250,14 @@ class Labman:
 
         d = result["Data"]
         self._heated_rack_temperature = d["HeatedRackTemperature"]
-        self._in_automated_mode = d["IsInAutomatedMode"]
+        self._in_automated_mode = d["InAutomatedMode"]
         self._rack_under_robot_control = d["IndexingRackStatus"] == "RobotControl"
         self._pipette_tip_count = d["PipetteTipCount"]
         self._robot_running = d["RobotRunning"]
 
         for d in result["Data"]["QuadrantStatuses"]:
-            idx = d["QuadrantNumber"] - 1
-            self.quadrants[idx].status = WorkflowStatus(d["Progress"])
+            idx = d["QuadrantNumber"]
+            self.quadrants[idx].status = QuadrantStatus(d["Progress"])
             # TODO handle status workflow name != expected
             # TODO handle quadrants that do not show up in status report
 
@@ -284,7 +278,7 @@ class Labman:
 
     @property
     def rack_under_robot_control(self):
-        self.__update_status()
+        self.__update_status(force=True)
         return self._rack_under_robot_control
 
     @property
@@ -346,7 +340,7 @@ class Labman:
             quadrant_index=index,
         )
         while self.rack_under_robot_control:
-            time.sleep(self.STATUS_UPDATE_WINDOW)
+            time.sleep(self.STATUS_UPDATE_WINDOW/2)
 
     def __release_quadrant_access(self):
         response = self.API.release_indexing_rack_control()
@@ -467,7 +461,7 @@ class Labman:
             quadrant_index=1,
             available_positions=[i + 1 for i in range(16)],
         )  # dummy quadrant/positions
-        response = self.API.validate_workflow(workflow_json)
+        response = self.API.validate_workflow(workflow_json["InputFile"])
         data = self.__process_server_response(response)
 
         if data["Data"]["Result"] == "NoError":

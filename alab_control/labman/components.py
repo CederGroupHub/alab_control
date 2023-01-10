@@ -31,6 +31,8 @@ class InputFile:
         time_added: datetime = None,
         _id: ObjectId = None,
     ):
+        if len(powder_dispenses) == 0:
+            raise ValueError("`powder_dispenses` must be non-empty!")
         if transfer_volume > ethanol_volume:
             raise ValueError("`transfer_volume` must be <= `ethanol_volume`!")
         self.powder_dispenses = powder_dispenses
@@ -63,8 +65,8 @@ class InputFile:
                 for powder, mass in self.powder_dispenses.items()
             ],
             "TargetTransferVolume": self.transfer_volume,
-            "_id": self._id,
-            "time_added": self.time_added,
+            "_id": str(self._id),
+            "time_added": self.time_added.isoformat(),
         }
 
     def to_labman_json(self, position: int):
@@ -92,6 +94,8 @@ class InputFile:
             },
         """
         j = self.to_json()
+        j.pop("time_added")
+        j.pop("_id")
         j["Position"] = position
         return j
 

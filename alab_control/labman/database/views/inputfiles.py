@@ -27,7 +27,7 @@ class InputFileView:
         self.logging.info(
             category = f"inputfile-added",
             message = f"An inputfile was added to the database",
-            inputfile = inputfile.to_json()
+            inputfile = inputfile.to_json(),
             inputfile_id = _id
         )
 
