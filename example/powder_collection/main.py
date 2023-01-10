@@ -226,8 +226,15 @@ if __name__ == "__main__":
     from pathlib import Path
     from tqdm import tqdm 
     alab = ALab()
-    print(alab.scan_code())
+    # print(alab.scan_code())
     # alab.sample_processing()
+    alab.dummy.run_programs([
+        "pick_xrd_holder_rack_16.auto.urp",
+        "place_xrd_holder_machine.urp",
+    ])
+
+    alab.aeris.add(sample_id="tttest_auto", loc=1, default_program="10-140_2-min")
+    alab.aeris.scan(sample_id=f"tttest_auto", program="10-140_2-min")
 
     # for i in range(1, 21):
     #     alab.dummy.run_programs([
