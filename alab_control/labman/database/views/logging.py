@@ -14,7 +14,7 @@ class LogLevel(Enum):
 
 class LoggingView:
     def __init__(self):
-        self.collection = get_collection("powders")
+        self.collection = get_collection("logging")
 
     def _initialize(self):
         """Initialize the dosing head database"""

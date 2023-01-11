@@ -40,7 +40,7 @@ class PowderView:
         return entry
 
     def available_powders(self):
-        return {powder["name"]: powder["mass_g"] for powder in self.powders.find()}
+        return {powder["name"]: powder["mass_g"] for powder in self.powders.find({})}
 
     def _initialize_powder(
         self, powder: str, mass_g: float, dosinghead_index: int

@@ -1,5 +1,5 @@
 from ortools.linear_solver import pywraplp
-from components import InputFile
+from .components import InputFile
 from typing import Dict, List, Tuple
 
 
