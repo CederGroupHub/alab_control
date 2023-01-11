@@ -1,1 +1,2 @@
-from api import LabmanAPI
+from .api import LabmanAPI
+from .enums import WorkflowValidationResult

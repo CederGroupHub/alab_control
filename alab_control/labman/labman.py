@@ -9,15 +9,15 @@ from typing import Dict, List
 from pathlib import Path
 from alab_control.labman.optimize_workflow import BatchOptimizer
 
-from components import Powder, InputFile, Workflow, WorkflowStatus
-from error import (
+from .components import Powder, InputFile, Workflow, WorkflowStatus
+from .error import (
     LabmanCommunicationError,
     LabmanError,
     PowderLoadingError,
     WorkflowError,
     WorkflowFullError,
 )
-from database import (
+from .database import (
     PowderView,
     JarView,
     CrucibleView,
@@ -25,8 +25,8 @@ from database import (
     InputFileView,
     LoggingView,
 )
-from utils import initialize_labman_database
-from api import LabmanAPI
+from .utils import initialize_labman_database
+from .api import LabmanAPI, WorkflowValidationResult
 
 
 class BatchingWorkerStatus(Enum):
@@ -38,6 +38,7 @@ class BatchingWorkerStatus(Enum):
 
 
 class QuadrantStatus(Enum):
+    UNKNOWN = "Unknown"
     EMPTY = "Empty"
     LOADING = "Loading"
     OCCUPIED = "Running"
@@ -53,7 +54,7 @@ class Quadrant:
             raise ValueError("Quadrant index must be 1,2,3,or 4!")
         self.current_workflow: Workflow = None
         self.index = index
-        self.status = WorkflowStatus.UNKNOWN
+        self.status: QuadrantStatus = QuadrantStatus.UNKNOWN
         self.jar_view = JarView()
         self.crucible_view = CrucibleView()
 
@@ -149,22 +150,22 @@ class Quadrant:
 
     @property
     def reserved_jars(self):
-        """list of jar positions that are reserved for new InputFiles"""
+        """list of jar positions that are reserved by existing InputFiles"""
         return self.jar_view.get_reserved_positions(self.index)
 
     @property
     def reserved_crucibles(self):
-        """list of crucible positions that are reserved for new InputFiles"""
+        """list of crucible positions that are reserved by existing InputFiles"""
         return self.crucible_view.get_reserved_positions(self.index)
 
     @property
     def empty_jar_slots(self):
-        """list of jar positions that are empty"""
+        """list of jar positions that are empty (ie ready to accept a fresh jar)"""
         return self.jar_view.get_empty_positions(self.index)
 
     @property
     def empty_crucible_slots(self):
-        """list of crucible positions that are empty"""
+        """list of crucible positions that are empty (ie ready to accept a fresh crucible)"""
         return self.crucible_view.get_empty_positions(self.index)
 
     @property
@@ -198,27 +199,7 @@ class Labman:
 
     ### status update methods
 
-    def __process_server_response(self, response: requests.Response) -> dict:
-        """Checks server response for errors, returns any json data returned from server
-
-        Args:
-            response (requests.Response): Labman server response
-
-        Raises:
-            LabmanCommunicationError: Server did not respond with 200
-
-        Returns:
-            dict: json contents (if any) of server response. if none, will be an empty dict
-        """
-        # TODO handle error status + messages
-        if response.status_code != 200:
-            raise LabmanCommunicationError(response.text)
-        try:
-            return response.json()
-        except:
-            return {}  # if no json return an empty dict
-
-    def __update_status(self, force:bool = False):
+    def __update_status(self, force: bool = False):
         """
         Example:
         {'ErrorMessage': None,
@@ -243,19 +224,17 @@ class Labman:
             if (time.time() - self.last_updated_at) < self.STATUS_UPDATE_WINDOW:
                 return  # we updated very recently
 
-        response = self.API.get_status()
-        result = self.__process_server_response(response)
-        self._status = result["Status"]
-        # TODO do something with error message
+        status_dict = self.API.get_status()
 
-        d = result["Data"]
-        self._heated_rack_temperature = d["HeatedRackTemperature"]
-        self._in_automated_mode = d["InAutomatedMode"]
-        self._rack_under_robot_control = d["IndexingRackStatus"] == "RobotControl"
-        self._pipette_tip_count = d["PipetteTipCount"]
-        self._robot_running = d["RobotRunning"]
+        self._heated_rack_temperature = status_dict["HeatedRackTemperature"]
+        self._in_automated_mode = status_dict["InAutomatedMode"]
+        self._rack_under_robot_control = (
+            status_dict["IndexingRackStatus"] == "RobotControl"
+        )
+        self._pipette_tip_count = status_dict["PipetteTipCount"]
+        self._robot_running = status_dict["RobotRunning"]
 
-        for d in result["Data"]["QuadrantStatuses"]:
+        for d in status_dict["QuadrantStatuses"]:
             idx = d["QuadrantNumber"]
             self.quadrants[idx].status = QuadrantStatus(d["Progress"])
             # TODO handle status workflow name != expected
@@ -327,31 +306,36 @@ class Labman:
 
     ### quadrant control
     def __take_quadrant_access(self, index: int):
-        response = self.API.request_indexing_rack_control(index)
+        if index not in [1, 2, 3, 4]:
+            raise ValueError(
+                f"Invalid quadrant index: {index}. Must be one of [1,2,3,4]"
+            )
         self.logging.debug(
             category="labman-quadrant-take-request",
             message=f"Requested control of quadrant {index} under ALab control.",
             quadrant_index=index,
         )
-        self.__process_server_response(response)  # will throw error if not successful
+        self.API.request_indexing_rack_control(index)
+
+        # wait for the labman rack to no longer be under robot control
+        while self.rack_under_robot_control:
+            time.sleep(1)
         self.logging.info(
             category="labman-quadrant-take",
             message=f"Quadrant {index} taken under ALab control.",
             quadrant_index=index,
         )
-        while self.rack_under_robot_control:
-            time.sleep(self.STATUS_UPDATE_WINDOW/2)
 
     def __release_quadrant_access(self):
-        response = self.API.release_indexing_rack_control()
         self.logging.debug(
             category="labman-quadrant-release-request",
             message=f"Requested release of the indexing rack control back to Labman.",
         )
-        self.__process_server_response(response)  # will throw error if not successful
+        self.API.release_indexing_rack_control()
 
+        # wait for labman to take back control of the rack
         while not self.rack_under_robot_control:
-            time.sleep(self.STATUS_UPDATE_WINDOW)
+            time.sleep(1)
         self.logging.info(
             category="labman-quadrant-release",
             message=f"Labman resumed control of the indexing rack.",
@@ -438,36 +422,45 @@ class Labman:
         return best_quadrant, wf
 
     def submit_workflow(self, quadrant_index: int, workflow: Workflow):
+        if quadrant_index not in [1, 2, 3, 4]:
+            raise LabmanError("Invalid quadrant index!")
+        if self.quadrants[quadrant_index].status != QuadrantStatus.EMPTY:
+            raise LabmanError(
+                f"Cannot start a workflow on quadrant {quadrant_index} -- this quadrant is currently busy!"
+            )
         if not self.workflow_is_valid(workflow):
-            raise LabmanError("Workflow is not valid!")
+            raise LabmanError(
+                "Workflow is not valid!"
+            )  # TODO should we propagate the error from the labman API?
+
         workflow_json = workflow.to_json(
             quadrant_index=quadrant_index,
             available_positions=self.quadrants[quadrant_index].available_jars,
         )  # TODO still no info on crucible locations
-        with self.access_quadrant(
-            quadrant_index
-        ):  # TODO do we need to be under manual control to start a workflow?
-            response = self.API.submit_workflow(workflow_json)
-            data = self.__process_server_response(response)
-            self.logging.info(
-                category="labman-workflow-submit",
-                message=f"Workflow submitted to Labman",
-                workflow=workflow_json,
-            )
-            # TODO check response and update some stuff
+        self.API.submit_workflow(workflow_json)
+        self.logging.info(
+            category="labman-workflow-submit",
+            message=f"Workflow submitted to Labman",
+            workflow=workflow_json,
+        )
+        # TODO check response and update some stuff
 
     def workflow_is_valid(self, workflow: Workflow) -> bool:
         workflow_json = workflow.to_json(
             quadrant_index=1,
             available_positions=[i + 1 for i in range(16)],
         )  # dummy quadrant/positions
-        response = self.API.validate_workflow(workflow_json["InputFile"])
-        data = self.__process_server_response(response)
+        validation_result = self.API.validate_workflow(workflow_json["InputFile"])
 
-        if data["Data"]["Result"] == "NoError":
+        if validation_result == WorkflowValidationResult.NoError:
             return True
         else:
-            # TODO parse error message and do something useful here
+            self.logging.error(
+                category="labman-workflow-invalid",
+                message=f"Workflow is invalid: {validation_result.value}",
+                workflow=workflow_json,
+                validation_error=validation_result.value,
+            )
             return False
 
     def _batch_and_submit(self):

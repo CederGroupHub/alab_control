@@ -2,7 +2,7 @@ from typing import Dict, Type, List
 from molmass import Formula
 from bson import ObjectId
 from datetime import datetime
-from error import WorkflowFullError
+from .error import WorkflowFullError
 from enum import Enum, auto
 
 
@@ -18,6 +18,7 @@ class Powder:
 
 
 class InputFile:
+    #TODO Default values
     def __init__(
         self,
         powder_dispenses=Dict[Powder, float],
@@ -115,6 +116,9 @@ class InputFile:
             _id=json["_id"],
         )
 
+    def __repr__(self):
+        return f"<InputFile: {len(self.powder_dispenses)} powders, {self.replicates} replicates>"
+
 
 class WorkflowStatus(Enum):
     COMPLETE = "Complete"
@@ -139,9 +143,9 @@ class Workflow:  # maybe this should be Quadrant instead
         self.status = WorkflowStatus.LOADING
 
     def add_input(self, input: InputFile):
-        if (self.required_jars + input.replicates) > self.MAX_SAMPLES:
+        if (self.required_crucibles + input.replicates) > self.MAX_SAMPLES:
             raise WorkflowFullError(
-                f"This workflow is too full ({self.required_jars}/{self.MAX_SAMPLES}) to accomodate this input ({input.replicates} replicates)!"
+                f"This workflow is too full ({self.required_crucibles}/{self.MAX_SAMPLES}) to accomodate this input ({input.replicates} replicates)!"
             )
 
         self.inputs.append(input)
@@ -168,3 +172,6 @@ class Workflow:  # maybe this should be Quadrant instead
 
     def __len__(self):
         return len(self.inputs)
+
+    def __repr__(self):
+        return f"""<Workflow: {self.required_jars} jars, {self.required_crucibles} crucibles, {len(self.required_powders)} unique powders>"""
