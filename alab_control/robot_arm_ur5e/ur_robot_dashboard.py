@@ -130,10 +130,15 @@ class URRobotDashboard:
         self.load(name)
         logger.info("Run program: {}".format(name))
         self.play()
+        try:
+            self.wait_for_start(timeout=30)
+        except TimeoutError:
+            pass  # the program may end very quickly
         if block:
-            time.sleep(0.5)
-            self.wait_for_finish()
-            time.sleep(0.5)
+            try:
+                self.wait_for_finish(timeout=600)  # set a maximum timeout of 10 minutes
+            except Exception as e:
+                raise URRobotError(f"Error when waiting for program to finish: {name}") from e
 
     def is_running(self) -> bool:
         """
@@ -147,15 +152,29 @@ class URRobotDashboard:
         else:
             raise URRobotError("Unexpected response for is_running query: {}".format(response))
 
-    def wait_for_finish(self):
+    def wait_for_start(self, timeout: Optional[float] = None):
+        """
+        Block the process until starting
+        """
+        if self.get_robot_mode() not in (RobotMode.RUNNING, RobotMode.BACKDRIVE, RobotMode.IDLE):
+            raise URRobotError("Robot is not in running mode, but in {}.".format(self.get_robot_mode().name))
+
+        start_time = time.time()
+        while not self.is_running():
+            if timeout and time.time() - start_time > timeout:
+                raise TimeoutError("Timeout when waiting for program start, the limit is {} s. ".format(timeout))
+
+    def wait_for_finish(self, timeout: Optional[float] = None):
         """
         Block the process until finishing
         """
+        start_time = time.time()
         while self.is_running():
-            continue
+            if timeout and time.time() - start_time > timeout:
+                raise TimeoutError("Timeout when waiting for program finish, the limit is {} s".format(timeout))
+
         if self.get_robot_mode() not in (RobotMode.RUNNING, RobotMode.BACKDRIVE, RobotMode.IDLE):
             raise URRobotError("Robot is not in running mode, but in {}.".format(self.get_robot_mode().name))
-        return
 
     def load(self, name: str):
         """
