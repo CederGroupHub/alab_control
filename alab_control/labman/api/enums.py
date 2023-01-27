@@ -18,10 +18,5 @@ class WorkflowValidationResult(Enum):
     InvalidTransferVolume = auto()
     NoMixingPots = auto()
     RepeatedPosition = auto()
-
-    InvalidPowderName = (
-        auto()
-    )  # TODO: Not shown in the mock server, to be updated when the real machine is come
-    NoEnoughPipetteTip = (
-        auto()
-    )  # TODO: Not shown in the mock server, to be updated when the real machine is come
+    InvalidPowderName = auto()
+    NotEnoughPipetteTip = auto()
