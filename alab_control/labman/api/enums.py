@@ -1,4 +1,4 @@
-from enum import Enum, auto
+from enum import Enum
 
 
 class WorkflowValidationResult(Enum):
@@ -6,17 +6,20 @@ class WorkflowValidationResult(Enum):
     Enum for the different types of workflow validation errors.
     """
 
-    NoError = auto()
-    InvalidCrucibleReplicates = auto()
-    TooManyCrucibles = auto()
-    InvalidHeatingDuration = auto()
-    InvalidEthanolVolume = auto()
-    InvalidMixerDuration = auto()
-    InvalidMixerSpeed = auto()
-    InvalidPosition = auto()
-    InvalidPowderMass = auto()
-    InvalidTransferVolume = auto()
-    NoMixingPots = auto()
-    RepeatedPosition = auto()
-    InvalidPowderName = auto()
-    NotEnoughPipetteTip = auto()
+    NoError = "NoError"
+    NoMixingPots = "NoMixingPots"
+    RepeatedPosition = "RepeatedPosition"
+    PotWithNoWork = "PotWithNoWork"
+    InvalidCrucibleReplicates = "InvalidCrucibleReplicates"
+    InvalidHeatingDuration = "InvalidHeatingDuration"
+    InvalidEthanolVolume = "InvalidEthanolVolume"
+    InvalidMixerDuration = "InvalidMixerDuration"
+    InvalidMixerSpeed = "InvalidMixerSpeed"
+    InvalidPosition = "InvalidPosition"
+    InvalidTransferVolume = "InvalidTransferVolume"
+    BlankPowderName = "BlankPowderName"
+    InvalidPowderMass = "InvalidPowderMass"
+    TooManyCrucibles = "TooManyCrucibles"
+    InsufficientPipetteTips = "InsufficientPipetteTips"
+    PowderNotLoaded = "PowderNotLoaded"
+

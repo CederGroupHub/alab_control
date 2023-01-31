@@ -49,7 +49,7 @@ class LabmanAPI:
         if response["Status"] == "OK":
             return response.get("Data", {})
         else:
-            raise LabmanError(response["Message"])
+            raise LabmanError(response["ErrorMessage"])
 
     ### API Calls
     def get_status(self):
@@ -103,8 +103,12 @@ class LabmanAPI:
         return self._post(url, json=workflow_json)
 
     def pots_unloaded(self, index: Literal[1, 2, 3, 4]):
-        url = f"{self.API_BASE}/PotsUnloaded"
-        return self._post(url, json={"quadrant": index})
+        if index not in [1, 2, 3, 4]:
+            raise ValueError(
+                f"You tried to unload invalid quadrant index {index}. Valid values are: {VALID_QUADRANTS}"
+            )
+        url = f"{self.API_BASE}/PotsUnloaded?quadrant={index}"
+        return self._post(url)
 
     def validate_workflow(self, workflow_json: dict) -> WorkflowValidationResult:
         url = f"{self.API_BASE}/ValidateWorkflow"
@@ -112,7 +116,7 @@ class LabmanAPI:
         return WorkflowValidationResult(result["Result"])
 
     def load_powder(self, index: int, powder_name: str):
-        return
+        # return
         url = f"{self.API_BASE}/DosingHeadLoaded"
         if index not in VALID_DOSING_HEADS:
             raise ValueError(
@@ -122,7 +126,7 @@ class LabmanAPI:
         return self._post(url, json={"Position": index, "PowderName": powder_name})
 
     def unload_powder(self, index: int):
-        return
+        # return
         url = f"{self.API_BASE}/DosingHeadUnloaded?position={index}"
         if index not in VALID_DOSING_HEADS:
             raise ValueError(

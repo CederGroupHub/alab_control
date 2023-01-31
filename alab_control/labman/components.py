@@ -18,15 +18,14 @@ class Powder:
 
 
 class InputFile:
-    # TODO Default values
     def __init__(
         self,
         powder_dispenses=Dict[Powder, float],
-        heating_duration_s: int = 300,
+        heating_duration_s: int = 60*30,
         ethanol_volume_ul: int = 10000,
         transfer_volume_ul: int = 10000,
         mixer_speed_rpm: int = 2000,
-        mixer_duration_s: int = 900,
+        mixer_duration_s: int = 60*9,
         min_transfer_mass_g: int = 5,
         replicates: int = 1,
         time_added: datetime = None,
@@ -34,13 +33,20 @@ class InputFile:
     ):
         if len(powder_dispenses) == 0:
             raise ValueError("`powder_dispenses` must be non-empty!")
+        self.powder_dispenses = powder_dispenses
+
+        self.heating_duration = heating_duration_s
+        if heating_duration_s < 0 or heating_duration_s > 120*60:
+            raise ValueError("`heating_duration_s` must be between 0 and 7200 (0 and 120 minutes)! ")
+
         if transfer_volume_ul > ethanol_volume_ul:
             raise ValueError("`transfer_volume` must be <= `ethanol_volume`!")
-        self.powder_dispenses = powder_dispenses
-        self.heating_duration = heating_duration_s
         self.ethanol_volume = ethanol_volume_ul
         self.transfer_volume = transfer_volume_ul
         self.mixer_speed = mixer_speed_rpm
+
+        if mixer_duration_s < 0 or mixer_duration_s > 10*60:
+            raise ValueError("`mixer_duration_s` must be between 0 and 600 (0 and 10 minutes)! ")
         self.mixer_duration = mixer_duration_s
         self.min_transfer_mass = min_transfer_mass_g
         self.replicates = replicates
@@ -131,15 +137,12 @@ class InputFile:
 
 class Workflow:  # maybe this should be Quadrant instead
     MAX_SAMPLES: int = 16
-
+    INVALID_CHARACTERS: List[str] = [":", "\t", "\n", "\r", "\0", "\x0b"]
     def __init__(self, name: str):
+        if any([c in self.INVALID_CHARACTERS for c in name]):
+            raise ValueError(f"Invalid character in name: {name}. The name must contain characters valid in a Windows filepath.")
         self.name = name
         self.inputs = []
-        self.required_powders: Dict[Powder, float] = {}
-        self.required_ethanol_volume = 0
-        self.required_jars = 0
-        self.required_crucibles = 0
-        self.validated = False
 
     def add_input(self, input: InputFile):
         if (self.required_crucibles + input.replicates) > self.MAX_SAMPLES:

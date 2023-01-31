@@ -9,7 +9,7 @@ from typing import Dict, List
 from pathlib import Path
 from alab_control.labman.optimize_workflow import BatchOptimizer
 
-from .components import Powder, InputFile, Workflow, WorkflowStatus
+from .components import Powder, InputFile, Workflow
 from .error import (
     LabmanCommunicationError,
     LabmanError,
@@ -176,6 +176,12 @@ class Quadrant:
     def num_available_crucibles(self):
         return len(self.available_crucibles)
 
+    def __repr__(self):
+        if self.status not in [QuadrantStatus.EMPTY, QuadrantStatus.UNKNOWN]:
+            return f"<Quadrant {self.index}: {self.current_workflow} is {self.status.value}>"
+        else:
+            return f"<Quadrant {self.index}: {self.status.value}>"
+
 
 class Labman:
     STATUS_UPDATE_WINDOW: float = (
@@ -185,7 +191,7 @@ class Labman:
         300  # max seconds to wait for incoming inputfiles before starting a workflow
     )
 
-    def __init__(self, url, port):
+    def __init__(self, url="http://128.3.17.139", port=8080):
         initialize_labman_database(overwrite_existing=False)
         self.quadrants = {i: Quadrant(i) for i in [1, 2, 3, 4]}  # four quadrants, 1-4
         self.powder_view = PowderView()
@@ -242,6 +248,7 @@ class Labman:
         for d in status_dict["QuadrantStatuses"]:
             idx = d["QuadrantNumber"]
             self.quadrants[idx].status = QuadrantStatus(d["Progress"])
+            self.quadrants[idx].current_workflow = d["LoadedWorkflowName"]
             # TODO handle status workflow name != expected
 
     @property
@@ -295,22 +302,32 @@ class Labman:
         self.quadrants[quadrant].remove_crucible(position)
 
     def load_powder(self, dosinghead_index: int, powder: str, mass: float):
-
+        # if self.robot_is_running:
+        #     raise LabmanError(
+        #         "Cannot load or unload powders while the robot is running! You need to press 'stop' on the Labman's UI first."
+        #     )
         dh = self.powder_view.get_dosinghead(dosinghead_index)
         if dh["powder"] is not None:
             raise PowderLoadingError(
                 f"Dosinghead {dosinghead_index} already loaded with powder. Unload the powder first!"
             )
 
-        self.API.load_powder(
-            dosinghead_index, powder
-        )  # change powder in Labman database
+        # TODO unload from API if powder_view.load fails
+        # self.API.load_powder(
+        #     dosinghead_index, powder
+        # )  # change powder in Labman database
         self.powder_view.load_dosinghead(
             index=dosinghead_index, powder=powder, mass_g=mass
         )  # change powder in PowderView
 
     def unload_powder(self, dosinghead_index: int):
-        self.API.unload_powder(dosinghead_index)  # change powder in Labman database
+        if self.robot_is_running:
+            raise LabmanError(
+                "Cannot load or unload powders while the robot is running! You need to press 'stop' on the Labman's UI first."
+            )
+        # TODO reload previous over API if powder_view.load fails
+
+        # self.API.unload_powder(dosinghead_index)  # change powder in Labman database
         self.powder_view.unload_dosinghead(
             dosinghead_index
         )  # change powder in PowderView
@@ -440,7 +457,7 @@ class Labman:
             inputfiles=inputfiles,
         )
         best_quadrant, best_inputfiles = bo.solve(verbose=verbose)
-        name = f"{datetime.datetime.now()} - {len(best_inputfiles)}"
+        name = f"{datetime.datetime.now().strftime('%Y-%m-%d, %-I-%M %p')}, {len(best_inputfiles)} inputfiles"
         wf = Workflow(name=name)
         for i in best_inputfiles:
             wf.add_input(i)
@@ -492,7 +509,7 @@ class Labman:
         quadrant_index, workflow = self.build_optimal_workflow(inputfiles)
         self.submit_workflow(quadrant_index, workflow)
 
-    def synchronize_dosingheads(self) -> bool:
+    def _synchronize_dosingheads(self) -> bool:
         """Checks if our database and the Labman's internal database agree on which powders are loaded in which dosing heads.
 
         Returns:
