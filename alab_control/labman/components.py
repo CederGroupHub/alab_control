@@ -18,6 +18,7 @@ class Powder:
 
 
 class InputFile:
+    MAX_REPLICATES:int = 4
     def __init__(
         self,
         powder_dispenses=Dict[Powder, float],
@@ -112,13 +113,14 @@ class InputFile:
             powder_dispenses={
                 v["PowderName"]: v["TargetMass"] for v in json["PowderDispenses"]
             },
-            heating_duration=json["HeatingDuration"],
-            ethanol_volume=json["EthanolDispenseVolume"],
-            transfer_volume=json["TargetTransferVolume"],
-            mixer_speed=json["MixerSpeed"],
-            mixer_duration=json["MixerDuration"],
-            min_transfer_mass=json["MinimumTransferMass"],
+            heating_duration_s=json["HeatingDuration"],
+            ethanol_volume_ul=json["EthanolDispenseVolume"],
+            transfer_volume_ul=json["TargetTransferVolume"],
+            mixer_speed_rpm=json["MixerSpeed"],
+            mixer_duration_s=json["MixerDuration"],
+            min_transfer_mass_g=json["MinimumTransferMass"],
             replicates=json["CrucibleReplicates"],
+            time_added = datetime.fromisoformat(json["time_added"]),
             _id=json["_id"],
         )
 
@@ -134,7 +136,23 @@ class InputFile:
         """
         return (datetime.now() - self.time_added).seconds
 
+    def __eq__(self, other):
+        if not isinstance(other, InputFile):
+            return False
+        this = self.to_json()
+        this.pop("CrucibleReplicates")
+        that = other.to_json()
+        that.pop("CrucibleReplicates")
+        return this == that
 
+    @property
+    def can_accept_another_replicate(self) -> bool:
+        """Whether this InputFile can accept another replicate.
+
+        Returns:
+            bool: True if this InputFile can accept another replicate, False otherwise.
+        """
+        return self.replicates < self.MAX_REPLICATES
 class Workflow:  # maybe this should be Quadrant instead
     MAX_SAMPLES: int = 16
     INVALID_CHARACTERS: List[str] = [":", "\t", "\n", "\r", "\0", "\x0b"]
@@ -150,7 +168,18 @@ class Workflow:  # maybe this should be Quadrant instead
                 f"This workflow is too full ({self.required_crucibles}/{self.MAX_SAMPLES}) to accomodate this input ({input.replicates} replicates)!"
             )
 
-        self.inputs.append(input)
+        # TODO dont merge inputs until we can disentangle them from the workflow results
+        # for existing_input in self.inputs:
+        #     if input != existing_input:
+        #         continue
+        #     while input.replicates > 0 and existing_input.can_accept_another_replicate:
+        #         existing_input.replicates += 1
+        #         input.replicates -= 1
+        #     if input.replicates == 0:
+        #         return
+
+        self.inputs.append(input) # if we get here, we couldn't merge the input with an existing one
+
 
     def to_json(self, quadrant_index: int, available_positions: List[int]) -> dict:
         data = {
