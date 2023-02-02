@@ -6,16 +6,37 @@ from typing import Dict, List, Tuple
 class BatchOptimizer:
     def __init__(
         self,
+        available_quadrants: List[int],
         available_powders: Dict[str, float],
-        available_crucibles: List[int],
-        available_jars: List[int],
+        available_crucibles: List[List[int]],
+        available_jars: List[List[int]],
         inputfiles: List[InputFile],
     ):
+        """Provide an optimal workflow that maximizes use of available powder, jars, and crucibles on unoccupied quadrants
+
+        Args:
+            available_quadrants (List[int]): indices [1,2,3, or 4] of available quadrants
+            available_powders (Dict[str, float]): dictionary of available powders and their masses {powder_name: mass_g}
+            available_crucibles (List[int]): indices of available jars per quadrant index in available_quadrants
+            available_jars (List[int]): indices of available jars per quadrant index in available_quadrants
+            inputfiles (List[InputFile]): list of candidate inputfiles to be packed into a workflow
+
+        Raises:
+            Exception: TODO
+        """
+        self.quadrant_indices = available_quadrants
+        if (
+            not len(self.quadrant_indices)
+            == len(available_crucibles)
+            == len(available_jars)
+        ):
+            raise Exception(
+                "Mismatch between number of quadrants and number of crucibles/jars!"
+            )
         self.powders = list(available_powders.keys())
         self.powder_masses = list(available_powders.values())
         self.crucibles = available_crucibles
         self.jars = available_jars
-        self.quadrant_indices = [1, 2, 3, 4]
 
         self.inputfiles = []
         self.inputfile_indices = []
@@ -33,14 +54,53 @@ class BatchOptimizer:
             self.requested_crucibles.append(inp.replicates)
             self.requested_jars.append(1)
 
+        ages = [inp.age for inp in self.inputfiles]
+
+        def age_to_weight(
+            age,
+            min_age: float,
+            max_age: float,
+            min_weight: float = 1,
+            max_weight: float = 1.5,
+        ) -> float:
+            """Give a higher weight to older inputfiles.
+                Normalizes the relative age of an inputfile to be between min_weight and max_weight.
+                This will be used to prioritize older inputfiles in the optimization.
+                A greater value for max_weight will prioritize older inputfiles more.
+
+                For example, with min_weight=1 and max_weight=1.5, the oldest inputfile will be worth 1.5 of the youngest inputfile.
+
+            Args:
+                age (float): age of the inputfile to be weighted, arbitrary units. Usually seconds.
+                min_age (float): minimum age of all inputfiles
+                max_age (float): maximum age of all inputfiles
+                min_weight (float, optional): minimum weight. Defaults to 1.
+                max_weight (float, optional): maximum weight. Defaults to 1.5.
+            Returns:
+                float: the factor by which to weight the value of adding this inputfile to a workflow.
+            """
+            if max_age == min_age:
+                return 1
+            if max_age < min_age:
+                min_age, max_age = max_age, min_age
+            return min_weight + (max_weight - min_weight) * (age - min_age) / (
+                max_age - min_age
+            )
+
+        self.inputfile_weights = [
+            age_to_weight(age, min(ages), max(ages)) for age in ages
+        ]
+
     def solve_for_one_quadrant(
         self, quadrant_index: int, verbose: bool = False
     ) -> Tuple[int, List[InputFile]]:
         if quadrant_index not in self.quadrant_indices:
             raise Exception("Invalid quadrant index!")
-        solver = pywraplp.Solver.CreateSolver("SCIP")
-        available_crucibles = self.crucibles[quadrant_index - 1]
-        available_jars = self.jars[quadrant_index - 1]
+        solver: pywraplp.Solver = pywraplp.Solver.CreateSolver("SCIP")
+        available_crucibles = len(
+            self.crucibles[self.quadrant_indices.index(quadrant_index)]
+        )
+        available_jars = len(self.jars[self.quadrant_indices.index(quadrant_index)])
         if not solver:
             return
 
@@ -53,8 +113,10 @@ class BatchOptimizer:
         for col, _ in enumerate(self.powders):
             mass_required_of_this_powder = solver.Sum(
                 [
-                    self.requested_masses[row][col] * x[row]
-                    for row in self.inputfile_indices
+                    masses_for_this_inputfile[col] * inputfile_is_included
+                    for masses_for_this_inputfile, inputfile_is_included in zip(
+                        self.requested_masses, x
+                    )
                 ]
             )
             mass_required_solver_vars.append(mass_required_of_this_powder)
@@ -62,18 +124,32 @@ class BatchOptimizer:
 
         # total crucibles requested must be less than or equal to the available crucibles
         n_crucibles_used = solver.Sum(
-            [self.requested_crucibles[i] * x[i] for i in self.inputfile_indices]
+            [
+                inputfile_is_included * n_crucibles_for_this_inputfile
+                for n_crucibles_for_this_inputfile, inputfile_is_included in zip(
+                    self.requested_crucibles, x
+                )
+            ]
         )
-        solver.Add(n_crucibles_used <= available_crucibles)
+        solver.Add(n_crucibles_used <= available_crucibles, "crucible_limit")
 
         # total jars requested must be less than or equal to the available jars
         n_jars_used = solver.Sum(
-            [self.requested_jars[i] * x[i] for i in self.inputfile_indices]
+            [
+                inputfile_is_loaded * n_jars_for_this_inputfile
+                for n_jars_for_this_inputfile, inputfile_is_loaded in zip(
+                    self.requested_jars, x
+                )
+            ]
         )
-        solver.Add(n_jars_used <= available_jars)
+        solver.Add(n_jars_used <= available_jars, "jar_limit")
 
         # Objectives
-        num_inputfiles = solver.Sum(x)
+        weighted_values = [
+            weight * inputfile_is_included
+            for weight, inputfile_is_included in zip(self.inputfile_weights, x)
+        ]
+        num_inputfiles = solver.Sum(weighted_values)
         solver.Maximize(num_inputfiles)
         status = solver.Solve()
 

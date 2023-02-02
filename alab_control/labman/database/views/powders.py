@@ -1,3 +1,4 @@
+from typing import Dict, List, Union
 from ..data_objects import get_collection
 from bson import ObjectId
 from .logging import LoggingView
@@ -192,3 +193,17 @@ class PowderView:
             {"index": dosinghead_index},
             {"$set": dosinghead_entry},
         )
+
+    def get_filled_dosingheads(self) -> Dict[int, str]:
+        """Get a dictionary of {index: powdername} for all filled dosing heads. This reflects the state of the dosinghead collection on the ALab's Labman database.
+
+        Returns:
+            Dict[int, str]: Dictionary of {index: powdername} for all filled dosing heads.
+        """
+        dosingheads = {}  # Index: PowderName
+
+        for entry in self.dosingheads.find(
+            {"powder": {"$ne": None}}, {"index": 1, "powder": 1}
+        ):
+            dosingheads[entry["index"]] = entry["powder"]
+        return dosingheads

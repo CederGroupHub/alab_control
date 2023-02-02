@@ -18,31 +18,37 @@ class Powder:
 
 
 class InputFile:
-    #TODO Default values
     def __init__(
         self,
         powder_dispenses=Dict[Powder, float],
-        heating_duration: int = 300,
-        ethanol_volume: int = 10000,
-        transfer_volume: int = 10000,
-        mixer_speed: int = 2000,
-        mixer_duration: int = 900,
-        min_transfer_mass: int = 5,
+        heating_duration_s: int = 60*30,
+        ethanol_volume_ul: int = 10000,
+        transfer_volume_ul: int = 10000,
+        mixer_speed_rpm: int = 2000,
+        mixer_duration_s: int = 60*9,
+        min_transfer_mass_g: int = 5,
         replicates: int = 1,
         time_added: datetime = None,
         _id: ObjectId = None,
     ):
         if len(powder_dispenses) == 0:
             raise ValueError("`powder_dispenses` must be non-empty!")
-        if transfer_volume > ethanol_volume:
-            raise ValueError("`transfer_volume` must be <= `ethanol_volume`!")
         self.powder_dispenses = powder_dispenses
-        self.heating_duration = heating_duration
-        self.ethanol_volume = ethanol_volume
-        self.transfer_volume = transfer_volume
-        self.mixer_speed = mixer_speed
-        self.mixer_duration = mixer_duration
-        self.min_transfer_mass = min_transfer_mass
+
+        self.heating_duration = heating_duration_s
+        if heating_duration_s < 0 or heating_duration_s > 120*60:
+            raise ValueError("`heating_duration_s` must be between 0 and 7200 (0 and 120 minutes)! ")
+
+        if transfer_volume_ul > ethanol_volume_ul:
+            raise ValueError("`transfer_volume` must be <= `ethanol_volume`!")
+        self.ethanol_volume = ethanol_volume_ul
+        self.transfer_volume = transfer_volume_ul
+        self.mixer_speed = mixer_speed_rpm
+
+        if mixer_duration_s < 0 or mixer_duration_s > 10*60:
+            raise ValueError("`mixer_duration_s` must be between 0 and 600 (0 and 10 minutes)! ")
+        self.mixer_duration = mixer_duration_s
+        self.min_transfer_mass = min_transfer_mass_g
         self.replicates = replicates
         if time_added is None:
             self.time_added = datetime.now()
@@ -119,28 +125,24 @@ class InputFile:
     def __repr__(self):
         return f"<InputFile: {len(self.powder_dispenses)} powders, {self.replicates} replicates>"
 
+    @property
+    def age(self) -> int:
+        """The age (seconds) of this InputFile.
 
-class WorkflowStatus(Enum):
-    COMPLETE = "Complete"
-    RUNNING = "Running"  # TODO check if this is a real status
-    FULL = "Full"
-    LOADING = "Loading"  # TODO internal status to indicate that this workflow is accepting InputFiles. maybe we dont want to cross Labman and ALab statuses here...
-    UNKNOWN = "Unknown"
+        Returns:
+            int: age (seconds)
+        """
+        return (datetime.now() - self.time_added).seconds
 
 
 class Workflow:  # maybe this should be Quadrant instead
     MAX_SAMPLES: int = 16
-    # TODO handle position in inputfile!
-
+    INVALID_CHARACTERS: List[str] = [":", "\t", "\n", "\r", "\0", "\x0b"]
     def __init__(self, name: str):
+        if any([c in self.INVALID_CHARACTERS for c in name]):
+            raise ValueError(f"Invalid character in name: {name}. The name must contain characters valid in a Windows filepath.")
         self.name = name
         self.inputs = []
-        self.required_powders: Dict[Powder, float] = {}
-        self.required_ethanol_volume = 0
-        self.required_jars = 0
-        self.required_crucibles = 0
-        self.validated = False
-        self.status = WorkflowStatus.LOADING
 
     def add_input(self, input: InputFile):
         if (self.required_crucibles + input.replicates) > self.MAX_SAMPLES:
@@ -149,14 +151,6 @@ class Workflow:  # maybe this should be Quadrant instead
             )
 
         self.inputs.append(input)
-
-        for powder, mass in input.powder_dispenses.items():
-            if powder not in self.required_powders:
-                self.required_powders[powder] = 0
-            self.required_powders[powder] += mass * input.replicates
-        self.required_ethanol_volume += input.ethanol_volume * input.replicates
-        self.required_jars += 1
-        self.required_crucibles += input.replicates
 
     def to_json(self, quadrant_index: int, available_positions: List[int]) -> dict:
         data = {
@@ -175,3 +169,44 @@ class Workflow:  # maybe this should be Quadrant instead
 
     def __repr__(self):
         return f"""<Workflow: {self.required_jars} jars, {self.required_crucibles} crucibles, {len(self.required_powders)} unique powders>"""
+
+    @property
+    def required_ethanol_volume_ul(self) -> int:
+        """The total volume of ethanol (in microliters) required to execute this workflow
+        """
+        return sum([input.ethanol_volume * input.replicates for input in self.inputs])
+
+    @property
+    def required_jars(self) -> int:
+        """The number of jar required to execute this workflow
+
+        Returns:
+            int: number of jars
+        """
+        return len(self.inputs)
+
+    @property
+    def required_crucibles(self) -> int:
+        """The number of crucibles required to execute this workflow
+
+        Returns:
+            int: number of crucibles
+        """
+        return sum([input.replicates for input in self.inputs])
+
+    @property
+    def required_powders(self) -> Dict[Powder, float]:
+        """The masses of powders required to execute this workflow
+
+        Returns:
+            Dict[Powder, float]: dictionary of powders and their required masses (in grams)
+        """
+        powders = {}
+        for input in self.inputs:
+            for powder, mass in input.powder_dispenses.items():
+                if powder not in powders:
+                    powders[powder] = 0
+                powders[powder] += mass * input.replicates
+        return powders
+
+    

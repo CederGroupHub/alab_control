@@ -9,7 +9,7 @@ from typing import Dict, List
 from pathlib import Path
 from alab_control.labman.optimize_workflow import BatchOptimizer
 
-from .components import Powder, InputFile, Workflow, WorkflowStatus
+from .components import Powder, InputFile, Workflow
 from .error import (
     LabmanCommunicationError,
     LabmanError,
@@ -40,8 +40,8 @@ class BatchingWorkerStatus(Enum):
 class QuadrantStatus(Enum):
     UNKNOWN = "Unknown"
     EMPTY = "Empty"
-    LOADING = "Loading"
-    OCCUPIED = "Running"
+    PROCESSING = "Processing"
+    COMPLETE = "Complete"
 
 
 class Quadrant:
@@ -123,7 +123,7 @@ class Quadrant:
         """
         if position not in self.occupied_jar_positions:
             raise ValueError(f"Jar position {position} is not occupied!")
-        self.jar_view.reserve_container(quadrant=self.index, slot=position)
+        self.jar_view.remove_container(quadrant=self.index, slot=position)
 
     def remove_crucible(self, position: int):
         """Indicates that the crucible (empty or filled) has been physically removed from the specified position
@@ -136,7 +136,7 @@ class Quadrant:
         """
         if position not in self.occupied_crucible_positions:
             raise ValueError(f"Crucible position {position} is not occupied!")
-        self.crucible_view.reserve_container(quadrant=self.index, slot=position)
+        self.crucible_view.remove_container(quadrant=self.index, slot=position)
 
     @property
     def available_jars(self):
@@ -176,6 +176,12 @@ class Quadrant:
     def num_available_crucibles(self):
         return len(self.available_crucibles)
 
+    def __repr__(self):
+        if self.status not in [QuadrantStatus.EMPTY, QuadrantStatus.UNKNOWN]:
+            return f"<Quadrant {self.index}: {self.current_workflow} is {self.status.value}>"
+        else:
+            return f"<Quadrant {self.index}: {self.status.value}>"
+
 
 class Labman:
     STATUS_UPDATE_WINDOW: float = (
@@ -184,9 +190,8 @@ class Labman:
     WORKFLOW_BATCHING_WINDOW: float = (
         300  # max seconds to wait for incoming inputfiles before starting a workflow
     )
-    MAX_BATCH_SIZE = 16  # max number of crucibles allowed in a single workflow
 
-    def __init__(self, url, port):
+    def __init__(self, url="http://128.3.17.139", port=8080):
         initialize_labman_database(overwrite_existing=False)
         self.quadrants = {i: Quadrant(i) for i in [1, 2, 3, 4]}  # four quadrants, 1-4
         self.powder_view = PowderView()
@@ -196,6 +201,12 @@ class Labman:
         # self._batching_worker_thread = self._start_batching_worker()
         self._batching_worker_status = BatchingWorkerStatus.STOPPED
         self.API = LabmanAPI(url, port)
+        try:
+            self.__update_status()
+        except:
+            print(
+                "Unable to update the Labman status when initializing the Labman object. Is the Labman online?"
+            )
 
     ### status update methods
 
@@ -237,13 +248,8 @@ class Labman:
         for d in status_dict["QuadrantStatuses"]:
             idx = d["QuadrantNumber"]
             self.quadrants[idx].status = QuadrantStatus(d["Progress"])
+            self.quadrants[idx].current_workflow = d["LoadedWorkflowName"]
             # TODO handle status workflow name != expected
-            # TODO handle quadrants that do not show up in status report
-
-    @property
-    def status(self):
-        self.__update_status()
-        return self._status
 
     @property
     def heated_rack_temperature(self):
@@ -289,23 +295,45 @@ class Labman:
     def load_crucible(self, quadrant: int, position: int):
         self.quadrants[quadrant].add_crucible(position)
 
-    def load_powder(
-        self, dosinghead_index: int, powder: str, mass: float, unload_first: bool = True
-    ):
-        if unload_first:
-            dh = self.powder_view.get_dosinghead(dosinghead_index)
-            if dh["powder"] is not None:
-                self.powder_view.unload_dosinghead(dosinghead_index)
+    def unload_jar(self, quadrant: int, position: int):
+        self.quadrants[quadrant].remove_jar(position)
 
+    def unload_crucible(self, quadrant: int, position: int):
+        self.quadrants[quadrant].remove_crucible(position)
+
+    def load_powder(self, dosinghead_index: int, powder: str, mass: float):
+        # if self.robot_is_running:
+        #     raise LabmanError(
+        #         "Cannot load or unload powders while the robot is running! You need to press 'stop' on the Labman's UI first."
+        #     )
+        dh = self.powder_view.get_dosinghead(dosinghead_index)
+        if dh["powder"] is not None:
+            raise PowderLoadingError(
+                f"Dosinghead {dosinghead_index} already loaded with powder. Unload the powder first!"
+            )
+
+        # TODO unload from API if powder_view.load fails
+        # self.API.load_powder(
+        #     dosinghead_index, powder
+        # )  # change powder in Labman database
         self.powder_view.load_dosinghead(
             index=dosinghead_index, powder=powder, mass_g=mass
-        )
+        )  # change powder in PowderView
 
     def unload_powder(self, dosinghead_index: int):
-        self.powder_view.unload_dosinghead(dosinghead_index)
+        if self.robot_is_running:
+            raise LabmanError(
+                "Cannot load or unload powders while the robot is running! You need to press 'stop' on the Labman's UI first."
+            )
+        # TODO reload previous over API if powder_view.load fails
+
+        # self.API.unload_powder(dosinghead_index)  # change powder in Labman database
+        self.powder_view.unload_dosinghead(
+            dosinghead_index
+        )  # change powder in PowderView
 
     ### quadrant control
-    def __take_quadrant_access(self, index: int):
+    def take_quadrant(self, index: int):
         if index not in [1, 2, 3, 4]:
             raise ValueError(
                 f"Invalid quadrant index: {index}. Must be one of [1,2,3,4]"
@@ -326,7 +354,7 @@ class Labman:
             quadrant_index=index,
         )
 
-    def __release_quadrant_access(self):
+    def release_quadrant(self):
         self.logging.debug(
             category="labman-quadrant-release-request",
             message=f"Requested release of the indexing rack control back to Labman.",
@@ -342,7 +370,7 @@ class Labman:
         )
 
     @contextmanager
-    def access_quadrant(self, index: int) -> None:
+    def take_quadrant_context(self, index: int) -> None:
         # TODO contextmanager is an issue for instrument control over RPC, probably do away with this!
         """Gives the user control of the Labman with a specific quadrant oriented towards the Labman opening
 
@@ -358,10 +386,10 @@ class Labman:
         if index not in [1, 2, 3, 4]:
             raise LabmanError("Quadrant must be 1,2,3,or 4!")
         try:
-            self.__take_quadrant_access(index=index)
+            self.take_quadrant(index=index)
             yield
         finally:
-            self.__release_quadrant_access()
+            self.release_quadrant()
 
     ### workflow methods
 
@@ -407,15 +435,29 @@ class Labman:
     def add_inputfile(self, input: InputFile):
         self.pending_inputfile_view.add(input)
 
-    def build_optimal_workflow(self, inputfiles: List[InputFile]) -> List[InputFile]:
+    def build_optimal_workflow(
+        self, inputfiles: List[InputFile], verbose: bool = False
+    ) -> List[InputFile]:
+        available_quadrants = []
+        available_jars = []
+        available_crucibles = []
+        for quadrant_idx, q in self.quadrants.items():
+            # if q.status != QuadrantStatus.EMPTY:
+            #     continue
+            available_quadrants.append(quadrant_idx)
+            available_jars.append(q.available_jars)
+            available_crucibles.append(q.available_crucibles)
+        if len(available_quadrants) == 0:
+            raise LabmanError("No available quadrants!")
         bo = BatchOptimizer(
+            available_quadrants=available_quadrants,
             available_powders=self.available_powders,
-            available_jars=list(self.available_jars.values()),
-            available_crucibles=list(self.available_crucibles.values()),
+            available_jars=available_jars,
+            available_crucibles=available_crucibles,
             inputfiles=inputfiles,
         )
-        best_quadrant, best_inputfiles = bo.solve()
-        name = f"{datetime.datetime.now()} - {len(best_inputfiles)}"
+        best_quadrant, best_inputfiles = bo.solve(verbose=verbose)
+        name = f"{datetime.datetime.now().strftime('%Y-%m-%d, %-I-%M %p')}, {len(best_inputfiles)} inputfiles"
         wf = Workflow(name=name)
         for i in best_inputfiles:
             wf.add_input(i)
@@ -428,28 +470,27 @@ class Labman:
             raise LabmanError(
                 f"Cannot start a workflow on quadrant {quadrant_index} -- this quadrant is currently busy!"
             )
-        if not self.workflow_is_valid(workflow):
-            raise LabmanError(
-                "Workflow is not valid!"
-            )  # TODO should we propagate the error from the labman API?
-
         workflow_json = workflow.to_json(
             quadrant_index=quadrant_index,
             available_positions=self.quadrants[quadrant_index].available_jars,
         )  # TODO still no info on crucible locations
+        if not self.workflow_is_valid(workflow_json):
+            raise LabmanError(
+                "Workflow is not valid! Check the logs for more information."
+            )
+        self.submit_workflow_json(workflow_json=workflow_json)
+
+        # TODO check response and update some stuff
+
+    def submit_workflow_json(self, workflow_json: dict):
         self.API.submit_workflow(workflow_json)
         self.logging.info(
             category="labman-workflow-submit",
             message=f"Workflow submitted to Labman",
             workflow=workflow_json,
         )
-        # TODO check response and update some stuff
 
-    def workflow_is_valid(self, workflow: Workflow) -> bool:
-        workflow_json = workflow.to_json(
-            quadrant_index=1,
-            available_positions=[i + 1 for i in range(16)],
-        )  # dummy quadrant/positions
+    def workflow_is_valid(self, workflow_json: Dict[any, any]) -> bool:
         validation_result = self.API.validate_workflow(workflow_json["InputFile"])
 
         if validation_result == WorkflowValidationResult.NoError:
@@ -467,3 +508,35 @@ class Labman:
         inputfiles = self.pending_inputfile_view.get_all()
         quadrant_index, workflow = self.build_optimal_workflow(inputfiles)
         self.submit_workflow(quadrant_index, workflow)
+
+    def _synchronize_dosingheads(self) -> bool:
+        """Checks if our database and the Labman's internal database agree on which powders are loaded in which dosing heads.
+
+        Returns:
+            bool: True if the dosing heads are in sync, False otherwise
+        """
+        heads_in_db = self.powder_view.get_filled_dosingheads()
+        heads_in_labman = {}
+        for entry in self.API.get_dosingheads():
+            heads_in_labman[entry["Position"]] = entry["PowderName"]
+
+        in_sync = True
+        for index, powder in heads_in_db.items():
+            if index not in heads_in_labman:
+                in_sync = False
+                print(
+                    f"Dosing head {index} is empty on the Labman, but contains {powder} in our database!"
+                )
+            elif heads_in_labman[index] != powder:
+                in_sync = False
+                print(
+                    f"Dosing head {index} contains {heads_in_labman[index]} on the Labman, but contains {powder} in our database!"
+                )
+
+        for index, powder in heads_in_labman.items():
+            if index not in heads_in_db:
+                in_sync = False
+                print(
+                    f"Dosing head {index} contains {powder} on the Labman, but is empty in our database!"
+                )
+        return in_sync

@@ -1,2 +1,2 @@
-from .labman import Labman
+from .labman import Labman, QuadrantStatus
 from .components import InputFile, Workflow

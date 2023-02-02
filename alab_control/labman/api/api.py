@@ -1,7 +1,10 @@
 import requests
-from typing import Literal
+from typing import Dict, List, Literal, Union
 from ..error import LabmanError, LabmanCommunicationError
 from .enums import WorkflowValidationResult
+
+VALID_QUADRANTS = [1, 2, 3, 4]
+VALID_DOSING_HEADS = [i + 1 for i in range(24)]
 
 
 class LabmanAPI:
@@ -46,7 +49,7 @@ class LabmanAPI:
         if response["Status"] == "OK":
             return response.get("Data", {})
         else:
-            raise LabmanError(response["Message"])
+            raise LabmanError(response["ErrorMessage"])
 
     ### API Calls
     def get_status(self):
@@ -78,11 +81,14 @@ class LabmanAPI:
         return self._get(url)
 
     def get_results(self, workflow_name: str):
-
         url = f"{self.API_BASE}/GetResults"
         return self._get(url=url, params={"workflowName": workflow_name})
 
     def request_indexing_rack_control(self, index: Literal[1, 2, 3, 4]):
+        if index not in [1, 2, 3, 4]:
+            raise ValueError(
+                f"Indexing rack control can only be requested for quadrants 1-4! You asked for quadrant {index}"
+            )
         url = (
             f"{self.API_BASE}/RequestIndexingRackControl?outwardFacingQuadrant={index}"
         )
@@ -97,10 +103,73 @@ class LabmanAPI:
         return self._post(url, json=workflow_json)
 
     def pots_unloaded(self, index: Literal[1, 2, 3, 4]):
-        url = f"{self.API_BASE}/PotsUnloaded"
-        return self._post(url, json={"quadrant": index})
+        if index not in [1, 2, 3, 4]:
+            raise ValueError(
+                f"You tried to unload invalid quadrant index {index}. Valid values are: {VALID_QUADRANTS}"
+            )
+        url = f"{self.API_BASE}/PotsUnloaded?quadrant={index}"
+        return self._post(url)
 
     def validate_workflow(self, workflow_json: dict) -> WorkflowValidationResult:
         url = f"{self.API_BASE}/ValidateWorkflow"
         result = self._post(url, json=workflow_json)
         return WorkflowValidationResult(result["Result"])
+
+    def load_powder(self, index: int, powder_name: str):
+        # return
+        url = f"{self.API_BASE}/DosingHeadLoaded"
+        if index not in VALID_DOSING_HEADS:
+            raise ValueError(
+                f"Invalid dosing head index {index}. Valid values are: {VALID_DOSING_HEADS}"
+            )
+
+        return self._post(url, json={"Position": index, "PowderName": powder_name})
+
+    def unload_powder(self, index: int):
+        # return
+        url = f"{self.API_BASE}/DosingHeadUnloaded?position={index}"
+        if index not in VALID_DOSING_HEADS:
+            raise ValueError(
+                f"Invalid dosing head index {index}. Valid values are: {VALID_DOSING_HEADS}"
+            )
+
+        return self._post(url)
+
+    def get_dosingheads(self) -> List[Dict[str, Union[bool, int, str]]]:
+        """Example response:
+
+        [{  'InDispenser': False,
+            'Position': 1,
+            'PowderName': 'Titanium Oxide',
+            'Status': 'OK'},
+            {'InDispenser': False,
+            'Position': 12,
+            'PowderName': 'Lithium Carbonate',
+            'Status': 'Empty'},
+            {'InDispenser': False,
+            'Position': 19,
+            'PowderName': 'Manganese Oxide',
+            'Status': 'OK'},
+            {'InDispenser': False,
+            'Position': 20,
+            'PowderName': 'Manganese Oxide',
+            'Status': 'OK'},
+            {'InDispenser': False,
+            'Position': 6,
+            'PowderName': 'Silicon Dioxide',
+            'Status': 'Empty'},
+            {'InDispenser': False,
+            'Position': 7,
+            'PowderName': 'Silicon Dioxide',
+            'Status': 'OK'},
+            {'InDispenser': False,
+            'Position': 13,
+            'PowderName': 'Lithium Carbonate',
+            'Status': 'OK'}]
+
+
+        Returns:
+            List[Dict[str, Union[bool, int, str]]]: See example above in docstring
+        """
+        url = f"{self.API_BASE}/DosingHeads"
+        return self._get(url)
