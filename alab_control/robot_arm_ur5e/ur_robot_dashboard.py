@@ -156,7 +156,7 @@ class URRobotDashboard:
         """
         Block the process until starting
         """
-        if self.get_robot_mode() not in (RobotMode.RUNNING, RobotMode.BACKDRIVE, RobotMode.IDLE):
+        if self.get_robot_mode() not in (RobotMode.RUNNING, RobotMode.IDLE):
             raise URRobotError("Robot is not in running mode, but in {}.".format(self.get_robot_mode().name))
 
         start_time = time.time()
@@ -173,7 +173,7 @@ class URRobotDashboard:
             if timeout and time.time() - start_time > timeout:
                 raise TimeoutError("Timeout when waiting for program finish, the limit is {} s".format(timeout))
 
-        if self.get_robot_mode() not in (RobotMode.RUNNING, RobotMode.BACKDRIVE, RobotMode.IDLE):
+        if self.get_robot_mode() not in (RobotMode.RUNNING, RobotMode.IDLE):
             raise URRobotError("Robot is not in running mode, but in {}.".format(self.get_robot_mode().name))
 
     def load(self, name: str):

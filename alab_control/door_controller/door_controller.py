@@ -20,11 +20,24 @@ class DoorController(BaseArduinoDevice):
         self.names=names
         # self.get_state() #update door open status
 
-    def send_request(self,data) -> str:
+    def send_request(self,data,max_retries=5) -> str:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM,) as clientSocket:
             clientSocket.settimeout(5)
             # Connect to the server
-            clientSocket.connect((self.ip_address,self.port));
+            try:
+                clientSocket.connect((self.ip_address,self.port))
+            except:
+                # print( "re-connecting" )  
+                connected=False
+                retry=0
+                while not connected and retry <= max_retries:
+                    try:
+                        retry+=1
+                        clientSocket.connect((self.ip_address,self.port))
+                        connected = True
+                        # print( "re-connection successful" )  
+                    except socket.error:  
+                        time.sleep(1)
             # Send data to server
             clientSocket.send(data.encode());
             # Receive data from server
