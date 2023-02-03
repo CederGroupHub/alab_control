@@ -31,7 +31,7 @@ class WebCam:
             if not ret:
                 raise IOError("Cannot read image from webcam")
             cv2.imshow(self.name, frame)
-            if cv2.waitKey(1) == 27:
+            if cv2.waitKey(1) == 27:  # ESC key to stop
                 break
         cv2.destroyAllWindows()
 

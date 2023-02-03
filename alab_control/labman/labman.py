@@ -240,7 +240,7 @@ class Labman:
         self._heated_rack_temperature = status_dict["HeatedRackTemperature"]
         self._in_automated_mode = status_dict["InAutomatedMode"]
         self._rack_under_robot_control = (
-            status_dict["IndexingRackStatus"] == "RobotControl"
+            status_dict["IndexingRackStatus"] != "UserControl"
         )
         self._pipette_tip_count = status_dict["PipetteTipCount"]
         self._robot_running = status_dict["RobotRunning"]
@@ -289,6 +289,14 @@ class Labman:
     def available_powders(self) -> Dict[str, float]:
         return self.powder_view.available_powders()
 
+    def get_quadrant_status(self, quadrant_index: int) -> QuadrantStatus:
+        if quadrant_index not in [1, 2, 3, 4]:
+            raise ValueError(
+                f"Invalid quadrant index: {quadrant_index}. Must be one of [1,2,3,4]"
+            )
+        self.__update_status()
+        return self.quadrants[quadrant_index].status
+
     def load_jar(self, quadrant: int, position: int):
         self.quadrants[quadrant].add_jar(position)
 
@@ -332,6 +340,7 @@ class Labman:
             dosinghead_index
         )  # change powder in PowderView
 
+    
     ### quadrant control
     def take_quadrant(self, index: int):
         if index not in [1, 2, 3, 4]:

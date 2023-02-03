@@ -139,6 +139,8 @@ class InputFile:
     def __eq__(self, other):
         if not isinstance(other, InputFile):
             return False
+
+        dont_check_for_equality = ["CrucibleReplicates"]
         this = self.to_json()
         this.pop("CrucibleReplicates")
         that = other.to_json()
