@@ -139,12 +139,14 @@ class InputFile:
     def __eq__(self, other):
         if not isinstance(other, InputFile):
             return False
-
-        dont_check_for_equality = ["CrucibleReplicates"]
         this = self.to_json()
-        this.pop("CrucibleReplicates")
         that = other.to_json()
-        that.pop("CrucibleReplicates")
+
+        dont_consider_for_equality = ["CrucibleReplicates"]
+        for key in dont_consider_for_equality:
+            this.pop(key, None)
+            that.pop(key, None)
+
         return this == that
 
     @property
@@ -155,6 +157,7 @@ class InputFile:
             bool: True if this InputFile can accept another replicate, False otherwise.
         """
         return self.replicates < self.MAX_REPLICATES
+
 class Workflow:  # maybe this should be Quadrant instead
     MAX_SAMPLES: int = 16
     INVALID_CHARACTERS: List[str] = [":", "\t", "\n", "\r", "\0", "\x0b"]
