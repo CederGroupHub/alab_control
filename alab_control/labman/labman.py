@@ -201,12 +201,7 @@ class Labman:
         # self._batching_worker_thread = self._start_batching_worker()
         self._batching_worker_status = BatchingWorkerStatus.STOPPED
         self.API = LabmanAPI(url, port)
-        try:
-            self.__update_status()
-        except:
-            print(
-                "Unable to update the Labman status when initializing the Labman object. Is the Labman online?"
-            )
+
 
     ### status update methods
 
