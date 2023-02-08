@@ -27,7 +27,7 @@ class DoorController(BaseArduinoDevice):
             try:
                 clientSocket.connect((self.ip_address,self.port))
             except:
-                print( "re-connecting" )  
+                # print( "re-connecting" )  
                 connected=False
                 retry=0
                 while not connected and retry <= max_retries:
@@ -35,7 +35,7 @@ class DoorController(BaseArduinoDevice):
                         retry+=1
                         clientSocket.connect((self.ip_address,self.port))
                         connected = True
-                        print( "re-connection successful" )  
+                        # print( "re-connection successful" )  
                     except socket.error:  
                         time.sleep(1)
             # Send data to server
