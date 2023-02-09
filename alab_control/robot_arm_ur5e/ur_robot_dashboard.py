@@ -11,6 +11,7 @@ from threading import Lock
 from typing import Optional
 
 from .program_list import PREDEFINED_PROGRAM
+from .ur_robot_primary import URRobotPrimary
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,12 @@ class URRobotError(Exception):
     """
 
 
+class URRobotPopupError(URRobotError):
+    """
+    Used when URRobot encounter an popup
+    """
+
+
 class URRobotDashboard:
     """
     Refer to https://s3-eu-west-1.amazonaws.com/ur-support-site/42728/DashboardServer_e-Series.pdf
@@ -68,6 +75,7 @@ class URRobotDashboard:
     def __init__(self, ip: str, timeout: float = 5):
         """
         The dashboard interface to UR Robot
+        It will also initialize a primary interface to monitor the popup in the robot arm.
 
         Args:
             ip: the ip address to the UR Robot
@@ -82,6 +90,8 @@ class URRobotDashboard:
         self._socket.recv(2048)
 
         self._mutex_lock = Lock()
+
+        self._primary = URRobotPrimary(ip, timeout)
 
     def close(self):
         self._socket.close()
@@ -129,16 +139,17 @@ class URRobotDashboard:
             raise URRobotError("There is still a program running!")
         self.load(name)
         logger.info("Run program: {}".format(name))
-        self.play()
-        try:
-            self.wait_for_start(timeout=30)
-        except TimeoutError:
-            pass  # the program may end very quickly
-        if block:
+        with self._primary.monitor_popup():
+            self.play()
             try:
-                self.wait_for_finish(timeout=600)  # set a maximum timeout of 10 minutes
-            except Exception as e:
-                raise URRobotError(f"Error when waiting for program to finish: {name}") from e
+                self.wait_for_start(timeout=30)
+            except TimeoutError:
+                pass  # the program may end very quickly
+            if block:
+                try:
+                    self.wait_for_finish(timeout=600)  # set a maximum timeout of 10 minutes
+                except Exception as e:
+                    raise URRobotError(f"Error when waiting for program to finish: {name}") from e
 
     def is_running(self) -> bool:
         """
@@ -158,6 +169,8 @@ class URRobotDashboard:
         """
         if self.get_robot_mode() not in (RobotMode.RUNNING, RobotMode.IDLE):
             raise URRobotError("Robot is not in running mode, but in {}.".format(self.get_robot_mode().name))
+        if self.get_safety_status() != SafeStatus.NORMAL:
+            raise URRobotError("Robot is not in normal mode, but in {}.".format(self.get_safety_status().name))
 
         start_time = time.time()
         while not self.is_running():
@@ -172,9 +185,14 @@ class URRobotDashboard:
         while self.is_running():
             if timeout and time.time() - start_time > timeout:
                 raise TimeoutError("Timeout when waiting for program finish, the limit is {} s".format(timeout))
+            if self._primary.popup_message is not None:
+                raise URRobotPopupError(f"A popup is shown on robot arm: "
+                                        f"{self._primary.popup_title} - {self._primary.popup_message}")
 
         if self.get_robot_mode() not in (RobotMode.RUNNING, RobotMode.IDLE):
             raise URRobotError("Robot is not in running mode, but in {}.".format(self.get_robot_mode().name))
+        if self.get_safety_status() != SafeStatus.NORMAL:
+            raise URRobotError("Robot is not in normal mode, but in {}.".format(self.get_safety_status().name))
 
     def load(self, name: str):
         """
@@ -297,6 +315,15 @@ class URRobotDashboard:
         else:
             raise URRobotError("Unexpected result for is_remote_mode query: {}".format(response))
 
+    def clear_popup(self):
+        """
+        Clear popup message
+
+        If there is no popup message, it will still return but do nothing
+        """
+        response = self.send_cmd("close popup")
+        self._raise_for_unexpected_prefix(response, "closing popup")
+
     def get_safety_status(self) -> SafeStatus:
         """
         Get current safety status
@@ -307,7 +334,7 @@ class URRobotDashboard:
         """
         response = self.send_cmd("safetystatus")
         try:
-            return SafeStatus[response]
+            return SafeStatus[response.split(": ")[1].strip("\n")]
         except KeyError:
             raise URRobotError("Unexpected response for safety status query: {}".format(response))
 
