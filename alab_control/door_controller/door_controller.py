@@ -42,6 +42,7 @@ class DoorController(BaseArduinoDevice):
             clientSocket.send(data.encode());
             # Receive data from server
             dataFromServer = clientSocket.recv(1024);
+            print(dataFromServer)
             # Print to the console
             decodedData=dataFromServer.decode()
         return decodedData

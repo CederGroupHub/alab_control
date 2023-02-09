@@ -9,7 +9,7 @@ from typing import Dict, List
 from pathlib import Path
 from alab_control.labman.optimize_workflow import BatchOptimizer
 
-from .components import Powder, InputFile, Workflow
+from .components import InputFile, Workflow
 from .error import (
     LabmanCommunicationError,
     LabmanError,
@@ -201,12 +201,6 @@ class Labman:
         # self._batching_worker_thread = self._start_batching_worker()
         self._batching_worker_status = BatchingWorkerStatus.STOPPED
         self.API = LabmanAPI(url, port)
-        try:
-            self.__update_status()
-        except:
-            print(
-                "Unable to update the Labman status when initializing the Labman object. Is the Labman online?"
-            )
 
     ### status update methods
 
@@ -340,7 +334,6 @@ class Labman:
             dosinghead_index
         )  # change powder in PowderView
 
-    
     ### quadrant control
     def take_quadrant(self, index: int):
         if index not in [1, 2, 3, 4]:

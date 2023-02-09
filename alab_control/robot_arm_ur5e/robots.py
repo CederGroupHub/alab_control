@@ -1,8 +1,6 @@
 import json
 import socket
-from multiprocessing.sharedctypes import Value
 from pathlib import Path
-import types
 from typing import Callable, List, Dict, Literal, Optional, Union
 
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
@@ -26,10 +24,10 @@ class BaseURRobot:
         self.dashboard = URRobotDashboard(ip=ip_address)
 
     def run_program(
-        self,
-        program: str,
-        fmt: Optional[Literal["urp_path", "urscript", "urscript_path"]] = None,
-        block: bool = True,
+            self,
+            program: str,
+            fmt: Optional[Literal["urp_path", "urscript", "urscript_path"]] = None,
+            block: bool = True,
     ):
         """
         Run single program in the robot arm.
@@ -122,13 +120,13 @@ class BaseURRobot:
         return self.dashboard.is_remote_mode()
 
     def movej(
-        self,
-        joints: Union[List[float], np.ndarray],
-        acc: float = 0.1,
-        vel: float = 0.05,
-        wait: bool = True,
-        relative: bool = False,
-        threshold: bool = None,
+            self,
+            joints: Union[List[float], np.ndarray],
+            acc: float = 0.1,
+            vel: float = 0.05,
+            wait: bool = True,
+            relative: bool = False,
+            threshold: bool = None,
     ):
         """
         Movej function
@@ -295,7 +293,7 @@ class Dummy:
 
         for waypoint in self.waypoints:
             if set(pos["name"] for pos in waypoint["start_positions"]).issuperset(
-                set(starts)
+                    set(starts)
             ) and set(pos["name"] for pos in waypoint["end_positions"]).issuperset(
                 set(ends)
             ):
@@ -325,8 +323,9 @@ class CharDummy(BaseURRobot):
 
 
 if __name__ == "__main__":
-    robot = BaseURRobot("192.168.0.22")
+    robot = BaseURRobot("192.168.0.23")
     try:
         robot.set_speed(0.8)
+        robot.run_program("test_popup.urp")
     finally:
         robot.close()
