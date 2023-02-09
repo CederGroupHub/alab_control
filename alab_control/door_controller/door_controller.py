@@ -48,7 +48,7 @@ class DoorController(BaseArduinoDevice):
 
     def get_state(self) -> DoorControllerState:
         """
-        Get the current state of the cap dispenser
+        Get the current state of the door controller
         whether it is running or not. Also updates self.is_open[name] for each name
         """
         try:
@@ -71,9 +71,10 @@ class DoorController(BaseArduinoDevice):
         if name not in self.names:
             raise ValueError("name must be one of the specified names in the initialization"+str(self.names))
         state = self.get_state()
+        if self.get_state() == DoorControllerState.ERROR:
+            raise RuntimeError("Door Controller is in error state")
         if self.is_open[name]:
             return
-
         if state == DoorControllerState.RUNNING:
             raise RuntimeError("Cannot open the door while the door controller is running")
         
@@ -83,6 +84,7 @@ class DoorController(BaseArduinoDevice):
             time.sleep(1)
         if self.get_state() == DoorControllerState.ERROR:
             raise RuntimeError("Door Controller is in error state")
+        
 
 
     def close(self, name: str):
@@ -92,9 +94,10 @@ class DoorController(BaseArduinoDevice):
         if name not in self.names:
             raise ValueError("name must be one of the specified names in the initialization"+str(self.names))
         state = self.get_state()
+        if self.get_state() == DoorControllerState.ERROR:
+            raise RuntimeError("Door Controller is in error state")
         if not self.is_open[name]:
             return
-
         if state == DoorControllerState.RUNNING:
             raise RuntimeError("Cannot open the door while the door controller is running")
         
@@ -104,3 +107,4 @@ class DoorController(BaseArduinoDevice):
             time.sleep(1)
         if self.get_state() == DoorControllerState.ERROR:
             raise RuntimeError("Door Controller is in error state")
+        
