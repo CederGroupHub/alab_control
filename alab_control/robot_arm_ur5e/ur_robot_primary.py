@@ -56,6 +56,8 @@ class URRobotPrimary:
             except ParsingException:
                 return {}
             return data
+        except:
+            return {}
         finally:
             self._mutex_lock.release()
 
