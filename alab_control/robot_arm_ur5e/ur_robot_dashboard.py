@@ -10,8 +10,8 @@ from enum import unique, Enum, auto
 from threading import Lock
 from typing import Optional
 
-from .program_list import PREDEFINED_PROGRAM
-from .ur_robot_primary import URRobotPrimary
+from alab_control.robot_arm_ur5e.program_list import PREDEFINED_PROGRAM
+from alab_control.robot_arm_ur5e.ur_robot_primary import URRobotPrimary
 
 logger = logging.getLogger(__name__)
 
@@ -139,17 +139,19 @@ class URRobotDashboard:
             raise URRobotError("There is still a program running!")
         self.load(name)
         logger.info("Run program: {}".format(name))
-        # with self._primary.monitor_popup():
-        self.play()
-        try:
-            self.wait_for_start(timeout=30)
-        except TimeoutError:
-            pass  # the program may end very quickly
-        if block:
+        with self._primary.monitor_popup():
+            self.play()
             try:
-                self.wait_for_finish(timeout=600)  # set a maximum timeout of 10 minutes
-            except Exception as e:
-                raise URRobotError(f"Error when waiting for program to finish: {name}. Protective/Emergency stop might have occured. If so, please jog the robot arm safely to reset and try again.") from e
+                self.wait_for_start(timeout=30)
+            except TimeoutError:
+                pass  # the program may end very quickly
+            if block:
+                try:
+                    self.wait_for_finish(timeout=600)  # set a maximum timeout of 10 minutes
+                except URRobotPopupError:
+                    raise
+                except Exception as e:
+                    raise URRobotError(f"Error when waiting for program to finish: {name}. Protective/Emergency stop might have occured. If so, please jog the robot arm safely to reset and try again.") from e
 
     def is_running(self) -> bool:
         """
@@ -185,9 +187,9 @@ class URRobotDashboard:
         while self.is_running():
             if timeout and time.time() - start_time > timeout:
                 raise TimeoutError("Timeout when waiting for program finish, the limit is {} s".format(timeout))
-            # if self._primary.popup_message is not None:
-            #     raise URRobotPopupError(f"A popup is shown on robot arm: "
-            #                             f"{self._primary.popup_title} - {self._primary.popup_message}")
+            if self._primary.popup_message is not None:
+                raise URRobotPopupError(f"A popup is shown on robot arm: "
+                                        f"{self._primary.popup_title} - {self._primary.popup_message}")
 
         if self.get_robot_mode() not in (RobotMode.RUNNING, RobotMode.IDLE):
             raise URRobotError("Robot is not in running mode, but in {}.".format(self.get_robot_mode().name))
@@ -349,3 +351,8 @@ class URRobotDashboard:
         """
         if not response.startswith(prefix):
             raise URRobotError(response)
+
+
+if __name__ == "__main__":
+    ur = URRobotDashboard("192.168.0.23")
+    ur.run_program("test_popup.urp")
