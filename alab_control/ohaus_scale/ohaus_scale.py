@@ -23,11 +23,15 @@ class OhausScale:
         self.send_command("0U")
 
     def get_mass_in_mg(self):
-        mass_string = self.send_command("SP").strip()
+        try:
+            mass_string = self.send_command("SP").strip()
+        except socket.timeout:
+            mass_string = self.send_command("P").strip()
+
         return int(re.search(r"\d+", mass_string).group())
 
 
 if __name__ == "__main__":
-    scale = OhausScale("192.168.0.24")
+    scale = OhausScale("192.168.0.24", timeout=0.1)
     print(scale.get_mass_in_mg())
     scale.close()
