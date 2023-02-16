@@ -60,7 +60,7 @@ class TubeFurnace:
         "write_data": "/write_data",
     }
 
-    SAFE_DOOR_OPENING_TEMPERATURE = 150
+    SAFE_DOOR_OPENING_TEMPERATURE = 100
 
     def __init__(self, furnace_index: int):
         """
