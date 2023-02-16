@@ -27,7 +27,7 @@ class Capper(BaseArduinoDevice):
         """
         if self.get_state() == CapperState.OPEN:
             return
-        self.send_request("/open", method="GET")
+        self.send_request("/open", method="GET", timeout=30, max_retries=3)
 
     def close(self):
         """
@@ -35,4 +35,4 @@ class Capper(BaseArduinoDevice):
         """
         if self.get_state() == CapperState.CLOSE:
             return
-        self.send_request("/close", method="GET")
+        self.send_request("/close", method="GET", timeout=30, max_retries=3)

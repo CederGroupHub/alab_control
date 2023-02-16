@@ -14,7 +14,7 @@ class BaseArduinoDevice(abc.ABC):
         self.port = port
 
     def send_request(self, endpoint: str, data: Optional[Dict[str, Union[str, int, float, bytes, bool]]] = None,
-                     method: str = "GET", jsonify: bool = True, suppress_error: bool = False, timeout=None, max_retries=1):
+                     method: str = "GET", jsonify: bool = True, suppress_error: bool = False, timeout=600, max_retries=1):
         url = f"http://{self.ip_address}:{self.port}{endpoint}"
         time.sleep(0.1)
         retries = 0
