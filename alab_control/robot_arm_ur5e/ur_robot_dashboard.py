@@ -151,7 +151,7 @@ class URRobotDashboard:
                 except URRobotPopupError:
                     raise
                 except Exception as e:
-                    raise URRobotError(f"Error when waiting for program to finish: {name}. Protective/Emergency stop might have occured. If so, please jog the robot arm safely to reset and try again.") from e
+                    raise URRobotError(f"Error when waiting for program to finish: {name}. Protective/Emergency stop might have occured. If so, please jog the robot arm safely to reset and try again. {e.args[0]}") from e
 
     def is_running(self) -> bool:
         """
