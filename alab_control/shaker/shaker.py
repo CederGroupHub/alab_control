@@ -49,7 +49,7 @@ class Shaker(BaseArduinoDevice):
         """
         Get current status of the shaker machine and the grabber
         """
-        response = self.send_request(self.ENDPOINTS["state"])
+        response = self.send_request(self.ENDPOINTS["state"], timeout=10, max_retries=5)
         state = ShakerState[f"{response['grabber'].upper()}_{response['state'].upper()}"]
         return state
 
