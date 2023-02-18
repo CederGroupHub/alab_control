@@ -19,7 +19,7 @@ class Capper(BaseArduinoDevice):
         """
         Get the current state of the capper
         """
-        return CapperState[self.send_request(self.ENDPOINTS["state"], method="GET")["state"].upper()]
+        return CapperState[self.send_request(self.ENDPOINTS["state"], method="GET", max_retries=5, timeout=10)["state"].upper()]
 
     def open(self):
         """
