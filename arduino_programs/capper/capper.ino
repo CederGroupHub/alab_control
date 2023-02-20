@@ -2,7 +2,6 @@
 #include <EtherCard.h>
 #include <ArduinoJson.h>
 #include <AceRoutine.h>
-#include <Servo.h>
 
 #define NIP 192, 168, 0, 51
 
@@ -15,16 +14,22 @@ static byte Ethernet::buffer[200];
 BufferFiller bfill;
 Servo actuator; // create a servo object named "actuator"
 
-enum State
-{
-  OPEN_,
-  CLOSE_
+enum State {
+  RUNNING,
+  STOP
 };
 
 const int OPEN = 1300;
 const int CLOSE = 1550;
 
-State state = OPEN_;
+// state variables for totally independent communication and capper actuator coroutines
+String command="none";
+unsigned long actuateTime, actuateTimePrev;
+const long actuateDuration = 2000;
+bool done=true;
+bool rec_time=false;
+
+State state = STOP;
 
 void setup()
 {
@@ -60,77 +65,69 @@ static int getIntArg(const char *data, const char *key, int value = -1)
   return value;
 }
 
-void open()
+void open_capper()
 {
   Serial.println("OPENING");
-  actuator.writeMicroseconds(OPEN); // give the actuator a 1ms pulse to extend the arm (1000us = 1ms)
-  state = OPEN_;
-  delay(1000);
+  state = RUNNING;
+  command = "open";
+  done = false;
+  rec_time = true;
 }
 
-void close()
+void close_capper()
 {
   Serial.println("CLOSING");
-  actuator.writeMicroseconds(CLOSE); // give the actuator a 1ms pulse to extend the arm (1000us = 1ms)
-  state = CLOSE_;
-  delay(1000);
+  state = RUNNING;
+  command = "close";
+  done = false;
+  rec_time = true;
 }
 
-static void close(const char *data, BufferFiller &buf)
-{
+static void close_capper(const char* data, BufferFiller& buf) {
   DynamicJsonDocument response(256);
-  if (state != OPEN_)
-  {
-    response["status"] = "success";
-    response["reason"] = F("The capper is already closed.");
+  if (state != STOP) {
+    response["status"] = "error";
+    response["reason"] = F("The machine is running.");
+    buf.emit_p(PSTR(
+            "HTTP/1.0 400 Bad Request\r\n"
+            "Content-Type: application/json\r\n"
+            "\r\n"));
+  } else {
+    close_capper();
+    response["status"] = "success, closing capper";
     buf.emit_p(PSTR(
         "HTTP/1.0 200 OK\r\n"
         "Content-Type: application/json\r\n"
         "\r\n"));
-    serializeJson(response, buf);
   }
-  else
-  {
-    close();
-    response["status"] = "success";
-    buf.emit_p(PSTR(
-        "HTTP/1.0 200 OK\r\n"
-        "Content-Type: application/json\r\n"
-        "\r\n"));
-    serializeJson(response, buf);
-  }
+  serializeJson(response, buf);
 }
 
-static void open(const char *data, BufferFiller &buf)
-{
+static void open_capper(const char* data, BufferFiller& buf) {
   DynamicJsonDocument response(256);
-  if (state != CLOSE_)
-  {
-    response["status"] = "success";
-    response["reason"] = F("The capper is already open.");
+  if (state != STOP) {
+    response["status"] = "error";
+    response["reason"] = F("The machine is running.");
+    buf.emit_p(PSTR(
+            "HTTP/1.0 400 Bad Request\r\n"
+            "Content-Type: application/json\r\n"
+            "\r\n"));
+  } else {
+    open_capper();
+    response["status"] = "success, opening capper";
     buf.emit_p(PSTR(
         "HTTP/1.0 200 OK\r\n"
         "Content-Type: application/json\r\n"
         "\r\n"));
-    serializeJson(response, buf);
   }
-  else
-  {
-    open();
-    response["status"] = "success";
-    buf.emit_p(PSTR(
-        "HTTP/1.0 200 OK\r\n"
-        "Content-Type: application/json\r\n"
-        "\r\n"));
-    serializeJson(response, buf);
-  }
+  serializeJson(response, buf);
 }
 
 static void get_state(const char *data, BufferFiller &buf)
 {
   DynamicJsonDocument response(256);
   response["status"] = "success";
-  response["state"] = state == OPEN_ ? "open" : "close";
+  response["state"] = state == RUNNING ? "RUNNING" : "STOPPED";
   buf.emit_p(PSTR(
       "HTTP/1.0 200 OK\r\n"
       "Content-Type: application/json\r\n"
@@ -163,11 +160,11 @@ COROUTINE(handleSerialRequest)
 
       if (text == "1\n")
       {
-        open();
+        open_capper();
       }
       else if (text == "0\n")
       {
-        close();
+        close_capper();
       }
       else
       {
@@ -193,11 +190,11 @@ COROUTINE(handleRemoteRequest)
       // receive buf hasn't been clobbered by reply yet
       if (strncmp("GET /open", data, 9) == 0)
       {
-        open(data, bfill);
+        open_capper(data, bfill);
       }
       else if (strncmp("GET /close", data, 10) == 0)
       {
-        close(data, bfill);
+        close_capper(data, bfill);
       }
       else if (strncmp("GET /state", data, 10) == 0)
       {
@@ -212,8 +209,49 @@ COROUTINE(handleRemoteRequest)
   }
 }
 
+COROUTINE(capper) {
+  COROUTINE_LOOP() {
+    COROUTINE_DELAY(30);
+    if (state == RUNNING && command == "open" && done == false) {
+      if (rec_time==true){
+        actuateTimePrev=millis();
+      }
+      if (rec_time==true){
+        rec_time=false;
+        actuator.writeMicroseconds(OPEN);
+      }
+      actuateTime=millis();
+      if ((actuateTime-actuateTimePrev)>actuateDuration){
+        done=true;
+      }
+    }
+    else if (state == RUNNING && command == "close" && done == false) {
+      if (rec_time==true){
+        actuateTimePrev=millis();
+      }
+      if (rec_time==true){
+        rec_time=false;
+        actuator.writeMicroseconds(CLOSE);
+      }
+      actuateTime=millis();
+      if ((actuateTime-actuateTimePrev)>actuateDuration){
+        done=true;
+      }
+    }
+    else {
+      COROUTINE_DELAY(100);
+    }
+    if (state == RUNNING && done == true) {
+      state = STOP;
+      Serial.println("Command " + command + " capper successfully done.");
+      command = "none";
+    }
+  }
+}
+
 void loop()
 {
+  capper.runCoroutine();
   handleSerialRequest.runCoroutine();
   handleRemoteRequest.runCoroutine();
 }
