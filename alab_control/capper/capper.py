@@ -28,9 +28,9 @@ class Capper(BaseArduinoDevice):
         Open the capper
         """
         if self.get_state() == CapperState.RUNNING:
-            raise RuntimeError("Cannot open the cap dispenser while it is running")
+            raise RuntimeError("Cannot open the capper while it is running")
         if self.is_open:
-            raise RuntimeError("Cannot open the cap dispenser while it is open")
+            raise RuntimeError("Cannot open the capper while it is open")
         self.send_request(self.ENDPOINTS["open"], method="GET", suppress_error=True, max_retries=3, timeout=1)
         while self.get_state() == CapperState.RUNNING:
             time.sleep(0.2)
@@ -41,9 +41,9 @@ class Capper(BaseArduinoDevice):
         Close the capper
         """
         if self.get_state() == CapperState.RUNNING:
-            raise RuntimeError("Cannot open the cap dispenser while it is running")
+            raise RuntimeError("Cannot open the capper while it is running")
         if not self.is_open:
-            raise RuntimeError("Cannot close the cap dispenser while it is closed")
+            raise RuntimeError("Cannot close the capper while it is closed")
         self.send_request(self.ENDPOINTS["close"], method="GET", suppress_error=True, max_retries=3, timeout=1)
         while self.get_state() == CapperState.RUNNING:
             time.sleep(0.2)
