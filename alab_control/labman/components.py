@@ -1,4 +1,4 @@
-from typing import Any, Dict, Type, List
+from typing import Any, Dict, Optional, Type, List
 from molmass import Formula
 from bson import ObjectId
 from datetime import datetime
@@ -12,12 +12,12 @@ class InputFile:
     def __init__(
         self,
         powder_dispenses: Dict[str, float],
-        heating_duration_s: int = 60 * 30,
+        heating_duration_s: Optional[int] = None,
         ethanol_volume_ul: int = 10000,
-        transfer_volume_ul: int = 10000,
+        transfer_volume_ul: Optional[int] = None,
         mixer_speed_rpm: int = 2000,
         mixer_duration_s: int = 60 * 9,
-        min_transfer_mass_g: int = 5,
+        min_transfer_mass_g: Optional[int] = None,
         replicates: int = 1,
         time_added: datetime = None,
     ):
@@ -37,26 +37,30 @@ class InputFile:
         """
         if len(powder_dispenses) == 0:
             raise ValueError("`powder_dispenses` must be non-empty!")
-        self.powder_dispenses = powder_dispenses
 
-        self.heating_duration = heating_duration_s
-        if heating_duration_s < 0 or heating_duration_s > 120 * 60:
-            raise ValueError(
-                "`heating_duration_s` must be between 0 and 7200 (0 and 120 minutes)! "
-            )
+        if any([mass <= 0 for powder, mass in powder_dispenses.items()]):
+            raise ValueError("Invalid mass provided in `powder_dispenses`. All masses must be >= 0 grams!")
+        self.powder_dispenses = powder_dispenses
 
         if transfer_volume_ul > ethanol_volume_ul:
             raise ValueError("`transfer_volume` must be <= `ethanol_volume`!")
         self.ethanol_volume = ethanol_volume_ul
-        self.transfer_volume = transfer_volume_ul
-        self.mixer_speed = mixer_speed_rpm
+        self.transfer_volume = transfer_volume_ul or self.ethanol_volume 
 
-        if mixer_duration_s < 0 or mixer_duration_s > 10 * 60:
+        heating_duration_s = heating_duration_s or self.ethanol_volume * (90*60 / 10000) #90 minutes per 10 mL of ethanol as a conservative guess
+        if heating_duration_s < 0 or heating_duration_s > 240 * 60:
             raise ValueError(
-                "`mixer_duration_s` must be between 0 and 600 (0 and 10 minutes)! "
+                "`heating_duration_s` must be between 0 and 14400 seconds (0 and 240 minutes)! "
+            )
+        self.heating_duration = heating_duration_s 
+
+        self.mixer_speed = mixer_speed_rpm
+        if mixer_duration_s < 0 or mixer_duration_s > 15 * 60:
+            raise ValueError(
+                "`mixer_duration_s` must be between 0 and 900 seconds (0 and 15 minutes)! "
             )
         self.mixer_duration = mixer_duration_s
-        self.min_transfer_mass = min_transfer_mass_g
+        self.min_transfer_mass = min_transfer_mass_g or sum(mass for powder, mass in self.powder_dispenses.items())
         self.replicates = replicates
         if time_added is None:
             self.time_added = datetime.now()
@@ -140,6 +144,7 @@ class InputFile:
         Returns:
             bool: True if this InputFile can accept another replicate, False otherwise.
         """
+        return False #TODO handle replicate logic. based on ethanol volume, max capacity of 30/40 mL
         return self.replicates < self.MAX_REPLICATES
 
     def __repr__(self):

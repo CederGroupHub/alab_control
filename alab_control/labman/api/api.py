@@ -14,6 +14,8 @@ class LabmanAPI:
 
     def __init__(self, url: str, port: int):
         self.API_BASE = f"{url}:{port}"
+        if not self.API_BASE.startswith("http"):
+            self.API_BASE = "http://" + self.API_BASE
 
     ### Under the hood
     def _get(self, url: str, **kwargs):

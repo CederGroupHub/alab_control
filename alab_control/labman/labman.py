@@ -191,7 +191,7 @@ class Labman:
         300  # max seconds to wait for incoming inputfiles before starting a workflow
     )
 
-    def __init__(self, url="http://128.3.17.139", port=8080):
+    def __init__(self, url="128.3.17.139", port=8080):
         initialize_labman_database(overwrite_existing=False)
         self.quadrants = {i: Quadrant(i) for i in [1, 2, 3, 4]}  # four quadrants, 1-4
         self.powder_view = PowderView()
