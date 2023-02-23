@@ -70,16 +70,16 @@ class InputFile:
     def to_json(self):
         return {
             "CrucibleReplicates": self.replicates,
-            "HeatingDuration": self.heating_duration,
-            "EthanolDispenseVolume": self.ethanol_volume,
-            "MinimumTransferMass": self.min_transfer_mass,
-            "MixerDuration": self.mixer_duration,
-            "MixerSpeed": self.mixer_speed,
+            "HeatingDuration": int(self.heating_duration),
+            "EthanolDispenseVolume": round(self.ethanol_volume, 2),
+            "MinimumTransferMass": round(self.min_transfer_mass, 5),
+            "MixerDuration": round(self.mixer_duration),
+            "MixerSpeed": round(self.mixer_speed),
             "PowderDispenses": [
-                {"PowderName": powder, "TargetMass": mass}
+                {"PowderName": powder, "TargetMass": round(mass, 5)}
                 for powder, mass in self.powder_dispenses.items()
             ],
-            "TargetTransferVolume": self.transfer_volume,
+            "TargetTransferVolume": int(self.transfer_volume),
             "time_added": self.time_added.isoformat(),
         }
 
