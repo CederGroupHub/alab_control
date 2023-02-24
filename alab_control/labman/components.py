@@ -1,3 +1,4 @@
+import math
 from typing import Any, Dict, Optional, Type, List
 from molmass import Formula
 from bson import ObjectId
@@ -7,7 +8,7 @@ from enum import Enum, auto
 
 
 class InputFile:
-    MAX_REPLICATES: int = 3
+    MAX_JAR_VOLUME_UL = 30000  # 30 mL
 
     def __init__(
         self,
@@ -39,20 +40,26 @@ class InputFile:
             raise ValueError("`powder_dispenses` must be non-empty!")
 
         if any([mass <= 0 for powder, mass in powder_dispenses.items()]):
-            raise ValueError("Invalid mass provided in `powder_dispenses`. All masses must be >= 0 grams!")
+            raise ValueError(
+                "Invalid mass provided in `powder_dispenses`. All masses must be >= 0 grams!"
+            )
         self.powder_dispenses = powder_dispenses
 
-        if transfer_volume_ul > ethanol_volume_ul:
-            raise ValueError("`transfer_volume` must be <= `ethanol_volume`!")
+        if ethanol_volume_ul < 0 or ethanol_volume_ul > self.MAX_JAR_VOLUME_UL:
+            raise ValueError(
+                "`ethanol_volume_ul` must be between 0 and {self.MAX_JAR_VOLUME_UL} microliters (0 and 35 mL)! "
+            )
         self.ethanol_volume = ethanol_volume_ul
-        self.transfer_volume = transfer_volume_ul or self.ethanol_volume 
+        self.transfer_volume = transfer_volume_ul or self.ethanol_volume
 
-        heating_duration_s = heating_duration_s or self.ethanol_volume * (90*60 / 10000) #90 minutes per 10 mL of ethanol as a conservative guess
+        heating_duration_s = heating_duration_s or self.ethanol_volume * (
+            90 * 60 / 10000
+        )  # 90 minutes per 10 mL of ethanol as a conservative guess
         if heating_duration_s < 0 or heating_duration_s > 240 * 60:
             raise ValueError(
                 "`heating_duration_s` must be between 0 and 14400 seconds (0 and 240 minutes)! "
             )
-        self.heating_duration = heating_duration_s 
+        self.heating_duration = heating_duration_s
 
         self.mixer_speed = mixer_speed_rpm
         if mixer_duration_s < 0 or mixer_duration_s > 15 * 60:
@@ -60,7 +67,9 @@ class InputFile:
                 "`mixer_duration_s` must be between 0 and 900 seconds (0 and 15 minutes)! "
             )
         self.mixer_duration = mixer_duration_s
-        self.min_transfer_mass = min_transfer_mass_g or sum(mass for powder, mass in self.powder_dispenses.items())
+        self.min_transfer_mass = min_transfer_mass_g or sum(
+            mass for powder, mass in self.powder_dispenses.items()
+        )
         self.replicates = replicates
         if time_added is None:
             self.time_added = datetime.now()
@@ -71,7 +80,8 @@ class InputFile:
         return {
             "CrucibleReplicates": self.replicates,
             "HeatingDuration": int(self.heating_duration),
-            "EthanolDispenseVolume": round(self.ethanol_volume, 2),
+            "EthanolDispenseVolume": int(self.ethanol_volume)
+            * self.replicates,  # total volume of ethanol to dispense for all replicates
             "MinimumTransferMass": round(self.min_transfer_mass, 5),
             "MixerDuration": round(self.mixer_duration),
             "MixerSpeed": round(self.mixer_speed),
@@ -119,7 +129,9 @@ class InputFile:
                 v["PowderName"]: v["TargetMass"] for v in json["PowderDispenses"]
             },
             heating_duration_s=json["HeatingDuration"],
-            ethanol_volume_ul=json["EthanolDispenseVolume"],
+            ethanol_volume_ul=(
+                json["EthanolDispenseVolume"] / json["CrucibleReplicates"]
+            ),  # our InputFile class assumes that the ethanol volume is *per replicate*
             transfer_volume_ul=json["TargetTransferVolume"],
             mixer_speed_rpm=json["MixerSpeed"],
             mixer_duration_s=json["MixerDuration"],
@@ -144,19 +156,26 @@ class InputFile:
         Returns:
             bool: True if this InputFile can accept another replicate, False otherwise.
         """
-        return False #TODO handle replicate logic. based on ethanol volume, max capacity of 30/40 mL
-        return self.replicates < self.MAX_REPLICATES
+        return False #TODO uncomment when we are ready to support replicates
+        max_replicates = math.floor(self.MAX_JAR_VOLUME_UL / self.ethanol_volume)
+        return self.replicates < max_replicates
 
     def __repr__(self):
-        return f"<InputFile: {len(self.powder_dispenses)} powders, {self.replicates} replicates>"
+        val = "<InputFile:"
+        for powder, mass in self.powder_dispenses.items():
+            val += f" {powder} +"
+        val = val[:-2] + f", {self.replicates} replicates>"
+        return val
 
     def __eq__(self, other):
         if not isinstance(other, InputFile):
             return False
         this = self.to_json()
+        this["EthanolDispenseVolume"] /= this["CrucibleReplicates"]
         that = other.to_json()
+        that["EthanolDispenseVolume"] /= that["CrucibleReplicates"]
 
-        dont_consider_for_equality = ["CrucibleReplicates"]
+        dont_consider_for_equality = ["CrucibleReplicates", "time_added"]
         for key in dont_consider_for_equality:
             this.pop(key, None)
             that.pop(key, None)
