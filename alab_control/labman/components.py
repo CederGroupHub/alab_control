@@ -67,9 +67,26 @@ class InputFile:
                 "`mixer_duration_s` must be between 0 and 900 seconds (0 and 15 minutes)! "
             )
         self.mixer_duration = mixer_duration_s
-        self.min_transfer_mass = min_transfer_mass_g or sum(
-            mass for powder, mass in self.powder_dispenses.items()
-        )
+        if min_transfer_mass_g is not None:
+            self.min_transfer_mass = min_transfer_mass_g
+        else:
+            """
+            We can estimate the mass we expect to collect if things go well.
+
+            We know the mass is at least the mass of the transfer volume of ethanol (etOH density = 0.789 g/cm^3)
+            We also know that, ideally, we collect all of the mass of powders we dispense.
+
+            Finally, we know that the mass of the slurry is shared between the etOH and the powders, so the above sum is an overestimate. We probably won't collect all the powder either. So we multiply the total mass by 0.85 to account for this. This factor is totally a guess tbh!
+            """
+            ethanol_g_per_ul = (
+                0.789 / 1000
+            )  # 0.789 g/cm^3 = 0.789 g/mL = 0.789 g/1000 uL
+
+            self.min_transfer_mass = self.transfer_volume * ethanol_g_per_ul
+            for powder, mass in powder_dispenses.items():
+                self.min_transfer_mass += mass
+            self.min_transfer_mass *= 0.85
+
         self.replicates = replicates
         if time_added is None:
             self.time_added = datetime.now()
@@ -86,7 +103,7 @@ class InputFile:
             "MixerDuration": round(self.mixer_duration),
             "MixerSpeed": round(self.mixer_speed),
             "PowderDispenses": [
-                {"PowderName": powder, "TargetMass": round(mass, 5)}
+                {"PowderName": powder, "TargetMass": round(mass * self.replicates, 5)}
                 for powder, mass in self.powder_dispenses.items()
             ],
             "TargetTransferVolume": int(self.transfer_volume),
@@ -150,15 +167,23 @@ class InputFile:
         return (datetime.now() - self.time_added).seconds
 
     @property
+    def max_replicates(self) -> int:
+        """The maximum number of replicates this InputFile can support.
+
+        Returns:
+            int: maximum number of replicates
+        """
+        return math.floor(self.MAX_JAR_VOLUME_UL / self.ethanol_volume)
+
+    @property
     def can_accept_another_replicate(self) -> bool:
         """Whether this InputFile can accept another replicate.
 
         Returns:
             bool: True if this InputFile can accept another replicate, False otherwise.
         """
-        return False #TODO uncomment when we are ready to support replicates
-        max_replicates = math.floor(self.MAX_JAR_VOLUME_UL / self.ethanol_volume)
-        return self.replicates < max_replicates
+        # return False  # TODO uncomment when we are ready to support replicates
+        return self.replicates < self.max_replicates
 
     def __repr__(self):
         val = "<InputFile:"
@@ -171,11 +196,16 @@ class InputFile:
         if not isinstance(other, InputFile):
             return False
         this = self.to_json()
-        this["EthanolDispenseVolume"] /= this["CrucibleReplicates"]
         that = other.to_json()
-        that["EthanolDispenseVolume"] /= that["CrucibleReplicates"]
-
         dont_consider_for_equality = ["CrucibleReplicates", "time_added"]
+
+        for each in [this, that]:
+            each["EthanolDispenseVolume"] /= each["CrucibleReplicates"]
+            for powder in each["PowderDispenses"]:
+                powder["TargetMass"] /= each["CrucibleReplicates"]
+            each.pop("CrucibleReplicates", None)
+            each.pop("time_added", None)
+
         for key in dont_consider_for_equality:
             this.pop(key, None)
             that.pop(key, None)
