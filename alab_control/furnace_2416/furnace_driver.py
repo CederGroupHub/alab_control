@@ -271,7 +271,7 @@ class FurnaceController(FurnaceRegister):
     Implement higher-level functionalities over 2416 heat controller register
     """
     # temperature that allows for safe operations (in degree C)
-    _SAFETY_TEMPERATURE = 400
+    _SAFETY_TEMPERATURE = 200
 
     @property
     def current_temperature(self) -> int:
