@@ -23,7 +23,7 @@ class DoorController(BaseArduinoDevice):
     def send_request(self,data,max_retries=5) -> str:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM,) as clientSocket:
             clientSocket.settimeout(5)
-            # Connect to the server
+            # Connect to the servers = 
             try:
                 clientSocket.connect((self.ip_address,self.port))
             except:
