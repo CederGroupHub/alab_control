@@ -30,14 +30,6 @@ from .api import LabmanAPI, WorkflowValidationResult
 from requests.exceptions import ReadTimeout
 
 
-class BatchingWorkerStatus(Enum):
-    """Status of the BatchingWorker"""
-
-    WORKING = auto()
-    STOP_REQUESTED = auto()
-    STOPPED = auto()
-
-
 class QuadrantStatus(Enum):
     UNKNOWN = "Unknown"
     EMPTY = "Empty"
@@ -184,12 +176,9 @@ class Quadrant:
             return f"<Quadrant {self.index}: {self.status.value}>"
 
 
-class Labman:
+class LabmanView:
     STATUS_UPDATE_WINDOW: float = (
         5  # minimum time (seconds) between getting status updates from Labman
-    )
-    WORKFLOW_BATCHING_WINDOW: float = (
-        300  # max seconds to wait for incoming inputfiles before starting a workflow
     )
 
     def __init__(self, url="128.3.17.139", port=8080):
@@ -199,8 +188,6 @@ class Labman:
         self.last_updated_at = 0  # first `self.update_status()` should fire
         self.pending_inputfile_view = InputFileView()
         self.logging = LoggingView()
-        # self._batching_worker_thread = self._start_batching_worker()
-        self._batching_worker_status = BatchingWorkerStatus.STOPPED
         self.API = LabmanAPI(url, port)
 
     ### status update methods
@@ -298,6 +285,57 @@ class Labman:
             )
         self.__update_status()
         return self.quadrants[quadrant_index].status
+
+    def workflow_is_valid(self, workflow_json: Dict[any, any]) -> bool:
+        validation_result = self.API.validate_workflow(workflow_json["InputFile"])
+
+        if validation_result == WorkflowValidationResult.NoError:
+            return True
+        else:
+            self.logging.error(
+                category="labman-workflow-invalid",
+                message=f"Workflow is invalid: {validation_result.value}",
+                workflow=workflow_json,
+                validation_error=validation_result.value,
+            )
+            return False
+
+    def _synchronize_dosingheads(self) -> bool:
+        """Checks if our database and the Labman's internal database agree on which powders are loaded in which dosing heads.
+
+        Returns:
+            bool: True if the dosing heads are in sync, False otherwise
+        """
+        heads_in_db = self.powder_view.get_filled_dosingheads()
+        heads_in_labman = {}
+        for entry in self.API.get_dosingheads():
+            heads_in_labman[entry["Position"]] = entry["PowderName"]
+
+        in_sync = True
+        for index, powder in heads_in_db.items():
+            if index not in heads_in_labman:
+                in_sync = False
+                print(
+                    f"Dosing head {index} is empty on the Labman, but contains {powder} in our database!"
+                )
+            elif heads_in_labman[index] != powder:
+                in_sync = False
+                print(
+                    f"Dosing head {index} contains {heads_in_labman[index]} on the Labman, but contains {powder} in our database!"
+                )
+
+        for index, powder in heads_in_labman.items():
+            if index not in heads_in_db:
+                in_sync = False
+                print(
+                    f"Dosing head {index} contains {powder} on the Labman, but is empty in our database!"
+                )
+        return in_sync
+
+
+class Labman(LabmanView):
+    def __init__(self, url="128.3.17.139", port=8080):
+        super().__init__(url=url, port=port)
 
     def load_jar(self, quadrant: int, position: int):
         self.quadrants[quadrant].add_jar(position)
@@ -402,77 +440,6 @@ class Labman:
             self.release_quadrant()
 
     ### workflow methods
-
-    def __workflow_batching_worker(self):
-        self.logging.debug(
-            category="labman-batchingworker-start",
-            message="Starting workflow batching worker thread",
-        )
-        self._timer_active = False
-        self._time_to_go = None
-        self._batching_worker_status = BatchingWorkerStatus.WORKING
-        while self._batching_worker_status == BatchingWorkerStatus.WORKING:
-            if self.pending_inputfile_view.num_pending > 0:
-                if self._timer_active:
-                    # if we already opened the batching window, check if its time to send a batch of inputfiles as a workflow
-                    if time.time() > self._time_to_go:
-                        self._timer_active = False
-                        self._time_to_go = None
-                        self._batch_and_submit()
-                else:
-                    # if not, lets open a batching window now
-                    self._timer_active = True
-                    self._time_to_go = time.time() + self.WORKFLOW_BATCHING_WINDOW
-            time.sleep(self.WORKFLOW_BATCHING_WINDOW / 10)
-
-        self._batching_worker_status = BatchingWorkerStatus.STOPPED
-        self.logging.debug(
-            category="labman-batchingworker-stop",
-            message="Stopped workflow batching worker thread",
-        )
-
-    def _start_batching_worker(self):
-        thread = Thread(target=self.__workflow_batching_worker)
-        thread.daemon = True
-        thread.run()
-        return thread
-
-    def _stop_batching_worker(self):
-        self._batching_worker_status = BatchingWorkerStatus.STOP_REQUESTED
-        while self._batching_worker_status != BatchingWorkerStatus.STOPPED:
-            time.sleep(self.WORKFLOW_BATCHING_WINDOW / 100)
-
-    def add_inputfile(self, input: InputFile):
-        self.pending_inputfile_view.add(input)
-
-    def build_optimal_workflow(
-        self, inputfiles: List[InputFile], verbose: bool = False
-    ) -> List[InputFile]:
-        available_quadrants = []
-        available_jars = []
-        available_crucibles = []
-        for quadrant_idx, q in self.quadrants.items():
-            # if q.status != QuadrantStatus.EMPTY:
-            #     continue
-            available_quadrants.append(quadrant_idx)
-            available_jars.append(q.available_jars)
-            available_crucibles.append(q.available_crucibles)
-        if len(available_quadrants) == 0:
-            raise LabmanError("No available quadrants!")
-        bo = BatchOptimizer(
-            available_quadrants=available_quadrants,
-            available_powders=self.available_powders,
-            available_jars=available_jars,
-            available_crucibles=available_crucibles,
-            inputfiles=inputfiles,
-        )
-        best_quadrant, best_inputfiles = bo.solve(verbose=verbose)
-        name = f"{datetime.datetime.now().strftime('%Y-%m-%d, %-I-%M %p')}, {len(best_inputfiles)} inputfiles"
-        wf = Workflow(name=name)
-        for i in best_inputfiles:
-            wf.add_input(i)
-        return best_quadrant, wf
-
     def submit_workflow(self, quadrant_index: int, workflow: Workflow):
         if quadrant_index not in [1, 2, 3, 4]:
             raise LabmanError("Invalid quadrant index!")
@@ -499,54 +466,3 @@ class Labman:
             message=f"Workflow submitted to Labman",
             workflow=workflow_json,
         )
-
-    def workflow_is_valid(self, workflow_json: Dict[any, any]) -> bool:
-        validation_result = self.API.validate_workflow(workflow_json["InputFile"])
-
-        if validation_result == WorkflowValidationResult.NoError:
-            return True
-        else:
-            self.logging.error(
-                category="labman-workflow-invalid",
-                message=f"Workflow is invalid: {validation_result.value}",
-                workflow=workflow_json,
-                validation_error=validation_result.value,
-            )
-            return False
-
-    def _batch_and_submit(self):
-        inputfiles = self.pending_inputfile_view.get_all()
-        quadrant_index, workflow = self.build_optimal_workflow(inputfiles)
-        self.submit_workflow(quadrant_index, workflow)
-
-    def _synchronize_dosingheads(self) -> bool:
-        """Checks if our database and the Labman's internal database agree on which powders are loaded in which dosing heads.
-
-        Returns:
-            bool: True if the dosing heads are in sync, False otherwise
-        """
-        heads_in_db = self.powder_view.get_filled_dosingheads()
-        heads_in_labman = {}
-        for entry in self.API.get_dosingheads():
-            heads_in_labman[entry["Position"]] = entry["PowderName"]
-
-        in_sync = True
-        for index, powder in heads_in_db.items():
-            if index not in heads_in_labman:
-                in_sync = False
-                print(
-                    f"Dosing head {index} is empty on the Labman, but contains {powder} in our database!"
-                )
-            elif heads_in_labman[index] != powder:
-                in_sync = False
-                print(
-                    f"Dosing head {index} contains {heads_in_labman[index]} on the Labman, but contains {powder} in our database!"
-                )
-
-        for index, powder in heads_in_labman.items():
-            if index not in heads_in_db:
-                in_sync = False
-                print(
-                    f"Dosing head {index} contains {powder} on the Labman, but is empty in our database!"
-                )
-        return in_sync
