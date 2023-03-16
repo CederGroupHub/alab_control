@@ -27,7 +27,6 @@ from .database import (
 )
 from .utils import initialize_labman_database
 from .api import LabmanAPI, WorkflowValidationResult
-from requests.exceptions import ReadTimeout
 
 
 class QuadrantStatus(Enum):
@@ -218,7 +217,7 @@ class LabmanView:
                 return  # we updated very recently
         try:
             status_dict = self.API.get_status()
-        except ReadTimeout as e:
+        except Exception as e:
             print(
                 f"Got error: {e}.\n\nLabman API timed out. Check if the Labman GUI is frozen."
             )
