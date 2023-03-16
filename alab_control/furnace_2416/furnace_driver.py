@@ -320,6 +320,7 @@ class FurnaceController(FurnaceRegister):
             raise FurnaceError("A program is still running")
         self.program_mode = ProgramMode.RUN
         logger.info("Current program starts to run")
+        time.sleep(5)
         if block:
             while not self.is_running():
                 continue
