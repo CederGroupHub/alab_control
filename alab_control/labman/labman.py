@@ -27,6 +27,7 @@ from .database import (
 )
 from .utils import initialize_labman_database
 from .api import LabmanAPI, WorkflowValidationResult
+from requests.exceptions import ReadTimeout
 
 
 class BatchingWorkerStatus(Enum):
@@ -228,8 +229,15 @@ class Labman:
         if not force:
             if (time.time() - self.last_updated_at) < self.STATUS_UPDATE_WINDOW:
                 return  # we updated very recently
-
-        status_dict = self.API.get_status()
+        try:
+            status_dict = self.API.get_status()
+        except ReadTimeout as e:
+            print(
+                f"Got error: {e}.\n\nLabman API timed out. Check if the Labman GUI is frozen."
+            )
+            for q in self.quadrants.values():
+                # set quadrants to unknown to ensure robot arm doesn't try to pick from the quadrant while we are unsure of the labman state.
+                q.status = QuadrantStatus.UNKNOWN
 
         self._heated_rack_temperature = status_dict["HeatedRackTemperature"]
         self._in_automated_mode = status_dict["InAutomatedMode"]
