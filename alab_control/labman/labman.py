@@ -349,10 +349,10 @@ class Labman(LabmanView):
         self.quadrants[quadrant].remove_crucible(position)
 
     def load_powder(self, dosinghead_index: int, powder: str, mass: float):
-        # if self.robot_is_running:
-        #     raise LabmanError(
-        #         "Cannot load or unload powders while the robot is running! You need to press 'stop' on the Labman's UI first."
-        #     )
+        if self.robot_is_running:
+            raise LabmanError(
+                "Cannot load or unload powders while the robot is running! You need to press 'stop' on the Labman's UI first."
+            )
         dh = self.powder_view.get_dosinghead(dosinghead_index)
         if dh["powder"] is not None:
             raise PowderLoadingError(
@@ -378,6 +378,9 @@ class Labman(LabmanView):
         self.powder_view.unload_dosinghead(
             dosinghead_index
         )  # change powder in PowderView
+
+    def reserve_powder(self, powder: str, mass: float):
+        self.powder_view.reserve(powder, mass)
 
     ### quadrant control
     def take_quadrant(self, index: int):

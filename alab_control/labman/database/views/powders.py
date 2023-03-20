@@ -150,10 +150,10 @@ class PowderView:
             raise ValueError(f"Reservation ID {reservation_id} not found.")
         dosinghead_entry = self.get_dosinghead(dosinghead_index)
         dosinghead_entry["mass_g"] -= mass_g
-        if dosinghead_entry["mass_g"] < 0:
-            raise ValueError(
-                f"Not enough mass available from dosing head {dosinghead_index}."
-            )
+        # if dosinghead_entry["mass_g"] < 0:
+        #     raise ValueError(
+        #         f"Not enough mass available from dosing head {dosinghead_index}."
+        #     )
 
         if (
             dosinghead_index not in powder_entry["dosing_heads"]
