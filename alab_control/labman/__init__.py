@@ -1,3 +1,3 @@
-from .labman import Labman, QuadrantStatus
+from .labman import Labman, LabmanView, QuadrantStatus
 from .components import InputFile, Workflow
 from .error import LabmanError

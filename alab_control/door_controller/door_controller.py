@@ -20,9 +20,9 @@ class DoorController(BaseArduinoDevice):
         self.names=names
         # self.get_state() #update door open status
 
-    def send_request(self,data,max_retries=5) -> str:
+    def send_request(self,data,max_retries=10) -> str:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM,) as clientSocket:
-            clientSocket.settimeout(5)
+            clientSocket.settimeout(10)
             # Connect to the servers = 
             try:
                 clientSocket.connect((self.ip_address,self.port))
@@ -100,12 +100,13 @@ class DoorController(BaseArduinoDevice):
         if not self.is_open[name]:
             return
         if state == DoorControllerState.RUNNING:
-            raise RuntimeError("Cannot open the door while the door controller is running")
+            raise RuntimeError("Cannot close the door while the door controller is running")
         
         self.send_request("Close "+name+"\n")
         time.sleep(1)
         while self.get_state() == DoorControllerState.RUNNING and self.get_state() != DoorControllerState.ERROR:
             time.sleep(1)
+            print(self.get_state())
         if self.get_state() == DoorControllerState.ERROR:
             raise RuntimeError("Door Controller is in error state")
         
