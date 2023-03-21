@@ -353,19 +353,10 @@ class Labman(LabmanView):
             raise LabmanError(
                 "Cannot load or unload powders while the robot is running! You need to press 'stop' on the Labman's UI first."
             )
-        dh = self.powder_view.get_dosinghead(dosinghead_index)
-        if dh["powder"] is not None:
-            raise PowderLoadingError(
-                f"Dosinghead {dosinghead_index} already loaded with powder. Unload the powder first!"
-            )
 
-        # TODO unload from API if powder_view.load fails
-        # self.API.load_powder(
-        #     dosinghead_index, powder
-        # )  # change powder in Labman database
-        self.powder_view.load_dosinghead(
-            index=dosinghead_index, powder=powder, mass_g=mass
-        )  # change powder in PowderView
+        self.API.load_powder(
+            dosinghead_index, powder
+        )  # change powder in Labman database
 
     def unload_powder(self, dosinghead_index: int):
         if self.robot_is_running:
@@ -374,13 +365,7 @@ class Labman(LabmanView):
             )
         # TODO reload previous over API if powder_view.load fails
 
-        # self.API.unload_powder(dosinghead_index)  # change powder in Labman database
-        self.powder_view.unload_dosinghead(
-            dosinghead_index
-        )  # change powder in PowderView
-
-    def reserve_powder(self, powder: str, mass: float):
-        self.powder_view.reserve(powder, mass)
+        self.API.unload_powder(dosinghead_index)  # change powder in Labman database
 
     ### quadrant control
     def take_quadrant(self, index: int):
