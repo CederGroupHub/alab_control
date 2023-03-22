@@ -8,7 +8,6 @@ class PowderView:
     ALLOWED_DOSING_HEAD_INDICES = [i + 1 for i in range(24)]
 
     def __init__(self):
-        self.powders = get_collection("powders")
         self.dosingheads = get_collection("dosing_heads")
         self.logging = LoggingView()
 
@@ -16,7 +15,6 @@ class PowderView:
 
     def _initialize(self):
         """Initialize the dosing head database"""
-        self.powders.drop()
         self.dosingheads.drop()
 
         for i in self.ALLOWED_DOSING_HEAD_INDICES:
@@ -41,7 +39,10 @@ class PowderView:
         return entry
 
     def available_powders(self):
-        return {powder["name"]: powder["mass_g"] for powder in self.powders.find({})}
+        return {
+            powder["name"]: powder["mass_g"]
+            for powder in self.powders.find({"index": {"$exists": 1}})
+        }
 
     def _initialize_powder(
         self, powder: str, mass_g: float, dosinghead_index: int
