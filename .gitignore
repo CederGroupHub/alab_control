@@ -140,3 +140,4 @@ dmypy.json
 /tempearture/result.pkl
 
 .DS_Store
+example/.DS_Store
