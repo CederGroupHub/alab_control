@@ -32,15 +32,20 @@ bool grabberOpenState=true;
 bool done=true;
 bool start_done=true;
 bool stop_done=true;
+int stop_counter=0;
 bool frequp_done=true;
 bool freqdw_done=true;
+bool stop_cooldown=false;
 
 int mag=1000,tmp;
 unsigned long closeTime, closeTimePrev;
 unsigned long startTime, startTimePrev, stopTime, stopTimePrev, frequpTime, frequpTimePrev, freqdwTime, freqdwTimePrev;
+unsigned long stopCooldownTime, stopCooldownTimePrev;
 const long closeDuration = 400;
 const long startDuration = 3000;
-const long stopDuration = 3000;
+const long stopDuration = 4000;
+const long stopCooldownDuration = 1000;
+const int stopRetry = 2;
 const long frequpDuration = 30;
 const long freqdwDuration = 30;
 String command = "none";
@@ -159,6 +164,20 @@ COROUTINE(clicker) {
         stopTimePrev=stopTime;
         stop_done=true;
         digitalWrite(output2, LOW);
+        stop_counter=stop_counter+1;
+        if (stop_counter<stopRetry){
+          stop_cooldown=true;
+          stopCooldownTimePrev=millis();
+          stopCooldownTime=millis();
+        }
+      }
+    }
+    if (stop_cooldown==true){
+      stopCooldownTime=millis();
+      digitalWrite(output2, LOW);
+      if ((stopCooldownTime-stopCooldownTimePrev)>stopCooldownDuration){
+        machineStop();
+        stop_cooldown=false;
       }
     }
     if (frequp_done==false) {
@@ -187,6 +206,7 @@ static void getState(const char* data, BufferFiller& buf) {
   response["status"] = "success";
   response["state"] = state == RUNNING ? "RUNNING" : "STOPPED";
   response["grabber"] = grabberOpenState == true ? "Open" : "Close";
+  response["detect"] = detect == true ? "1" : "0";
   buf.emit_p(PSTR(
     "HTTP/1.0 200 OK\r\n"
     "Content-Type: application/json\r\n"
@@ -362,6 +382,7 @@ COROUTINE(handleButtonChange) {
     if (digitalRead(button2) == HIGH) {
       COROUTINE_AWAIT(digitalRead(button2) != HIGH);
       machineStop();
+      stop_counter=0;
     }
     if (digitalRead(button3) == HIGH) {
       COROUTINE_AWAIT(digitalRead(button3) != HIGH);
@@ -399,6 +420,7 @@ COROUTINE(handleRemoteRequest) {
       }
       else if (strncmp("GET /stop", data, 9) == 0) {
         machineStop(data, bfill);
+        stop_counter=0;
       }
       else if (strncmp("GET /freq-up", data, 12) == 0) {
         frequencyUp(data, bfill);
