@@ -217,6 +217,20 @@ class LabmanView:
                 return  # we updated very recently
         try:
             status_dict = self.API.get_status()
+
+            self._heated_rack_temperature = status_dict["HeatedRackTemperature"]
+            self._in_automated_mode = status_dict["InAutomatedMode"]
+            self._rack_under_robot_control = (
+                status_dict["IndexingRackStatus"] != "UserControl"
+            )
+            self._pipette_tip_count = status_dict["PipetteTipCount"]
+            self._robot_running = status_dict["RobotRunning"]
+
+            for d in status_dict["QuadrantStatuses"]:
+                idx = d["QuadrantNumber"]
+                self.quadrants[idx].status = QuadrantStatus(d["Progress"])
+                self.quadrants[idx].current_workflow = d["LoadedWorkflowName"]
+
         except Exception as e:
             print(
                 f"Got error: {e}.\n\nLabman API timed out. Check if the Labman GUI is frozen."
@@ -224,20 +238,6 @@ class LabmanView:
             for q in self.quadrants.values():
                 # set quadrants to unknown to ensure robot arm doesn't try to pick from the quadrant while we are unsure of the labman state.
                 q.status = QuadrantStatus.UNKNOWN
-
-        self._heated_rack_temperature = status_dict["HeatedRackTemperature"]
-        self._in_automated_mode = status_dict["InAutomatedMode"]
-        self._rack_under_robot_control = (
-            status_dict["IndexingRackStatus"] != "UserControl"
-        )
-        self._pipette_tip_count = status_dict["PipetteTipCount"]
-        self._robot_running = status_dict["RobotRunning"]
-
-        for d in status_dict["QuadrantStatuses"]:
-            idx = d["QuadrantNumber"]
-            self.quadrants[idx].status = QuadrantStatus(d["Progress"])
-            self.quadrants[idx].current_workflow = d["LoadedWorkflowName"]
-            # TODO handle status workflow name != expected
 
     @property
     def heated_rack_temperature(self):
