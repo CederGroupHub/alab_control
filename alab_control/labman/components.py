@@ -391,13 +391,15 @@ class Workflow:
 
     @property
     def inputfiles(self) -> List[InputFile]:
-        """The inputs in this workflow. Inputs are sorted from most -> least ethanol volume _per replicate/crucible_! This is to ensure that crucibles with the longest drying time are processed first, minimizing the overall workflow time.
+        """The inputs in this workflow. Inputs are sorted from longest -> shortest heating duration (ethanol drying time), minimizing the overall workflow time as inputfiles are executed in order.
 
         Returns:
             List[InputFile]: list of inputs
         """
         return sorted(
-            self.__inputs, key=lambda inputfile: inputfile.ethanol_volume, reverse=True
+            self.__inputs,
+            key=lambda inputfile: inputfile.heating_duration,
+            reverse=True,
         )
 
     @property
