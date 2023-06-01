@@ -217,7 +217,7 @@ class SampleTrackingError(Exception):
     """Indicates that the workflow is not able to maintain sample tracking. This usually happens by incorrect combinations of replicates and sample labelling."""
 
 
-class Workflow:  # maybe this should be Quadrant instead
+class Workflow:
     MAX_CRUCIBLES: int = 16
     INVALID_CHARACTERS: List[str] = [":", "\t", "\n", "\r", "\0", "\x0b"]
 
@@ -391,12 +391,14 @@ class Workflow:  # maybe this should be Quadrant instead
 
     @property
     def inputfiles(self) -> List[InputFile]:
-        """The inputs in this workflow
+        """The inputs in this workflow. Inputs are sorted from most -> least ethanol volume _per replicate/crucible_! This is to ensure that crucibles with the longest drying time are processed first, minimizing the overall workflow time.
 
         Returns:
             List[InputFile]: list of inputs
         """
-        return self.__inputs
+        return sorted(
+            self.__inputs, key=lambda inputfile: inputfile.ethanol_volume, reverse=True
+        )
 
     @property
     def samples_are_being_tracked(self) -> bool:
