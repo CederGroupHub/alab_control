@@ -290,17 +290,19 @@ class TubeFurnace:
             True if the door closes successfully.
         """
         logger.debug("Closing flange")
-        url = self.base_url + self.URLS["flange"]
-        response = requests.get(url, params={"action": "WriteFlangeClose"})
-        response.raise_for_status()
-        seconds = 0
 
-        while seconds < timeout:
-            if self.flange_state:
-                logger.debug("Flange closed")
-                return True
-            time.sleep(1)
-            seconds += 1
+        for _ in range(2):
+            url = self.base_url + self.URLS["flange"]
+            response = requests.get(url, params={"action": "WriteFlangeClose"})
+            response.raise_for_status()
+            seconds = 0
+
+            while seconds < timeout:
+                if self.flange_state:
+                    logger.debug("Flange closed")
+                    return True
+                time.sleep(1)
+                seconds += 1
         raise FlangeError("Timeout: cannot close the door")
 
     def pause_door(self):
