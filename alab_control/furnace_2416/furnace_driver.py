@@ -307,7 +307,7 @@ class FurnaceController(FurnaceRegister):
         self.configure_segments(*segments)
         self.play()
 
-    def play(self, block=True):
+    def play(self):
         """
         Start to run current program
 
@@ -321,9 +321,13 @@ class FurnaceController(FurnaceRegister):
         self.program_mode = ProgramMode.RUN
         logger.info("Current program starts to run")
         time.sleep(5)
-        if block:
-            while not self.is_running():
-                continue
+        start_time = time.time()
+        while not self.is_running():
+            current_time = time.time()
+
+            if current_time - start_time > 60:
+                raise FurnaceError("Program is not running after 60 seconds")
+        
 
     def hold_program(self):
         """
