@@ -295,7 +295,7 @@ class Workflow:
         inputfile_index = None
         if inputfile.allow_replicates:
             # try to merge this inputfile with an existing one
-            for idx, existing_inputfile in enumerate(self.inputfiles):
+            for idx, (existing_inputfile, sample_list) in enumerate(self.__inputs):
                 if inputfile != existing_inputfile:
                     # not a matching inputfile
                     continue
@@ -304,6 +304,7 @@ class Workflow:
                     and inputfile.replicates > 0
                 ):
                     existing_inputfile.replicates += 1
+                    sample_list.append(sample)
                     inputfile.replicates -= 1
                     inputfile_index = idx
                 if inputfile.replicates == 0:
@@ -312,13 +313,7 @@ class Workflow:
         if (
             inputfile.replicates > 0
         ):  # we couldn't fully merge the inputfile with an existing one(s), or replicates were not enabled for this inputfile.
-            self.__inputs.append(inputfile)
-            inputfile_index = len(self.inputfiles) - 1
-
-        if tracking_this_sample:
-            if inputfile_index not in self.__inputfile_to_sample_map:
-                self.__inputfile_to_sample_map[inputfile_index] = []
-            self.__inputfile_to_sample_map[inputfile_index].append(sample)
+            self.__inputs.append([inputfile, [sample]])
 
     def to_json(
         self,
@@ -341,15 +336,21 @@ class Workflow:
             "InputFile": [],
         }
 
+        # sort inputfiles from longest -> shortest heating duration (ethanol drying time), minimizing the overall workflow time as inputfiles are executed in this order.
+
+        sorted_inputs = sorted(
+            self.__inputs,
+            key=lambda x: x[0].heating_duration,
+            reverse=True,
+        )
+
         sample_mapping = {}  # {mixingpot_position: [sample1, sample2, ...], ...}
-        for inputfile_index, (inputfile, position) in enumerate(
-            zip(self.inputfiles, available_positions)
+        for (inputfile, samples_within_inputfile), position in zip(
+            sorted_inputs, available_positions
         ):
             inputfile: InputFile
             data["InputFile"].append(inputfile.to_labman_json(position=position))
-            sample_mapping[position] = self.__inputfile_to_sample_map.get(
-                inputfile_index, []
-            )
+            sample_mapping[position] = samples_within_inputfile
 
         if return_sample_tracking:
             return data, sample_mapping
@@ -404,20 +405,16 @@ class Workflow:
 
     @property
     def inputfiles(self) -> List[InputFile]:
-        """The inputs in this workflow. Inputs are sorted from longest -> shortest heating duration (ethanol drying time), minimizing the overall workflow time as inputfiles are executed in order.
+        """The inputs in this workflow.
 
         Returns:
             List[InputFile]: list of inputs
         """
-        return sorted(
-            self.__inputs,
-            key=lambda inputfile: inputfile.heating_duration,
-            reverse=True,
-        )
+        return [inputfile for (inputfile, sample_list) in self.__inputs]
 
     @property
     def samples_are_being_tracked(self) -> bool:
-        if self.required_crucibles == 0:
-            return False  # not tracking, as there is nothing to track yet!
-        else:
-            return len(self.__inputfile_to_sample_map) > 0
+        for inputfile, sample_list in self.__inputs:
+            if any([sample is not None for sample in sample_list]):
+                return True  # we are tracking samples for at least one inputfile
+        return False
