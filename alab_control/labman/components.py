@@ -8,7 +8,7 @@ from enum import Enum, auto
 
 
 class InputFile:
-    MAX_JAR_VOLUME_UL = 30000  # 30 mL
+    MAX_JAR_VOLUME_UL = 22000  # 22 mL
 
     def __init__(
         self,
@@ -20,6 +20,7 @@ class InputFile:
         mixer_duration_s: int = 60 * 9,
         min_transfer_mass_g: Optional[int] = None,
         replicates: int = 1,
+        allow_replicates: bool = True,
         time_added: datetime = None,
     ):
         """A single InputFile to construct a Labman workflow.
@@ -33,7 +34,9 @@ class InputFile:
             mixer_duration_s (int, optional): The duration (seconds) for which to mix the speed mixer. Defaults to 60*9.
             min_transfer_mass_g (int, optional): The minimum mass (g) to transfer from the mixing pot to the crucible. If the mass is below this value (as may be the case with too viscous of a slurry), the workflow will indicate that the crucible has "failed". We can still proceed with the experiment -- this is just a check that sets a flag in the workflow results. Defaults to 5.
             replicates (int, optional): Number of copies of this same inputfile to process. Defaults to 1.
+            allow_replicates (bool, optional): Whether to allow this inputfile to be replicated. If False, this inputfile will never be batched (ie always one mixing pot to one crucible). Defaults to True.
             time_added (datetime, optional): Time at which this inputfile was created. This is used by the workflow batching routine to prioritize older inputfiles. Defaults to None, in which case the current time is used.
+
 
         """
         if len(powder_dispenses) == 0:
@@ -87,6 +90,11 @@ class InputFile:
                 self.min_transfer_mass += mass
             self.min_transfer_mass *= 0.85
 
+        self.allow_replicates = allow_replicates
+        if not allow_replicates and replicates > 1:
+            raise ValueError(
+                "Invalid replicate settings: you said replicates={replicates}, but set allow_replicates to False. Can't have more than one replicate if replicates are not allowed!"
+            )
         self.replicates = replicates
         if time_added is None:
             self.time_added = datetime.now()
@@ -183,7 +191,10 @@ class InputFile:
             bool: True if this InputFile can accept another replicate, False otherwise.
         """
         # return False  # TODO uncomment when we are ready to support replicates
-        return self.replicates < self.max_replicates
+        if not self.allow_replicates:
+            return False
+        else:
+            return self.replicates < self.max_replicates
 
     def __repr__(self):
         val = "<InputFile:"
@@ -282,30 +293,27 @@ class Workflow:
         ## Sample tracking was not violated. Now we either merge the inputfile into an existing one as replicate(s), or we add it as a new inputfile. We will fill existing inputfiles first. This inputfile may partially fill a matching existing inputfile. For example, if our inputfile has 4 replicates, but the existing match has room for 2 more replicates, we would fill the existing inputfile with 2 replicates and append the rest of this new inputfile with 2 replicates. Note that sample tracking only works when adding inputfiles with 1 replicate, so this partial filling does not violate sample tracking.
 
         inputfile_index = None
-        for idx, existing_inputfile in enumerate(self.inputfiles):
-            if inputfile != existing_inputfile:
-                # not a matching inputfile
-                continue
-            while (
-                existing_inputfile.can_accept_another_replicate
-                and inputfile.replicates > 0
-            ):
-                existing_inputfile.replicates += 1
-                inputfile.replicates -= 1
-                inputfile_index = idx
-            if inputfile.replicates == 0:
-                break
+        if inputfile.allow_replicates:
+            # try to merge this inputfile with an existing one
+            for idx, (existing_inputfile, sample_list) in enumerate(self.__inputs):
+                if inputfile != existing_inputfile:
+                    # not a matching inputfile
+                    continue
+                while (
+                    existing_inputfile.can_accept_another_replicate
+                    and inputfile.replicates > 0
+                ):
+                    existing_inputfile.replicates += 1
+                    sample_list.append(sample)
+                    inputfile.replicates -= 1
+                    inputfile_index = idx
+                if inputfile.replicates == 0:
+                    break
 
         if (
             inputfile.replicates > 0
-        ):  # we couldn't fully merge the inputfile with an existing one(s)
-            self.__inputs.append(inputfile)
-            inputfile_index = len(self.inputfiles) - 1
-
-        if tracking_this_sample:
-            if inputfile_index not in self.__inputfile_to_sample_map:
-                self.__inputfile_to_sample_map[inputfile_index] = []
-            self.__inputfile_to_sample_map[inputfile_index].append(sample)
+        ):  # we couldn't fully merge the inputfile with an existing one(s), or replicates were not enabled for this inputfile.
+            self.__inputs.append([inputfile, [sample]])
 
     def to_json(
         self,
@@ -328,15 +336,21 @@ class Workflow:
             "InputFile": [],
         }
 
+        # sort inputfiles from longest -> shortest heating duration (ethanol drying time), minimizing the overall workflow time as inputfiles are executed in this order.
+
+        sorted_inputs = sorted(
+            self.__inputs,
+            key=lambda x: x[0].heating_duration,
+            reverse=True,
+        )
+
         sample_mapping = {}  # {mixingpot_position: [sample1, sample2, ...], ...}
-        for inputfile_index, (inputfile, position) in enumerate(
-            zip(self.inputfiles, available_positions)
+        for (inputfile, samples_within_inputfile), position in zip(
+            sorted_inputs, available_positions
         ):
             inputfile: InputFile
             data["InputFile"].append(inputfile.to_labman_json(position=position))
-            sample_mapping[position] = self.__inputfile_to_sample_map.get(
-                inputfile_index, []
-            )
+            sample_mapping[position] = samples_within_inputfile
 
         if return_sample_tracking:
             return data, sample_mapping
@@ -391,20 +405,16 @@ class Workflow:
 
     @property
     def inputfiles(self) -> List[InputFile]:
-        """The inputs in this workflow. Inputs are sorted from longest -> shortest heating duration (ethanol drying time), minimizing the overall workflow time as inputfiles are executed in order.
+        """The inputs in this workflow.
 
         Returns:
             List[InputFile]: list of inputs
         """
-        return sorted(
-            self.__inputs,
-            key=lambda inputfile: inputfile.heating_duration,
-            reverse=True,
-        )
+        return [inputfile for (inputfile, sample_list) in self.__inputs]
 
     @property
     def samples_are_being_tracked(self) -> bool:
-        if self.required_crucibles == 0:
-            return False  # not tracking, as there is nothing to track yet!
-        else:
-            return len(self.__inputfile_to_sample_map) > 0
+        for inputfile, sample_list in self.__inputs:
+            if any([sample is not None for sample in sample_list]):
+                return True  # we are tracking samples for at least one inputfile
+        return False
