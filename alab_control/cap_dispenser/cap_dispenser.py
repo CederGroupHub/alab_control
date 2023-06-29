@@ -51,6 +51,7 @@ class CapDispenser(BaseArduinoDevice):
             raise RuntimeError("Cannot open the cap dispenser while it is running")
         if self.is_open[name]:
             return
+        print("Opening a cap dispenser")
         self.send_request(self.ENDPOINTS[f"open n={self.MAP[name]}"], method="GET", suppress_error=True, max_retries=3, timeout=1)
         while self.get_state() == CapDispenserState.RUNNING:
             time.sleep(0.2)
@@ -66,6 +67,7 @@ class CapDispenser(BaseArduinoDevice):
             raise RuntimeError("Cannot open the cap dispenser while it is running")
         if not self.is_open[name]:
             return
+        print("Closing a cap dispenser")
         self.send_request(self.ENDPOINTS[f"close n={self.MAP[name]}"], method="GET", timeout=1, max_retries=3)
         while self.get_state() == CapDispenserState.RUNNING:
             time.sleep(0.2)
