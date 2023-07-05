@@ -24,16 +24,11 @@ from .database import (
     ContainerPositionStatus,
     InputFileView,
     LoggingView,
+    QuadrantView,
+    QuadrantStatus,
 )
 from .utils import initialize_labman_database
 from .api import LabmanAPI, WorkflowValidationResult
-
-
-class QuadrantStatus(Enum):
-    UNKNOWN = "Unknown"
-    EMPTY = "Empty"
-    PROCESSING = "Processing"
-    COMPLETE = "Complete"
 
 
 class Quadrant:
@@ -49,6 +44,7 @@ class Quadrant:
         self.status: QuadrantStatus = QuadrantStatus.UNKNOWN
         self.jar_view = JarView()
         self.crucible_view = CrucibleView()
+        self.quadrant_view = QuadrantView()
 
     def add_jar(self, position: int):
         """Loads an empty jar into the specified jar position
@@ -129,6 +125,15 @@ class Quadrant:
         if position not in self.occupied_crucible_positions:
             raise ValueError(f"Crucible position {position} is not occupied!")
         self.crucible_view.remove_container(quadrant=self.index, slot=position)
+
+    @property
+    def status(self) -> QuadrantStatus:
+        """current status of the quadrant"""
+        return self.quadrant_view.get_status(self.index)
+
+    @status.setter
+    def status(self, status: QuadrantStatus):
+        self.quadrant_view.set_status(self.index, status)
 
     @property
     def available_jars(self):
@@ -228,8 +233,16 @@ class LabmanView:
 
             for d in status_dict["QuadrantStatuses"]:
                 idx = d["QuadrantNumber"]
-                self.quadrants[idx].status = QuadrantStatus(d["Progress"])
                 self.quadrants[idx].current_workflow = d["LoadedWorkflowName"]
+
+                labman_quadrant_status = QuadrantStatus(d["Progress"])
+                if (
+                    labman_quadrant_status == QuadrantStatus.EMPTY
+                    and self.quadrants[idx].status == QuadrantStatus.RESERVED
+                ):
+                    # If the labman sees the quadrant as empty, but something has since reserved it, we should not overwrite the reservation.
+                    continue
+                self.quadrants[idx].status = labman_quadrant_status
 
         except Exception as e:
             print(
@@ -263,6 +276,21 @@ class LabmanView:
     def robot_is_running(self):
         self.__update_status()
         return self._robot_running
+
+    def reserve_quadrant(self, quadrant_index: int):
+        if quadrant_index not in [1, 2, 3, 4]:
+            raise ValueError(
+                f"Invalid quadrant index: {quadrant_index}. Must be one of [1,2,3,4]"
+            )
+
+        if self.quadrants[quadrant_index].status != QuadrantStatus.EMPTY:
+            raise ValueError(f"Quadrant {quadrant_index} is not empty. Cannot reserve.")
+        self.quadrants[quadrant_index].status = QuadrantStatus.RESERVED
+        self.logging.debug(
+            category="labman-quadrant-reserve-request",
+            message=f"Requested reservation of quadrant {quadrant_index} under ALab control.",
+            quadrant_index=quadrant_index,
+        )
 
     ### consumables
     @property

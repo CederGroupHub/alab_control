@@ -3,3 +3,4 @@ from .views.containers import CrucibleView, JarView, ContainerPositionStatus
 from .views.powders import PowderView
 from .views.inputfiles import InputFileView
 from .views.logging import LoggingView
+from .views.quadrants import QuadrantView, QuadrantStatus
