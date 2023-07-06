@@ -35,7 +35,7 @@ class BallDispenser(BaseArduinoDevice):
         if self.get_state() == BallDispenserState.RUNNING:
             raise RuntimeError("Dispenser is still running")
 
-        self.send_request(self.ENDPOINTS["start"], method="GET", timeout=30)
+        self.send_request(self.ENDPOINTS["start"], method="GET", timeout=1, max_retries=5)
         start_time = time.time()
         time.sleep(5)
 
@@ -52,7 +52,7 @@ class BallDispenser(BaseArduinoDevice):
         """
         if self.get_state() == BallDispenserState.STOPPED:
             return
-        self.send_request(self.ENDPOINTS["stop"], method="GET", timeout=30, max_retries=3)
+        self.send_request(self.ENDPOINTS["stop"], method="GET", timeout=1, max_retries=5)
 
     def change_number(self, n: int):
         """
