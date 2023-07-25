@@ -20,7 +20,7 @@ class BallDispenser(BaseArduinoDevice):
     Dispensing Al2O3 balls to the crucibles.
     """
 
-    EMPTY_TIMEOUT = 30  # if dispensing takes longer than this, we assume the ball dispenser is empty
+    EMPTY_TIMEOUT = 120  # if dispensing takes longer than this, we assume the ball dispenser is empty
     ENDPOINTS = {
         "start": "/start",
         "change_number": "/change",
