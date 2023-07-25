@@ -5,7 +5,7 @@ import uuid
 import requests
 from threading import Thread
 import time
-from typing import Dict, List
+from typing import Dict, List, Union
 from pathlib import Path
 from alab_control.labman.optimize_workflow import BatchOptimizer
 
@@ -225,6 +225,7 @@ class LabmanView:
             )
             self._pipette_tip_count = status_dict["PipetteTipCount"]
             self._robot_running = status_dict["RobotRunning"]
+            self._process_error_message = status_dict["ProcessErrorMessage"]
 
             for d in status_dict["QuadrantStatuses"]:
                 idx = d["QuadrantNumber"]
@@ -263,6 +264,17 @@ class LabmanView:
     def robot_is_running(self):
         self.__update_status()
         return self._robot_running
+
+    @property
+    def has_error(self) -> bool:
+        self.__update_status()
+        has_error = self._process_error_message is not None
+        return has_error
+
+    @property
+    def error_message(self) -> Union[str, None]:
+        self.__update_status()
+        return self._process_error_message
 
     ### consumables
     @property
