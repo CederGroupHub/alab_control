@@ -202,7 +202,7 @@ class LabmanView:
             'InAutomatedMode': True,
             'IndexingRackStatus': 'UserControl',
             'PipetteTipCount': 123,
-            'ProcessErrorMessage': None,
+            'ProcessErrorMessage': '',
             'QuadrantStatuses': [
                 {'LoadedWorkflowName': None,
                 'Progress': 'Empty',
@@ -268,7 +268,7 @@ class LabmanView:
     @property
     def has_error(self) -> bool:
         self.__update_status()
-        has_error = self._process_error_message is not None
+        has_error = self._process_error_message != ''
         return has_error
 
     @property
