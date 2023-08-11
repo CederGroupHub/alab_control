@@ -459,7 +459,7 @@ class TubeFurnace:
         return (
             self.state != TubeFurnaceState.STOPPED
             or heater_state
-            or self.PV > self.door_opening_temperature
+            or self.PV >= self.door_opening_temperature
         )
 
 
