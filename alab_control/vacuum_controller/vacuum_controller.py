@@ -14,7 +14,6 @@ class VacuumControllerState(Enum):
 class VacuumController(BaseArduinoDevice):
     def __init__(self, ip_address: str, port: int = 8888):
         super().__init__(ip_address, port)
-        self.is_on = False
 
     def send_request(self,data,max_retries=10) -> str:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM,) as clientSocket:
@@ -50,11 +49,9 @@ class VacuumController(BaseArduinoDevice):
         try:
             reply=self.send_request("Status\n")
             state = reply.split(";")[0].split("State: ")[1]
-
-            vacuum_state = re.findall(f"Equipment B: (\w*)", reply)
+            vacuum_state = re.findall(f"Vacuum: (\w*)", reply)
             if len(vacuum_state) == 0:
                 raise ValueError("Could not find state for the vacuum")
-            self.is_on = vacuum_state[0] == "On"
         except:
             state="ERROR"
         return VacuumControllerState[state]
@@ -65,9 +62,7 @@ class VacuumController(BaseArduinoDevice):
         """
         if self.get_state() == VacuumControllerState.ERROR:
             raise RuntimeError("Vacuum Controller is in error state")
-        if self.is_on:
-            return
-        self.send_request("Turn on Equipment B\n")
+        self.send_request("Turn_On_Vacuum\n")
         time.sleep(1)
         while self.get_state() == VacuumControllerState.RUNNING and self.get_state() != VacuumControllerState.ERROR:
             time.sleep(1)
@@ -80,9 +75,20 @@ class VacuumController(BaseArduinoDevice):
         """
         if self.get_state() == VacuumControllerState.ERROR:
             raise RuntimeError("Vacuum Controller is in error state")
-        if not self.is_on:
-            return
-        self.send_request("Turn off Equipment B\n")
+        self.send_request("Turn_Off_Vacuum\n")
+        time.sleep(1)
+        while self.get_state() == VacuumControllerState.RUNNING and self.get_state() != VacuumControllerState.ERROR:
+            time.sleep(1)
+        if self.get_state() == VacuumControllerState.ERROR:
+            raise RuntimeError("Vacuum Controller is in error state")
+        
+    def reset_printer(self):
+        """
+        Turn on vacuum
+        """
+        if self.get_state() == VacuumControllerState.ERROR:
+            raise RuntimeError("Vacuum Controller is in error state")
+        self.send_request("Reset_Printer\n")
         time.sleep(1)
         while self.get_state() == VacuumControllerState.RUNNING and self.get_state() != VacuumControllerState.ERROR:
             time.sleep(1)
