@@ -10,4 +10,4 @@ requests>=2.18.4
 opencv-python
 xmltodict~=0.13.0
 molmass
-urx @ https://github.com/Alab-Hub/python-urx
+urx @ git+https://github.com/Alab-Hub/python-urx
