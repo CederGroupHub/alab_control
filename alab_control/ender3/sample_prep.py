@@ -1,20 +1,15 @@
-from enum import Enum
-
 from alab_control.ender3 import Ender3
-
-
-class Position(Enum):
-    """Common positions for the Ender3 3D printer used in sample preparation."""
-
-    HOME = (90, 120, 60)
-    STUB1 = (23.8, 173.8, None)  # z is set later
-    STUB2 = (23.8, 173.8, None)  # z is set later
 
 
 class SamplePrepEnder3(Ender3):
     """This class is for controlling the Ender3 3D printer for sample preparation."""
 
     MAX_CRUCIBLE_HEIGHT = 60  # maximum height (in mm) of the crucible
+
+    # positions
+    HOME = (90, 120, 60)
+    STUB1 = (23.8, 173.8, None)  # z is set later
+    STUB2 = (23.8, 173.8, None)  # z is set later
 
 
 if __name__ == "__main__":
@@ -29,12 +24,12 @@ if __name__ == "__main__":
         "The following lines show your COM ports.\nPlease select your MAPPLE printer by typing its number: \n"
     )
 
-    r = SamplePrepEnder3()
+    r = SamplePrepEnder3(1)
     print("Printer is resetting the positioning system. Please wait... \n")
     r.gohome()
 
     print("Homing head unit. Please wait...")
-    r.moveto(*Position.HOME.value)
+    r.moveto(*r.HOME)
     r.speed = 0.5
     print("Done.")
 
@@ -56,30 +51,34 @@ if __name__ == "__main__":
             r.moveto(z=115)
             pump_confirm = input("Please turn on vacuum pump and press enter.")
             if stub_choice == "1":
-                r.moveto(*Position.STUB1.value)
+                r.moveto(*r.STUB1)
                 break
             elif stub_choice == "2":
-                r.moveto(*Position.STUB2.value)
+                r.moveto(*r.STUB2)
                 break
             else:
                 print("Invalid choice. Please try again.")
 
         r.moveto(z=133)
+
         r.speed = 0.005
         r.moveto(z=141.5)
+
         r.moveto(z=137)
 
         while True:
             picked_confirm = input(
-                "Stub picked? If not, R to try again, M for manual, A to abort."
+                "Stub picked? C to continue, R to try again, M for manual, A to abort."
             )
-            if picked_confirm.lower() == "r":
+            if picked_confirm.lower() == "c":  # abort not available yet
+                break
+            elif picked_confirm.lower() == "r":
                 r.moveto(z=141.5)
                 r.moveto(z=137)
                 picked_confirm = input(
                     "Stub picked? If not, R to try again, C to continue."
                 )
-                if picked_confirm == "c" or picked_confirm == "C":
+                if picked_confirm.lower() == "c":
                     break
             elif picked_confirm.lower() == "m":
                 r.moveto(x=20, y=120, z=15)

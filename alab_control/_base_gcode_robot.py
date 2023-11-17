@@ -65,7 +65,7 @@ class BaseGcodeRobot(ABC):
         """The maximum feedrate (in mm/min) of the z axis. Unless specified, we assume this is equal to the MAX_XY_FEEDRATE."""
         return self.MAX_XY_FEEDRATE
 
-    def __init__(self, port: Optional[str] = None):
+    def __init__(self, port: Optional[str | float] = None):
         """Connects to the robot. Note that you may need to home the robot after connecting before you can move!
 
         Args:
