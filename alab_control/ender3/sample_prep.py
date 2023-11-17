@@ -1,4 +1,4 @@
-from alab_control.ender3 import Ender3
+from ..ender3 import Ender3
 
 
 class SamplePrepEnder3(Ender3):
