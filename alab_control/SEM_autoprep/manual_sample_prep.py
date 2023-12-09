@@ -1,18 +1,31 @@
-from ..ender3 import Ender3
+from alab_control.ender3 import Ender3
+#from ender3 import Ender3
+import serial
+
+EXPOSURE_DISTANCE = 25.0
 
 
 class SamplePrepEnder3(Ender3):
     """This class is for controlling the Ender3 3D printer for sample preparation."""
 
-    MAX_CRUCIBLE_HEIGHT = 60  # maximum height (in mm) of the crucible
+    #MAX_CRUCIBLE_HEIGHT = 60  # maximum height (in mm) of the crucible
+    CRUCIBLE_HEIGHT = 39
+    
 
     # positions
     HOME = (90, 120, 60)
     STUB1 = (23.8, 173.8, None)  # z is set later
     STUB2 = (23.8, 173.8, None)  # z is set later
 
+    #we need 18 clean stubs
+    #we need 18 prepared stubs
+    #we need 40 grid positions
+
+
+
 
 if __name__ == "__main__":
+    print('\033c') #cleaning the screen to start beautifully 8-) heehee
     print(
         "**************************************************************************** \n "
     )
@@ -20,11 +33,18 @@ if __name__ == "__main__":
     print(
         "**************************************************************************** \n "
     )
-    print(
-        "The following lines show your COM ports.\nPlease select your MAPPLE printer by typing its number: \n"
-    )
 
-    r = SamplePrepEnder3(1)
+    try:
+        r = SamplePrepEnder3("COM4") 
+    except Exception as var_error:
+        print(f"An error occurred: {var_error}")
+        print(f"These are the available connections: \n")
+        ports = list(serial.tools.list_ports.comports())
+        for p in ports:
+            print(p)
+        input("\n Press enter to end the program.")
+        exit()
+
     print("Printer is resetting the positioning system. Please wait... \n")
     r.gohome()
 
@@ -32,8 +52,11 @@ if __name__ == "__main__":
     r.moveto(*r.HOME)
     r.speed = 0.5
     print("Done.")
-
+    
+    
     while True:
+        '''
+    
         while True:
             cruc_height = int(
                 input("Please type the height of the crucible you are using (in mm): ")
@@ -43,6 +66,7 @@ if __name__ == "__main__":
                 print("Invalid choice. Please try again.")
             else:
                 break
+        '''
 
         while True:
             # Ask the user to choose part 1 or part 2
@@ -91,21 +115,27 @@ if __name__ == "__main__":
 
         r.speed = 0.5
         r.moveto(z=60)
+
+        r.moveto(*r.HOME)
+        input("PRESS ENTER TO GO TO EXPOSURE POSITION")
+
+
         r.moveto(x=89, y=57)
         r.moveto(x=89, y=57)
-        r.moveto(z=132 - cruc_height)
+        r.moveto(z=132 - r.CRUCIBLE_HEIGHT)
 
         while True:
-            exp_dist = int(
+            exp_dist = float(
                 input("Please type the exposure distance you need (from -25 to 25): ")
             )
-            if exp_dist < -25 or exp_dist > 25:
+            if exp_dist < EXPOSURE_DISTANCE * -1 or exp_dist > EXPOSURE_DISTANCE:
                 exp_dist = 0
                 print("Invalid choice. Please try again.")
+                #Alex, can you make the exposition distance in decimals instead of integers? 
             else:
                 break
 
-        r.moveto(z=132 - cruc_height + exp_dist)
+        r.moveto(z=132 -  r.CRUCIBLE_HEIGHT + exp_dist)
         print("\n***** STUB READY TO BE EXPOSED *****")
         exp_confirm = input("Please press enter when the exposing is finished.")
         r.moveto(z=60)
