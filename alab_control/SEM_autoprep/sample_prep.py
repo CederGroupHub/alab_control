@@ -1,5 +1,11 @@
 from alab_control.ender3 import Ender3
+from alab_control.SEM_autoprep.Tests import csv_helper
+#from ender3 import Ender3
+import serial
+import os
 
+CWD = os.getcwd()
+path = CWD + '\\alab_control\\SEM_autoprep\\Tests\\SampleFile.csv'
 
 class SamplePrepEnder3(Ender3):
     """This class is for controlling the Ender3 3D printer for sample preparation."""
@@ -8,9 +14,7 @@ class SamplePrepEnder3(Ender3):
     CRUCIBLE_HEIGHT = 39
 
     # positions
-    HOME = (90, 120, 60)
-    STUB1 = (23.8, 173.8, None)  # z is set later
-    STUB2 = (23.8, 173.8, None)  # z is set later
+    positions = csv_helper.read_CSV_into_positions(path)
 
 
 if __name__ == "__main__":
@@ -26,18 +30,21 @@ if __name__ == "__main__":
     )
 
     try:
-        r = SamplePrepEnder3("COM4") 
+        r = SamplePrepEnder3("COM3") 
     except Exception as var_error:
         print(f"An error occurred: {var_error}")
-        input("A list of available connections will be shown. Press enter to end the program.")
-        r = SamplePrepEnder3()
+        print(f"These are the available connections: \n")
+        ports = list(serial.tools.list_ports.comports())
+        for p in ports:
+            print(p)
+        input("\n Press enter to end the program.")
         exit()
 
     print("Printer is resetting the positioning system. Please wait... \n")
     r.gohome()
 
     print("Homing head unit. Please wait...")
-    r.moveto(*r.HOME)
+    r.moveto(*r.positions["HOME"])
     r.speed = 0.5
     print("Done.")
     
@@ -62,13 +69,12 @@ if __name__ == "__main__":
             r.moveto(x=35, y=173.8, z=60)
             r.moveto(z=115)
             pump_confirm = input("Please turn on vacuum pump and press enter.")
-            if stub_choice == "1":
-                r.moveto(*r.STUB1)
+
+            try:
+                int(stub_choice)
+                r.moveto(*r.positions["STUB" + stub_choice])
                 break
-            elif stub_choice == "2":
-                r.moveto(*r.STUB2)
-                break
-            else:
+            except Exception:
                 print("Invalid choice. Please try again.")
 
         r.moveto(z=133)
@@ -108,7 +114,7 @@ if __name__ == "__main__":
         r.moveto(z=132 - r.CRUCIBLE_HEIGHT)
 
         while True:
-            exp_dist = int(
+            exp_dist = float(
                 input("Please type the exposure distance you need (from -25 to 25): ")
             )
             if exp_dist < -25 or exp_dist > 25:
