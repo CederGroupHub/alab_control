@@ -1,11 +1,18 @@
 from alab_control.ender3 import Ender3
-from alab_control.SEM_autoprep.Tests import csv_helper
+from alab_control.SEM_autoprep import csv_helper
 #from ender3 import Ender3
 import serial
 import os
 
 CWD = os.getcwd()
-path = CWD + '\\alab_control\\SEM_autoprep\\Tests\\SampleFile.csv'
+path = CWD + '\\alab_control\\SEM_autoprep\\Positions\\'
+clean_disks_filename = 'disks_tray_clean.csv'
+used_disks_filename = 'disks_tray_used.csv'
+equipment_filename = 'equipment.csv'
+intermediate_positions_filename = 'intermediate_positions.csv'
+phenom_holder_positions_filename = 'phenom_stubs.csv'
+phenom_handler_filename = 'phenom_handler.csv'
+stubs_tray_filename = 'stubs_tray.csv'
 
 class SamplePrepEnder3(Ender3):
     """This class is for controlling the Ender3 3D printer for sample preparation."""
@@ -14,7 +21,13 @@ class SamplePrepEnder3(Ender3):
     CRUCIBLE_HEIGHT = 39
 
     # positions
-    positions = csv_helper.read_CSV_into_positions(path)
+    clean_disk_pos = csv_helper.read_CSV_into_positions(path + clean_disks_filename)
+    used_disk_pos = csv_helper.read_CSV_into_positions(path + used_disks_filename)
+    equipment_pos = csv_helper.read_CSV_into_positions(path + equipment_filename)
+    intermediate_pos = csv_helper.read_CSV_into_positions(path + intermediate_positions_filename)
+    used_stub_pos = csv_helper.read_CSV_into_positions(path + phenom_holder_positions_filename)
+    phenom_handler_pos = csv_helper.read_CSV_into_positions(path + phenom_handler_filename)
+    clean_stub_pos = csv_helper.read_CSV_into_positions(path + stubs_tray_filename)
 
 
 if __name__ == "__main__":
@@ -25,9 +38,6 @@ if __name__ == "__main__":
     print(
         "**************************************************************************** \n "
     )
-    print(
-        "The following lines show your COM ports.\nPlease select your MAPPLE printer by typing its number: \n"
-    )
 
     try:
         r = SamplePrepEnder3("COM3") 
@@ -37,14 +47,15 @@ if __name__ == "__main__":
         ports = list(serial.tools.list_ports.comports())
         for p in ports:
             print(p)
-        input("\n Press enter to end the program.")
+        input("\n Edit the source code to match the MAPLE COM port. Press enter to end the program.")
         exit()
 
     print("Printer is resetting the positioning system. Please wait... \n")
     r.gohome()
 
+
     print("Homing head unit. Please wait...")
-    r.moveto(*r.positions["HOME"])
+    r.moveto(*r.intermediate_pos["HOME"])
     r.speed = 0.5
     print("Done.")
     
@@ -65,34 +76,35 @@ if __name__ == "__main__":
 
         while True:
             # Ask the user to choose part 1 or part 2
-            stub_choice = input("Please enter 1 for Stub 1 or 2 for Stub 2: ")
-            r.moveto(x=35, y=173.8, z=60)
-            r.moveto(z=115)
-            pump_confirm = input("Please turn on vacuum pump and press enter.")
+            stub_choice = input("Please enter the number of the stub you want to pick:")
+            
 
             try:
                 int(stub_choice)
-                r.moveto(*r.positions["STUB" + stub_choice])
+                #r.moveto(x=35, y=173.8, z=60)
+                r.moveto(*r.clean_stub_pos["TSTUB" + stub_choice])
+                #r.moveto(z=115)
+                pump_confirm = input("Please turn on vacuum pump and press enter.")
                 break
             except Exception:
                 print("Invalid choice. Please try again.")
 
-        r.moveto(z=133)
+        r.moveto(*r.clean_stub_pos["STRAY_Z1"])
 
         r.speed = 0.005
-        r.moveto(z=141.5)
+        r.moveto(*r.clean_stub_pos["STRAY_Z2"])
 
-        r.moveto(z=137)
+        r.moveto(*r.clean_stub_pos["STRAY_Z3"])
 
         while True:
             picked_confirm = input(
-                "Stub picked? C to continue, R to try again, M for manual, A to abort."
+                "Stub picked? C to continue, R to try again, M for manual, A to abort." # abort not available yet
             )
-            if picked_confirm.lower() == "c":  # abort not available yet
+            if picked_confirm.lower() == "c":  
                 break
             elif picked_confirm.lower() == "r":
-                r.moveto(z=141.5)
-                r.moveto(z=137)
+                r.moveto(*r.clean_stub_pos["STRAY_Z2"])
+                r.moveto(*r.clean_stub_pos["STRAY_Z3"])
                 picked_confirm = input(
                     "Stub picked? If not, R to try again, C to continue."
                 )
@@ -128,12 +140,7 @@ if __name__ == "__main__":
         exp_confirm = input("Please press enter when the exposing is finished.")
         r.moveto(z=60)
 
-        if stub_choice == "1":
-            r.moveto(x=23.8, y=173.8)
-        elif stub_choice == "2":
-            r.moveto(x=23.8, y=173.8)
-        else:
-            print("Invalid choice. Please try again.")
+        r.moveto(*r.stub_positions["STUB" + stub_choice])
 
         r.moveto(z=137)
         r.speed = 0.005

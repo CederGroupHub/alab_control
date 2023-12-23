@@ -122,6 +122,7 @@ class BaseGcodeRobot(ABC):
             zhop (bool): Whether to z-hop (raise the z-axis) before moving to the target position. This is useful to avoid collisions.
         """
         x, y, z = self.check_move_is_valid(x, y, z)  # check for invalid move
+        print("Moving to " + str((x, y, z)))
         if (x == self.position[0]) and (y == self.position[1]):
             zhop = False  # turn off zhopping if we're not moving in x or y
 
@@ -174,6 +175,7 @@ class BaseGcodeRobot(ABC):
 
     def gohome(self) -> None:
         """Homes the robt (calls the G28 command) and updates the position."""
+        self.write("G28 Z")
         self.write("G28 X Y Z")
         self.get_current_position()
 
