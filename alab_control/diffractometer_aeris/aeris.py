@@ -42,7 +42,7 @@ class Aeris:
     # Replace IP, port, and directory paths with your own info
     def __init__(
         self,
-        ip: str = "AERISDY1042.dhcp.lbl.gov",
+        ip: str = "aeris.lbl.gov",
         results_dir: str = r"D:\\AerisData",
         debug: bool = False,
     ):
