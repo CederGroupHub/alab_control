@@ -62,6 +62,8 @@ class VacuumController(BaseArduinoDevice):
         """
         if self.get_state() == VacuumControllerState.ERROR:
             raise RuntimeError("Vacuum Controller is in error state")
+        if self.is_on:
+            return
         self.send_request("Turn_On_Vacuum\n")
         time.sleep(1)
         while self.get_state() == VacuumControllerState.RUNNING and self.get_state() != VacuumControllerState.ERROR:
@@ -89,6 +91,9 @@ class VacuumController(BaseArduinoDevice):
         if self.get_state() == VacuumControllerState.ERROR:
             raise RuntimeError("Vacuum Controller is in error state")
         self.send_request("Reset_Printer\n")
+        if not self.is_on:
+            return
+        self.send_request("Turn_Off_Vacuum\n")
         time.sleep(1)
         while self.get_state() == VacuumControllerState.RUNNING and self.get_state() != VacuumControllerState.ERROR:
             time.sleep(1)

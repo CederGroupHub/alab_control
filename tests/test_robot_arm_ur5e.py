@@ -5,7 +5,7 @@ from alab_control import robot_arm_ur5e
 
 class TestUR5e(unittest.TestCase):
     def setUp(self):
-        self.robot = robot_arm_ur5e.URRobot(ip="192.168.182.135")
+        self.robot = robot_arm_ur5e.BaseURRobot(ip="192.168.182.135")
 
     def tearDown(self):
         self.robot.close()  # close the connection
