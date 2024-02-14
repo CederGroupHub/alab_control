@@ -151,6 +151,12 @@ class BaseURRobot:
             )
         return self.secondary.check_joints(target_joints=target_joints)
 
+    def clear_popup(self):
+        """
+        Clear the popup window in the robot arm
+        """
+        self.dashboard.clear_popup()
+
     def close(self):
         """
         Close all the connections to the robot arm
