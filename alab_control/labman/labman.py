@@ -217,7 +217,7 @@ class LabmanView:
                 return  # we updated very recently
         try:
             status_dict = self.API.get_status()
-
+            self._current_outward_quadrant = status_dict["CurrentOutwardQuadrantNumber"]
             self._heated_rack_temperature = status_dict["HeatedRackTemperature"]
             self._in_automated_mode = status_dict["InAutomatedMode"]
             self._rack_under_robot_control = (
@@ -239,6 +239,11 @@ class LabmanView:
             for q in self.quadrants.values():
                 # set quadrants to unknown to ensure robot arm doesn't try to pick from the quadrant while we are unsure of the labman state.
                 q.status = QuadrantStatus.UNKNOWN
+
+    @property
+    def current_outward_quadrant(self):
+        self.__update_status()
+        return self._current_outward_quadrant
 
     @property
     def heated_rack_temperature(self):
