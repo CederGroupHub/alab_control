@@ -36,7 +36,7 @@ class BallDispenser(BaseArduinoDevice):
             raise RuntimeError("Dispenser is still running")
 
         self.send_request(self.ENDPOINTS["start"], method="GET", suppress_error=True, timeout=10, max_retries=5)
-        print(f"{self.current_time()} Dispensing balls")
+        print(f"{self.get_current_time()} Dispensing balls")
         start_time = time.time()
         time.sleep(5)
 
