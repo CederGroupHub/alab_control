@@ -171,6 +171,7 @@ class Aeris:
 
         msg = f"@SAMPLE@MEASURE@SAMPLE_ID={sample_id}@APPLICATION={program}@END"
         reply = self._query(msg)
+        print(f"{self.get_current_time()} Starting XRD scan for sample {sample_id} using program {program}")
         if "fatal" in reply:
             raise ScanFailed(
                 f"Scan failed for program {program} on sample_id {sample_id}!"
@@ -210,6 +211,7 @@ class Aeris:
             ]["counts"]["#text"]
             intensities = np.array([float(val) for val in intensities.split()])
             angles = np.linspace(min_angle, max_angle, len(intensities))
+        print(f"{self.get_current_time()} Scan results for {sample_id} loaded successfully")
 
         return angles, intensities
 
@@ -304,6 +306,9 @@ class Aeris:
 
     def move_arm_out_of_the_way(self):
         self.move(5, 4)
+
+    def get_current_time(self) -> str:
+        return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
 
 # Write XRD data to file

@@ -60,6 +60,7 @@ class Shaker(BaseArduinoDevice):
         state = self.get_state()
         if state.is_grabber_closed():
             return
+        print(f"{self.get_current_time()} Grabbing the container")
         self.send_request(self.ENDPOINTS["grab"], suppress_error=True, timeout=10, max_retries=3)
         while not self.get_state().is_grabber_closed():
             time.sleep(0.1)
@@ -71,6 +72,7 @@ class Shaker(BaseArduinoDevice):
         state = self.get_state()
         if not state.is_grabber_closed():
             return
+        print(f"{self.get_current_time()} Releasing the grabber")
         self.send_request(self.ENDPOINTS["release"], suppress_error=True, timeout=10, max_retries=3)
         while self.get_state().is_grabber_closed():
             time.sleep(0.1)
@@ -83,6 +85,7 @@ class Shaker(BaseArduinoDevice):
             duration_sec: duration of shaking in seconds
         """
         start_time = time.time()
+        print(f"{self.get_current_time()} Starting the shaker machine for {duration_sec} seconds")
         try:
             while time.time() - start_time < duration_sec:
                 self.start()

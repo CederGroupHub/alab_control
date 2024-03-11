@@ -28,6 +28,7 @@ class Capper(BaseArduinoDevice):
         if self.get_state() == CapperState.OPEN:
             return
         self.send_request("/open", suppress_error=True, method="GET", timeout=30, max_retries=3)
+        print(f"{self.get_current_time()} Opening Capping Gripper")
 
     def close(self):
         """
@@ -36,3 +37,4 @@ class Capper(BaseArduinoDevice):
         if self.get_state() == CapperState.CLOSE:
             return
         self.send_request("/close", suppress_error=True, method="GET", timeout=30, max_retries=3)
+        print(f"{self.get_current_time()} Closing Capping Gripper")
