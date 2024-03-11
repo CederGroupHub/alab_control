@@ -14,8 +14,9 @@ class SamplePrepEnder3(Ender3):
 
     # positions
     HOME = (90, 120, 60)
-    STUB1 = (23.8, 173.8, None)  # z is set later
-    STUB2 = (23.8, 173.8, None)  # z is set later
+    STUB1 = (4.5, 129.6, None)  # z is set later
+    STUB2 = (20.5, 129.5, None)  # z is set later
+    PREP_EXP = (110, 18.5, None)
 
     #we need 18 clean stubs
     #we need 18 prepared stubs
@@ -35,7 +36,7 @@ if __name__ == "__main__":
     )
 
     try:
-        r = SamplePrepEnder3("COM3") 
+        r = SamplePrepEnder3("COM6") 
     except Exception as var_error:
         print(f"An error occurred: {var_error}")
         print(f"These are the available connections: \n")
@@ -71,9 +72,6 @@ if __name__ == "__main__":
         while True:
             # Ask the user to choose part 1 or part 2
             stub_choice = input("Please enter 1 for Stub 1 or 2 for Stub 2: ")
-            r.moveto(x=35, y=173.8, z=60)
-            r.moveto(z=115)
-            pump_confirm = input("Please turn on vacuum pump and press enter.")
             if stub_choice == "1":
                 r.moveto(*r.STUB1)
                 break
@@ -83,29 +81,33 @@ if __name__ == "__main__":
             else:
                 print("Invalid choice. Please try again.")
 
-        r.moveto(z=133)
-
+        pump_confirm = input("Please turn on vacuum pump and press enter.")
+        r.moveto(z=99)
+        r.speed = 0.02
+        r.moveto(z=104)
         r.speed = 0.005
-        r.moveto(z=141.5)
+        r.moveto(z=107.3)
 
-        r.moveto(z=137)
+        r.moveto(z=104)
 
         while True:
             picked_confirm = input(
-                "Stub picked? C to continue, R to try again, M for manual, A to abort."
+                "Stub picked? C to continue, R to try again, M for manual, A to abort: "
             )
             if picked_confirm.lower() == "c":  # abort not available yet
                 break
             elif picked_confirm.lower() == "r":
-                r.moveto(z=141.5)
-                r.moveto(z=137)
+                r.moveto(z=107.3)
+                r.moveto(z=104)
                 picked_confirm = input(
-                    "Stub picked? If not, R to try again, C to continue."
+                    "Stub picked? If not, R to try again, C to continue: "
                 )
                 if picked_confirm.lower() == "c":
                     break
             elif picked_confirm.lower() == "m":
-                r.moveto(x=20, y=120, z=15)
+                r.speed = 0.5
+                r.moveto(z=60)
+                r.moveto(*r.HOME)
                 picked_confirm = input(
                     "Press enter when the stub is properly attached."
                 )
@@ -117,11 +119,10 @@ if __name__ == "__main__":
         r.moveto(z=60)
 
         r.moveto(*r.HOME)
-        input("PRESS ENTER TO GO TO EXPOSURE POSITION")
+        #input("PRESS ENTER TO GO TO EXPOSURE POSITION")
 
 
-        r.moveto(x=89, y=57)
-        r.moveto(x=89, y=57)
+        r.moveto(*r.PREP_EXP)
         r.moveto(z=132 - r.CRUCIBLE_HEIGHT)
 
         while True:
@@ -139,22 +140,22 @@ if __name__ == "__main__":
         print("\n***** STUB READY TO BE EXPOSED *****")
         exp_confirm = input("Please press enter when the exposing is finished.")
         r.moveto(z=60)
+        r.moveto(*r.HOME)
 
         if stub_choice == "1":
-            r.moveto(x=23.8, y=173.8)
+            r.moveto(*r.STUB1)
         elif stub_choice == "2":
-            r.moveto(x=23.8, y=173.8)
+            r.moveto(*r.STUB2)
         else:
             print("Invalid choice. Please try again.")
 
-        r.moveto(z=137)
+        r.moveto(z=105)
         r.speed = 0.005
-        r.moveto(z=141)
+        r.moveto(z=107.3)
         pump_confirm = input("Please turn off vacuum pump and press enter.")
-        r.moveto(z=137)
         r.speed = 0.5
         r.moveto(z=60)
-        r.moveto(x=90, y=120, z=60)
+        r.moveto(*r.HOME)
 
         more_confirm = input("Do you have more samples to expose? Y/N and press enter:")
         if more_confirm == "y" or more_confirm == "Y":
