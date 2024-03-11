@@ -14,6 +14,10 @@ phenom_holder_positions_filename = 'phenom_stubs.csv'
 phenom_handler_filename = 'phenom_handler.csv'
 stubs_tray_filename = 'stubs_tray.csv'
 
+def procedureEnd():
+    r.moveto(*r.intermediate_pos["ZHOME"])
+    r.moveto(*r.intermediate_pos["HOME"])
+
 class SamplePrepEnder3(Ender3):
     """This class is for controlling the Ender3 3D printer for sample preparation."""
 
@@ -40,7 +44,7 @@ if __name__ == "__main__":
     )
 
     try:
-        r = SamplePrepEnder3("COM3") 
+        r = SamplePrepEnder3("COM6") 
     except Exception as var_error:
         print(f"An error occurred: {var_error}")
         print(f"These are the available connections: \n")
@@ -58,6 +62,7 @@ if __name__ == "__main__":
     r.moveto(*r.intermediate_pos["HOME"])
     r.speed = 0.5
     print("Done.")
+    
     
     
     while True:
@@ -81,7 +86,6 @@ if __name__ == "__main__":
 
             try:
                 int(stub_choice)
-                #r.moveto(x=35, y=173.8, z=60)
                 r.moveto(*r.clean_stub_pos["TSTUB" + stub_choice])
                 #r.moveto(z=115)
                 pump_confirm = input("Please turn on vacuum pump and press enter.")
@@ -111,7 +115,8 @@ if __name__ == "__main__":
                 if picked_confirm.lower() == "c":
                     break
             elif picked_confirm.lower() == "m":
-                r.moveto(x=20, y=120, z=15)
+                r.speed = 0.5
+                r.moveto(*r.intermediate_pos["MANUAL_MODE_HOME"])
                 picked_confirm = input(
                     "Press enter when the stub is properly attached."
                 )
@@ -127,9 +132,9 @@ if __name__ == "__main__":
 
         while True:
             exp_dist = float(
-                input("Please type the exposure distance you need (from -25 to 25): ")
+                input("Please type the exposure distance you need (from -25 to 30): ")
             )
-            if exp_dist < -25 or exp_dist > 25:
+            if exp_dist < -25 or exp_dist > 30:
                 exp_dist = 0
                 print("Invalid choice. Please try again.")
             else:
@@ -140,7 +145,7 @@ if __name__ == "__main__":
         exp_confirm = input("Please press enter when the exposing is finished.")
         r.moveto(z=60)
 
-        r.moveto(*r.stub_positions["STUB" + stub_choice])
+        r.moveto(*r.used_stub_pos["PH_STUB" + stub_choice])
 
         r.moveto(z=137)
         r.speed = 0.005
@@ -156,8 +161,9 @@ if __name__ == "__main__":
             print("Restarting the procedure!")
         elif more_confirm == "n" or more_confirm == "N":
             print("Wait until is safe to shutdown. Preparing...")
-            r.moveto(x=15, y=15, z=15)
+            procedureEnd()
             print("Done. Now you can shutdown the system.")
             break
         else:
             print("Invalid choice. Please try again.")
+
