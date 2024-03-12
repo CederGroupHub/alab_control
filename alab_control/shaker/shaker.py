@@ -58,8 +58,6 @@ class Shaker(BaseArduinoDevice):
         Close the grabber to hold the container
         """
         state = self.get_state()
-        if state.is_grabber_closed():
-            return
         print(f"{self.get_current_time()} Grabbing the container")
         self.send_request(self.ENDPOINTS["grab"], suppress_error=True, timeout=10, max_retries=3)
         while not self.get_state().is_grabber_closed():
@@ -70,8 +68,6 @@ class Shaker(BaseArduinoDevice):
         Open the grabber to release the container
         """
         state = self.get_state()
-        if not state.is_grabber_closed():
-            return
         print(f"{self.get_current_time()} Releasing the grabber")
         self.send_request(self.ENDPOINTS["release"], suppress_error=True, timeout=10, max_retries=3)
         while self.get_state().is_grabber_closed():
