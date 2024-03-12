@@ -1,11 +1,11 @@
 from alab_control.ender3 import Ender3
-from alab_control.SEM_autoprep import csv_helper
+from alab_control.em_autoprep import csv_helper
 #from ender3 import Ender3
 import serial
 import os
 
 CWD = os.getcwd()
-path = CWD + '\\alab_control\\SEM_autoprep\\Positions\\'
+path = CWD + '\\alab_control\\em_autoprep\\Positions\\'
 clean_disks_filename = 'disks_tray_clean.csv'
 used_disks_filename = 'disks_tray_used.csv'
 equipment_filename = 'equipment.csv'
@@ -25,13 +25,27 @@ class SamplePrepEnder3(Ender3):
     CRUCIBLE_HEIGHT = 39
 
     # positions
-    clean_disk_pos = csv_helper.read_CSV_into_positions(path + clean_disks_filename)
-    used_disk_pos = csv_helper.read_CSV_into_positions(path + used_disks_filename)
-    equipment_pos = csv_helper.read_CSV_into_positions(path + equipment_filename)
-    intermediate_pos = csv_helper.read_CSV_into_positions(path + intermediate_positions_filename)
-    used_stub_pos = csv_helper.read_CSV_into_positions(path + phenom_holder_positions_filename)
-    phenom_handler_pos = csv_helper.read_CSV_into_positions(path + phenom_handler_filename)
-    clean_stub_pos = csv_helper.read_CSV_into_positions(path + stubs_tray_filename)
+    clean_disk_pos = csv_helper.read_CSV_into_positions(
+        path=path + clean_disks_filename
+    )
+    used_disk_pos = csv_helper.read_CSV_into_positions(
+        path=path + used_disks_filename
+    )
+    equipment_pos = csv_helper.read_CSV_into_positions(
+        path=path + equipment_filename
+    )
+    intermediate_pos = csv_helper.read_CSV_into_positions(
+        path=path + intermediate_positions_filename
+    )
+    used_stub_pos = csv_helper.read_CSV_into_positions(
+        path=path + phenom_holder_positions_filename
+    )
+    phenom_handler_pos = csv_helper.read_CSV_into_positions(
+        path=path + phenom_handler_filename
+    )
+    clean_stub_pos = csv_helper.read_CSV_into_positions(
+        path=path + stubs_tray_filename
+    )
 
 
 if __name__ == "__main__":
