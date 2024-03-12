@@ -8,8 +8,8 @@ def float_or_none(s):
     return None
   return float(s)
 
-
-def read_CSV_into_positions(path=CWD + '\\alab_control\\SEM_autoprep\\Tests\\SampleFile.csv'):
+#TODO: Move this function to sample_prep.py
+def read_CSV_into_positions(path): 
   with open(path, mode ='r') as file:
     csvFile = csv.reader(file)
     for lines in csvFile:
