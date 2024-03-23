@@ -49,7 +49,7 @@ class URRobotSSH:
         with self._ssh.open_sftp() as sftp:
             sftp.remove(file_path)
         
-    def download_file(self, remote_folder_path: str, local_folder_path: str, remove_remote_files: bool = False):
+    def download_folder(self, remote_folder_path: str, local_folder_path: str, remove_remote_files: bool = False):
         """
         Sync a local folder to a remote folder.
         Download files from the remote folder that are not in the local folder.
