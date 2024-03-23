@@ -41,6 +41,18 @@ class URRobotSSH:
             with sftp.open((Path(base) / file_name).as_posix(), "wb") as f:
                 f.write(compressed_program)
 
+    def download_file(self, remote_file_path: str, local_file_path: str):
+        with self._ssh.open_sftp() as sftp:
+            sftp.get(remote_file_path, local_file_path)
+    
+    def upload_file(self, local_file_path: str, remote_file_path: str):
+        with self._ssh.open_sftp() as sftp:
+            sftp.put(local_file_path, remote_file_path)
+
+    def remove_file(self, file_path: str):
+        with self._ssh.open_sftp() as sftp:
+            sftp.remove(file_path)
+
     def close(self):
         self._ssh.close()
 
