@@ -50,7 +50,7 @@ class InputFile:
 
         if ethanol_volume_ul < 0 or ethanol_volume_ul > self.MAX_JAR_VOLUME_UL:
             raise ValueError(
-                "`ethanol_volume_ul` must be between 0 and {self.MAX_JAR_VOLUME_UL} microliters (0 and 35 mL)! "
+                f"`ethanol_volume_ul` must be between 0 and {self.MAX_JAR_VOLUME_UL} microliters! "
             )
         self.ethanol_volume = ethanol_volume_ul
         self.transfer_volume = transfer_volume_ul or self.ethanol_volume
