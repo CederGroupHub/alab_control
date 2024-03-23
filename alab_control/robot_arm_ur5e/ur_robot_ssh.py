@@ -51,7 +51,7 @@ class URRobotSSH:
         
     def download_folder(self, remote_folder_path: str, local_folder_path: str, remove_remote_files: bool = False):
         """
-        Sync a local folder to a remote folder.
+        Sync a remote folder to a local folder.
         Download files from the remote folder that are not in the local folder.
         Remove files from the remote folder that are downloaded if remove_remote_files is True.
         """
