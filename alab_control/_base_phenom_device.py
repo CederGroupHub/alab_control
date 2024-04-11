@@ -1,17 +1,15 @@
 import PyPhenom as ppi
 
 class PhenomDevice:
-    def __init__(self, device_name, connection_params, license_details):
+    def __init__(self, device_name, license_details):
         """
         Initialize the Phenom device with license installation.
         
         Args:
             device_name (str): A descriptive name for the Phenom device.
-            connection_params (dict): Parameters necessary for establishing a connection to the device.
             license_details (dict): Details necessary for license installation, including 'instrument', 'username', 'password', and optionally 'PhenomID' if it's different from the instrument for licensing.
         """
         self.device_name = device_name
-        self.connection_params = connection_params
         self.license_details = license_details
         self.phenom = None  # This will be initialized in the connect method
         self.is_connected = False
@@ -60,11 +58,11 @@ class PhenomDevice:
 
 
 
-license_details = {
-    'instrument': 'MVE081392-10796-L',
-    'username': 'MVE08139210796L-1C',
-    'password': 'WTE3TJW6B90Q',
+# license_details = {
+#     'instrument': 'MVE081392-10796-L',
+#     'username': 'MVE08139210796L-1C',
+#     'password': 'WTE3TJW6B90Q',
 
-}
-phenom_device = PhenomDevice("Phenom ProX", {}, license_details)
-phenom_device.connect()
+# }
+# phenom_device = PhenomDevice("Phenom ProX", {}, license_details)
+# phenom_device.connect()

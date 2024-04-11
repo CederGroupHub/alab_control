@@ -1,5 +1,6 @@
 from enum import Enum
 from alab_control.alab_control._base_phenom_device import PhenomDevice
+# from .._base_phenom_device import PhenomDevice
 import abc
 import PyPhenom as ppi
 import matplotlib.pyplot as plt
@@ -21,7 +22,7 @@ class InstrumentMode(Enum):
 
 class OperationalMode(Enum):
     UNAVAILABLE = "Unavailable"
-    LOAD_POS = "LoadPos"
+    LOAD_POS = "Loadpos"
     UNLOADING = "Unloading"
     SELECTING_NAVCAM = "SelectingNavCam"
     SELECTING_SEM = "SelectingSem"
@@ -30,6 +31,13 @@ class OperationalMode(Enum):
     ACQUIRE_NAVCAM_IMAGE = "AcquireNavCamImage"
     ACQUIRE_SEM_IMAGE = "AcquireSemImage"
 
+    #when InstrumentMode = operational you could do load
+    #stnad by means unavlualbel , activate means operational
+
+# got graphic inter ->check if its is connected -> standby(means door is closed the machine is sleeping)
+# -> initializing? -> operational -> picture with 32 sample -> load() and check if it is loadpos? does it mean lowading to sem
+#->  move navcam to the desire sample number (by position x,y) check that the nav cam moved where we wanted it -> run sem-eds -> for all samples -> 
+#  -> for every step check that it is done(blocks everything else) before moving to the next
 class ImagingDevice(Enum):
     NAVCAM = "NavCam"
     SEM = "SEM"
@@ -50,7 +58,7 @@ class SEMDevice(PhenomDevice):
             try:
                 mode = self.phenom.GetInstrumentMode()
                 print(f"Instrument mode: {mode}")
-                return InstrumentMode(mode)
+                return InstrumentMode(str(mode))
             except Exception as e:
                 print(f"Error getting instrument mode: {e}")
         else:
@@ -67,7 +75,7 @@ class SEMDevice(PhenomDevice):
             try:
                 mode = self.phenom.GetOperationalMode()
                 print(f"Operational mode: {mode}")
-                return OperationalMode(mode)
+                return OperationalMode(str(mode))
             except Exception as e:
                 print(f"Error getting operational mode: {e}")
         else:
@@ -78,16 +86,20 @@ class SEMDevice(PhenomDevice):
         Activate the Phenom, transitioning it to operational mode.
         """
         if self.is_connected:
-            return self.phenom.Activate()
+            print("Device is connected.")
+            return self.phenom.Activate() # how do we know if it is activated  -> if operational mode is unavailable
         else:
             print("Device is not connected.")
     
     def load(self):
         """
-        Load the sample.
+        Load the sample. This calls the LiveNavCam
         """
         if self.is_connected:
-            return self.phenom.Load()
+            if self.get_instrument_mode == "Operational":
+                return self.phenom.Load()
+            else:
+                print("Device is not in operational mode, activate first.")
         else:
             print("Device is not connected.")
     
@@ -191,7 +203,7 @@ class SEMDevice(PhenomDevice):
         """
         if self.is_connected:
             try:
-                self.phenom.MoveBy(x, y)
+                self.phenom.MoveTo(x, y)
                 print("Movement completed.")
             except Exception as e:
                 print(f"Failed to move: {e}")
@@ -202,9 +214,9 @@ class SEMDevice(PhenomDevice):
         """
         Move to a position specified relative to the current position
         deltaX: 
-            Stage movement in x-direction, in meters from the current position.
+            Stage movement in x-direction, in meters from the current position (in meters).
         deltaY: 
-            Stage movement in y-direction, in meters from the current position.
+            Stage movement in y-direction, in meters from the current position (in meters).
         """
         if self.is_connected:
             try:
@@ -215,34 +227,39 @@ class SEMDevice(PhenomDevice):
         else:
             print("Device is not connected.")
 
-    def getsemhightension(self, value):
-
-        return self.phenom.GetSemHighTension(-value)
+    def getsemhightension(self):
+        value = - self.phenom.GetSemHighTension()
+        print(f"SEM high tension is: {value}")
+        return value
     
     def setsemhightension(self, value):
-
+        print(f"Setting the SEM high tension to {value}")
         return self.phenom.SetSemHighTension(-value)
 
     def getsemspotsize(self):
         """
         Query the current SEM spot size (in Amps / Volt½)
         """
-        return self.phenom.GetSemSpotSize()
+        value=self.phenom.GetSemSpotSize()
+        return value
     
     def setsemspotsize(self,value):
         """
         Set the SEM spot size (in Amps / Volt½)
+        TODO: default values and range
+        For now should just use one fixed value (MAP) as spot size change might need stigmate calibration.
         """
         return self.phenom.SetSemSpotSize(value)
-
-
-    def framewidth(self):
+   
+    def getframewidth(self):
         """
         Get the current frame width.
         """
         if self.is_connected:
             try:
-                return self.phenom.GetHFW()
+                value=self.phenom.GetHFW()
+                print(value)
+                return value
             except Exception as e:
                 print(f"Failed to get frame width: {e}")
                 return None
@@ -250,7 +267,7 @@ class SEMDevice(PhenomDevice):
             print("Device is not connected.")
             return None
 
-    def zoom(self, amt):
+    def zoom(self, amt): #TODO
         """
         Zoom in or out by a given amount.
         """
@@ -265,6 +282,15 @@ class SEMDevice(PhenomDevice):
         else:
             print("Device is not connected.")
 
+    def magnification(self, display_size=0.5):
+        """
+        Returns the image magnification for the given HFW relative to the given display size.
+        """
+        magnification =  self.phenom.MagnificationFromFieldWidth(self.phenom.GetHFW(), display_size)
+        print(display_size)
+        print(magnification)
+        return magnification
+
     def saveImage(self, fname='Image.tiff', res_x=1080, res_y=1080, frame_avg=16):
         """
         Save an SEM image.
@@ -272,7 +298,7 @@ class SEMDevice(PhenomDevice):
         if self.is_connected:
             try:
                 acq = self.phenom.SemAcquireImage(res_x, res_y, frame_avg)
-                ppi.Save(acq, fname)
+                self.phenom.Save(acq, fname)
                 print(f"Image saved as {fname}.")
             except Exception as e:
                 print(f"Failed to save image: {e}")
