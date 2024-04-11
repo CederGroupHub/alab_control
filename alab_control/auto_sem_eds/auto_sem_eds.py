@@ -199,11 +199,11 @@ class SEMDevice(PhenomDevice):
         """
         Move to a position specified by absolute coordinates.
         x, y: 
-            Stage position in absolute coordinates (in meters)
+            Stage position in absolute coordinates (in millimeters)
         """
         if self.is_connected:
             try:
-                self.phenom.MoveTo(x, y)
+                self.phenom.MoveTo(x * 0.001, y * 0.001)
                 print("Movement completed.")
             except Exception as e:
                 print(f"Failed to move: {e}")
@@ -214,13 +214,13 @@ class SEMDevice(PhenomDevice):
         """
         Move to a position specified relative to the current position
         deltaX: 
-            Stage movement in x-direction, in meters from the current position (in meters).
+            Stage movement in x-direction, in millimeters from the current position.
         deltaY: 
-            Stage movement in y-direction, in meters from the current position (in meters).
+            Stage movement in y-direction, in millimeters from the current position.
         """
         if self.is_connected:
             try:
-                self.phenom.MoveBy(deltaX, deltaY)
+                self.phenom.MoveBy(deltaX * 0.001, deltaY * 0.001)
                 print("Movement completed.")
             except Exception as e:
                 print(f"Failed to move: {e}")
