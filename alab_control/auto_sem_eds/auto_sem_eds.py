@@ -96,19 +96,22 @@ class SEMDevice(PhenomDevice):
         Load the sample. This calls the LiveNavCam
         """
         if self.is_connected:
-            if self.get_instrument_mode == "Operational":
+            if self.get_instrument_mode() == "Operational":
                 return self.phenom.Load()
             else:
                 print("Device is not in operational mode, activate first.")
         else:
             print("Device is not connected.")
-        #self.get_operational_mode() == "Loadpos"
+       
     
     def unload(self):
         """
         Unload the sample.
         """
-        return self.phenom.Unload()
+        if  self.get_operational_mode() == "Loadpos":
+            return self.phenom.Unload()
+        else:
+            print("Device is not in Loadpos operational mode.")
     
     def standby(self):
         """
@@ -212,17 +215,17 @@ class SEMDevice(PhenomDevice):
         else:
             print("Device is not connected.")
 
-    def moveby(self, deltaX, deltaY):
+    def moveby(self, delta_x, delta_y):
         """
         Move to a position specified relative to the current position
-        deltaX: 
-            Stage movement in x-direction, in millimeters from the current position.
-        deltaY: 
-            Stage movement in y-direction, in millimeters from the current position.
+        delta_x: 
+            Stage movement in x-direction, in meters from the current position.
+        delta_y: 
+            Stage movement in y-direction, in meters from the current position.
         """
         if self.is_connected:
             try:
-                self.phenom.MoveBy(deltaX * 0.001, deltaY * 0.001)
+                self.phenom.MoveBy(delta_x * 0.001, delta_y * 0.001)
                 print("Movement completed.")
             except ImportError:
                 print("Failed to move")
@@ -275,7 +278,7 @@ class SEMDevice(PhenomDevice):
             print("Device is not connected.")
             return None
 
-    def zoom(self, amt): #TODO
+    def zoom(self, amt):
         """
         Zoom in or out by a given amount.
         """
@@ -339,6 +342,3 @@ class SEMDevice(PhenomDevice):
             plt.show()
         else:
             print("No image data to display.")
-
-
-
