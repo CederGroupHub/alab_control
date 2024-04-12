@@ -1,17 +1,32 @@
 from enum import Enum
-from alab_control.alab_control._base_phenom_device import PhenomDevice
-# from .._base_phenom_device import PhenomDevice
 import abc
 import PyPhenom as ppi
 import matplotlib.pyplot as plt
 import numpy as np
+from alab_control.alab_control._base_phenom_device import PhenomDevice
+# from .._base_phenom_device import PhenomDevice
 
 class SEMError(Exception):
+    """ 
+    Custom exception class for SEM-related errors.
+    """
     def __init__(self, message, code=None):
         super().__init__(message)
         self.code = code
 
 class InstrumentMode(Enum):
+    """ 
+    Enumeration of possible operational states for an SEM instrument.
+
+    Attributes:
+        OFF (str): Indicates the instrument is turned off.
+        OPERATIONAL (str): Indicates the instrument is operational and ready to use.
+        STANDBY (str): Indicates the instrument is in standby mode.
+        HIBERNATE (str): Indicates the instrument is in hibernate mode to save power.
+        INITIALIZING (str): Indicates the instrument is initializing.
+        CLOSING_DOWN (str): Indicates the instrument is in the process of shutting down.
+        ERROR (str): Indicates the instrument is experiencing an error.
+    """
     OFF = "Off"
     OPERATIONAL = "Operational"
     STANDBY = "Standby"
@@ -21,6 +36,20 @@ class InstrumentMode(Enum):
     ERROR = "Error"
 
 class OperationalMode(Enum):
+    """
+    Enumeration of specific operational modes for managing SEM navigation and imaging functionalities.
+
+    Attributes:
+        UNAVAILABLE (str): Mode when operation is unavailable.
+        LOAD_POS (str): Load position mode for loading samples.
+        UNLOADING (str): Mode for unloading samples.
+        SELECTING_NAVCAM (str): Mode for selecting the navigation camera.
+        SELECTING_SEM (str): Mode for selecting the SEM for operations.
+        LIVE_NAVCAM (str): Live feed mode for the navigation camera.
+        LIVE_SEM (str): Live feed mode for the SEM.
+        ACQUIRE_NAVCAM_IMAGE (str): Mode to acquire images from the navigation camera.
+        ACQUIRE_SEM_IMAGE (str): Mode to acquire images using the SEM.
+    """
     UNAVAILABLE = "Unavailable"
     LOAD_POS = "Loadpos"
     UNLOADING = "Unloading"
@@ -39,6 +68,13 @@ class OperationalMode(Enum):
 #->  move navcam to the desire sample number (by position x,y) check that the nav cam moved where we wanted it -> run sem-eds -> for all samples -> 
 #  -> for every step check that it is done(blocks everything else) before moving to the next
 class ImagingDevice(Enum):
+    """
+    Enumeration representing the types of imaging devices available in a system.
+
+    Attributes:
+        NAVCAM (str): Represents a Navigation Camera, used for general viewing and navigation purposes.
+        SEM (str): Represents a Scanning Electron Microscope, used for high-resolution imaging at the microscale.
+    """
     NAVCAM = "NavCam"
     SEM = "SEM"
 
@@ -102,8 +138,7 @@ class SEMDevice(PhenomDevice):
                 print("Device is not in operational mode, activate first.")
         else:
             print("Device is not connected.")
-       
-    
+
     def unload(self):
         """
         Unload the sample.
