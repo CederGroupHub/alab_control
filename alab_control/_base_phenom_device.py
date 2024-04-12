@@ -13,13 +13,12 @@ class PhenomDevice:
         self.license_details = license_details
         self.phenom = None  # This will be initialized in the connect method
         self.is_connected = False
-        self.phenomID = license_details.get('PhenomID', '')  # Optional: Use a specific PhenomID if provided   
+        self.phenomID = license_details.get('PhenomID', '')  # Optional: Use a specific PhenomID if provided
 
     def install_license(self):
         """
         Install and verify the license for the Phenom device.
         """
-       
         # Extracting license details
         instrument = self.license_details.get('instrument')
         username = self.license_details.get('username')
@@ -45,8 +44,8 @@ class PhenomDevice:
                 self.phenom = ppi.Phenom()
             self.is_connected = True
             print(f"{self.device_name} connected successfully.")
-        except Exception as e:
-            print(f"Failed to connect to {self.device_name}: {e}")
+        except ImportError:
+            print(f"Failed to connect to {self.device_name}")
             self.is_connected = False
 
     def disconnect(self):
@@ -55,7 +54,6 @@ class PhenomDevice:
         """
         self.is_connected = False
         print(f"{self.device_name} disconnected.")
-
 
 
 # license_details = {

@@ -59,8 +59,8 @@ class SEMDevice(PhenomDevice):
                 mode = self.phenom.GetInstrumentMode()
                 print(f"Instrument mode: {mode}")
                 return InstrumentMode(str(mode))
-            except Exception as e:
-                print(f"Error getting instrument mode: {e}")
+            except ImportError:
+                print("Error getting instrument mode")
         else:
             print("Device is not connected.")
 
@@ -76,8 +76,8 @@ class SEMDevice(PhenomDevice):
                 mode = self.phenom.GetOperationalMode()
                 print(f"Operational mode: {mode}")
                 return OperationalMode(str(mode))
-            except Exception as e:
-                print(f"Error getting operational mode: {e}")
+            except ImportError:
+                print("Error getting operational mode")
         else:
             print("Device is not connected.")
 
@@ -102,6 +102,7 @@ class SEMDevice(PhenomDevice):
                 print("Device is not in operational mode, activate first.")
         else:
             print("Device is not connected.")
+        #self.get_operational_mode() == "Loadpos"
     
     def unload(self):
         """
@@ -138,8 +139,8 @@ class SEMDevice(PhenomDevice):
         try:
             self.phenom.MoveToNavCam()
             print("Successfully switched to navigation camera.")
-        except Exception as e:
-            print(f"Failed to switch to navigation camera: {e}")
+        except ImportError:
+            print("Failed to switch to navigation camera")
 
     def toSEM(self):
         """
@@ -149,10 +150,11 @@ class SEMDevice(PhenomDevice):
             try:
                 self.phenom.MoveToSem()
                 print("Successfully switched to SEM view.")
-            except Exception as e:
-                print(f"Failed to switch to SEM view: {e}")
+            except ImportError:
+                print("Failed to switch to SEM view")
         else:
             print("Device is not connected.")
+        # check that self.get_operational_mode() ==SelectingSem
 
     def AutoFocus(self):
         """
@@ -162,8 +164,8 @@ class SEMDevice(PhenomDevice):
             try:
                 self.phenom.SemAutoFocus()
                 print("Auto-focus completed.")
-            except Exception as e:
-                print(f"Auto-focus failed: {e}")
+            except ImportError:
+                print("Auto-focus failed")
         else:
             print("Device is not connected.")
 
@@ -175,12 +177,12 @@ class SEMDevice(PhenomDevice):
             try:
                 self.phenom.SemAutoContrastBrightness()
                 print("Auto-contrast and brightness optimization completed.")
-            except Exception as e:
-                print(f"Failed to optimize contrast and brightness: {e}")
+            except ImportError:
+                print("Failed to optimize contrast and brightness")
         else:
             print("Device is not connected.")
 
-    def adjustFocus(self, amt):
+    def adjust_focus(self, amt):
         """
         Adjust the focus based on a given amount.
         """
@@ -190,8 +192,8 @@ class SEMDevice(PhenomDevice):
                 new_wd = amt * current_wd
                 self.phenom.SetSemWD(new_wd)
                 print("Focus adjusted.")
-            except Exception as e:
-                print(f"Failed to adjust focus: {e}")
+            except ImportError:
+                print("Failed to adjust focus")
         else:
             print("Device is not connected.")
 
@@ -205,8 +207,8 @@ class SEMDevice(PhenomDevice):
             try:
                 self.phenom.MoveTo(x * 0.001, y * 0.001)
                 print("Movement completed.")
-            except Exception as e:
-                print(f"Failed to move: {e}")
+            except ImportError:
+                print("Failed to move")
         else:
             print("Device is not connected.")
 
@@ -222,17 +224,23 @@ class SEMDevice(PhenomDevice):
             try:
                 self.phenom.MoveBy(deltaX * 0.001, deltaY * 0.001)
                 print("Movement completed.")
-            except Exception as e:
-                print(f"Failed to move: {e}")
+            except ImportError:
+                print("Failed to move")
         else:
             print("Device is not connected.")
 
     def getsemhightension(self):
+        """ 
+        Get the SEM Hight Tension value. 
+        """
         value = - self.phenom.GetSemHighTension()
         print(f"SEM high tension is: {value}")
         return value
-    
+       
     def setsemhightension(self, value):
+        """ 
+        Set the SEM Hight Tension value. 
+        """
         print(f"Setting the SEM high tension to {value}")
         return self.phenom.SetSemHighTension(-value)
 
@@ -260,8 +268,8 @@ class SEMDevice(PhenomDevice):
                 value=self.phenom.GetHFW()
                 print(value)
                 return value
-            except Exception as e:
-                print(f"Failed to get frame width: {e}")
+            except ImportError:
+                print("Failed to get frame width")
                 return None
         else:
             print("Device is not connected.")
@@ -277,8 +285,8 @@ class SEMDevice(PhenomDevice):
                 new_width = amt * current_width
                 self.phenom.SetHFW(new_width)
                 print("Zoom adjusted.")
-            except Exception as e:
-                print(f"Failed to adjust zoom: {e}")
+            except ImportError:
+                print("Failed to adjust zoom")
         else:
             print("Device is not connected.")
 
@@ -291,7 +299,7 @@ class SEMDevice(PhenomDevice):
         print(magnification)
         return magnification
 
-    def saveImage(self, fname='Image.tiff', res_x=1080, res_y=1080, frame_avg=16):
+    def save_image(self, fname='Image.tiff', res_x=1080, res_y=1080, frame_avg=16):
         """
         Save an SEM image.
         """
@@ -300,12 +308,12 @@ class SEMDevice(PhenomDevice):
                 acq = self.phenom.SemAcquireImage(res_x, res_y, frame_avg)
                 self.phenom.Save(acq, fname)
                 print(f"Image saved as {fname}.")
-            except Exception as e:
-                print(f"Failed to save image: {e}")
+            except ImportError:
+                print("Failed to save image")
         else:
             print("Device is not connected.")
 
-    def getImageData(self, res_x=1080, res_y=1080, frame_avg=16):
+    def get_image_data(self, res_x=1080, res_y=1080, frame_avg=16):
         """
         Get SEM image data.
         """
@@ -314,14 +322,14 @@ class SEMDevice(PhenomDevice):
                 acq = self.phenom.SemAcquireImage(res_x, res_y, frame_avg)
                 img_data = np.asarray(acq.image)
                 return img_data
-            except Exception as e:
-                print(f"Failed to get image data: {e}")
+            except ImportError:
+                print("Failed to get image data")
                 return None
         else:
             print("Device is not connected.")
             return None
 
-    def showImage(self):
+    def show_image(self):
         """
         Display the SEM image.
         """
