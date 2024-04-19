@@ -55,12 +55,3 @@ class PhenomDevice:
         self.is_connected = False
         print(f"{self.device_name} disconnected.")
 
-
-# license_details = {
-#     'instrument': 'MVE081392-10796-L',
-#     'username': 'MVE08139210796L-1C',
-#     'password': 'WTE3TJW6B90Q',
-
-# }
-# phenom_device = PhenomDevice("Phenom ProX", {}, license_details)
-# phenom_device.connect()
