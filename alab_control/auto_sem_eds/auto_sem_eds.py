@@ -3,7 +3,7 @@ import abc
 import PyPhenom as ppi
 import matplotlib.pyplot as plt
 import numpy as np
-from alab_control.alab_control._base_phenom_device import PhenomDevice
+from alab_control._base_phenom_device import PhenomDevice
 # from .._base_phenom_device import PhenomDevice
 
 class SEMError(Exception):
@@ -83,7 +83,7 @@ class SEMDevice(PhenomDevice):
     Class for controlling a Scanning Electron Microscope (SEM).
     """
 
-    def get_instrument_mode(self):
+    def get_instrument_mode(self) -> InstrumentMode:
         """
         Get the current instrument mode of the Phenom.
 
@@ -100,7 +100,7 @@ class SEMDevice(PhenomDevice):
         else:
             print("Device is not connected.")
 
-    def get_operational_mode(self):
+    def get_operational_mode(self) -> OperationalMode:
         """
         Get the operational status of the Phenom.
 
@@ -132,18 +132,19 @@ class SEMDevice(PhenomDevice):
         Load the sample. This calls the LiveNavCam
         """
         if self.is_connected:
-            if self.get_instrument_mode() == "Operational":
+            print(str(self.get_instrument_mode()))
+            if self.get_instrument_mode() == InstrumentMode("Operational") and self.get_operational_mode() == OperationalMode("Loadpos"):
                 return self.phenom.Load()
             else:
-                print("Device is not in operational mode, activate first.")
+                print("Instrument mode is not in Operational and operational mode is not in Loadpos, activate first.")
         else:
             print("Device is not connected.")
 
     def unload(self):
         """
-        Unload the sample.
+        Unload the sample. Only unloads the sample and not open door TODO: FIND OPEN DOOR.
         """
-        if  self.get_operational_mode() == "Loadpos":
+        if self.get_instrument_mode() == InstrumentMode("Operational") and self.get_operational_mode() == OperationalMode("LiveNavCam"): 
             return self.phenom.Unload()
         else:
             print("Device is not in Loadpos operational mode.")
