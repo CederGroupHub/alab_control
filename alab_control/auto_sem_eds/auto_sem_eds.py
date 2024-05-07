@@ -123,17 +123,19 @@ class SEMDevice(PhenomDevice):
         """
         if self.is_connected:
             print("Device is connected.")
-            return self.phenom.Activate() # how do we know if it is activated  -> if operational mode is unavailable
+            return self.phenom.Activate() # how do we know if it is activated  -> Instrument mode: Operational and Operational mode is unavailable
         else:
             print("Device is not connected.")
     
     def load(self):
         """
-        Load the sample. This calls the LiveNavCam
+        Load the sample. 
+        This has to be done when OperationalMode is LoadPos and InstrumentMode is Operational.
+        This changes the OperationalMode to LiveNavCam.
         """
         if self.is_connected:
             print(str(self.get_instrument_mode()))
-            if self.get_instrument_mode() == InstrumentMode("Operational") and self.get_operational_mode() == OperationalMode("Loadpos"):
+            if self.get_instrument_mode() == InstrumentMode("Operational") and self.get_operational_mode() == OperationalMode("Loadpos"): #"Operational"
                 return self.phenom.Load()
             else:
                 print("Instrument mode is not in Operational and operational mode is not in Loadpos, activate first.")
@@ -153,21 +155,23 @@ class SEMDevice(PhenomDevice):
         """
         Set Phenom in standby mode.
         """
-        return self.phenom.StandBy()
+        return self.phenom.Standby()
     
     def hibernate(self):
         """
         Set Phenom in hibernate mode.
+        CAUTON: UNTESTED.
         """
         return self.phenom.Hibernate()
     
-    def poweroff(self):
-        """
-        Swich off Phenom.
-        """
-        return self.phenom.PowerOff()
+    # def poweroff(self):
+    #     """
+    #     Switch off Phenom. 
+    #     WARNING!!!: WE DO NOT TEST THIS AS THIS WILL SHUTDOWN THE PHENOM FOR 14 HOURS OR MORE AND REQUIRE A LOT OF MANUAL HANDLING BEFOREHAND
+    #     """
+    #     return self.phenom.PowerOff()
 
-    def toNav(self):
+    def to_nav(self):
         """
         Switches the Phenom device to use the navigation camera.
         """
@@ -181,7 +185,7 @@ class SEMDevice(PhenomDevice):
         except ImportError:
             print("Failed to switch to navigation camera")
 
-    def toSEM(self):
+    def to_SEM(self):
         """
         Switch to live SEM view.
         """
@@ -195,7 +199,7 @@ class SEMDevice(PhenomDevice):
             print("Device is not connected.")
         # check that self.get_operational_mode() ==SelectingSem
 
-    def AutoFocus(self):
+    def auto_focus(self):
         """
         Automatically optimize the focus.
         """
@@ -208,7 +212,7 @@ class SEMDevice(PhenomDevice):
         else:
             print("Device is not connected.")
 
-    def AutoContrastBrightness(self):
+    def auto_contrast_brightness(self):
         """
         Automatically optimize contrast and brightness.
         """
@@ -221,22 +225,20 @@ class SEMDevice(PhenomDevice):
         else:
             print("Device is not connected.")
 
-    def adjust_focus(self, amt):
+    def adjust_focus(self, new_wd):
         """
-        Adjust the focus based on a given amount.
+        Adjust the focus into some working distance in mm.
         """
         if self.is_connected:
             try:
-                current_wd = self.phenom.GetSemWD()
-                new_wd = amt * current_wd
-                self.phenom.SetSemWD(new_wd)
+                self.phenom.SetSemWD(new_wd * 0.001)
                 print("Focus adjusted.")
             except ImportError:
                 print("Failed to adjust focus")
         else:
             print("Device is not connected.")
 
-    def moveto(self, x, y):
+    def move_to(self, x, y):
         """
         Move to a position specified by absolute coordinates.
         x, y: 
@@ -251,13 +253,13 @@ class SEMDevice(PhenomDevice):
         else:
             print("Device is not connected.")
 
-    def moveby(self, delta_x, delta_y):
+    def move_by(self, delta_x, delta_y):
         """
         Move to a position specified relative to the current position
         delta_x: 
-            Stage movement in x-direction, in meters from the current position.
+            Stage movement in x-direction, in milimeters from the current position.
         delta_y: 
-            Stage movement in y-direction, in meters from the current position.
+            Stage movement in y-direction, in milimeters from the current position.
         """
         if self.is_connected:
             try:
@@ -268,44 +270,48 @@ class SEMDevice(PhenomDevice):
         else:
             print("Device is not connected.")
 
-    def getsemhightension(self):
+    def get_sem_high_tension(self):
         """ 
-        Get the SEM Hight Tension value. 
+        Get the SEM High Tension value (in Volt). 
         """
         value = - self.phenom.GetSemHighTension()
-        print(f"SEM high tension is: {value}")
+        print(f"SEM high tension is: {value} Volts.")
         return value
        
-    def setsemhightension(self, value):
+    def set_sem_high_tension(self, value):
         """ 
-        Set the SEM Hight Tension value. 
+        Set the SEM High Tension value (in Volt). 
         """
-        print(f"Setting the SEM high tension to {value}")
+        print(f"Setting the SEM high tension to {value} Volts.")
         return self.phenom.SetSemHighTension(-value)
 
-    def getsemspotsize(self):
+    def get_sem_spot_size(self):
         """
         Query the current SEM spot size (in Amps / Volt½)
         """
         value=self.phenom.GetSemSpotSize()
+        print(f"SEM Beam intensity (spot size) is: {value} Amps / Volt½")
         return value
     
-    def setsemspotsize(self,value):
+    def set_sem_spot_size(self,value):
         """
         Set the SEM spot size (in Amps / Volt½)
         TODO: default values and range
         For now should just use one fixed value (MAP) as spot size change might need stigmate calibration.
         """
-        return self.phenom.SetSemSpotSize(value)
+        self.phenom.SetSemSpotSize(value)
+        value_get=self.phenom.GetSemSpotSize()
+        print(f"SEM Beam intensity (spot size) set to {value_get} Amps / Volt½")
+        return 
    
-    def getframewidth(self):
+    def get_frame_width(self):
         """
         Get the current frame width.
         """
         if self.is_connected:
             try:
                 value=self.phenom.GetHFW()
-                print(value)
+                print(f"Frame width (FW) is: {value} mm.")
                 return value
             except ImportError:
                 print("Failed to get frame width")
@@ -316,7 +322,7 @@ class SEMDevice(PhenomDevice):
 
     def zoom(self, amt):
         """
-        Zoom in or out by a given amount.
+        Zoom in or out by a given amount. 0.5 is 50% zoom in, 2 is 200% zoom out.
         """
         if self.is_connected:
             try:
@@ -329,11 +335,11 @@ class SEMDevice(PhenomDevice):
         else:
             print("Device is not connected.")
 
-    def magnification(self, display_size=0.5):
+    def get_magnification(self, display_size):
         """
         Returns the image magnification for the given HFW relative to the given display size.
         """
-        magnification =  self.phenom.MagnificationFromFieldWidth(self.phenom.GetHFW(), display_size)
+        magnification =  ppi.MagnificationFromFieldWidth(self.phenom.GetHFW(), display_size)
         print(display_size)
         print(magnification)
         return magnification
@@ -345,7 +351,7 @@ class SEMDevice(PhenomDevice):
         if self.is_connected:
             try:
                 acq = self.phenom.SemAcquireImage(res_x, res_y, frame_avg)
-                self.phenom.Save(acq, fname)
+                ppi.Save(acq, fname)
                 print(f"Image saved as {fname}.")
             except ImportError:
                 print("Failed to save image")
@@ -372,7 +378,7 @@ class SEMDevice(PhenomDevice):
         """
         Display the SEM image.
         """
-        img = self.getImageData()
+        img = self.get_image_data()
         if img is not None:
             plt.imshow(img, cmap='gray')
             plt.show()
