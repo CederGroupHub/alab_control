@@ -270,6 +270,22 @@ class SEMDevice(PhenomDevice):
         else:
             print("Device is not connected.")
 
+    def position(self):
+        """
+        Get the current position of the stage.
+        """
+        if self.is_connected:
+            try:
+                pos = self.phenom.GetCurrentPos()
+                print(f"Current position: {pos}")
+                return pos
+            except ImportError:
+                print("Failed to get position")
+                return None
+        else:
+            print("Device is not connected.")
+            return None
+
     def get_sem_high_tension(self):
         """ 
         Get the SEM High Tension value (in Volt). 
@@ -343,6 +359,12 @@ class SEMDevice(PhenomDevice):
         print(display_size)
         print(magnification)
         return magnification
+    
+    def framewidth(self):
+
+        current_width = self.phenom.GetHFW()
+
+        return current_width
 
     def save_image(self, fname='Image.tiff', res_x=1080, res_y=1080, frame_avg=16):
         """
@@ -366,7 +388,10 @@ class SEMDevice(PhenomDevice):
             try:
                 acq = self.phenom.SemAcquireImage(res_x, res_y, frame_avg)
                 img_data = np.asarray(acq.image)
-                return img_data
+                width = acq.metadata.pixelSize.width * acq.image.width
+                height = acq.metadata.pixelSize.height * acq.image.height
+                pixel_size = acq.metadata.pixelSize
+                return img_data,width,height, pixel_size
             except ImportError:
                 print("Failed to get image data")
                 return None
