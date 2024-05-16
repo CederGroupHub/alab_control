@@ -42,8 +42,8 @@ class Aeris:
     # Replace IP, port, and directory paths with your own info
     def __init__(
         self,
-        ip: str = "aeris.lbl.gov",
-        results_dir: str = r"D:\\AerisData",
+        ip: str,
+        results_dir: str,
         debug: bool = False,
     ):
         self.ip = ip
@@ -171,9 +171,10 @@ class Aeris:
 
         msg = f"@SAMPLE@MEASURE@SAMPLE_ID={sample_id}@APPLICATION={program}@END"
         reply = self._query(msg)
+        print(f"{self.get_current_time()} Starting XRD scan for sample {sample_id} using program {program}")
         if "fatal" in reply:
             raise ScanFailed(
-                f"Scan failed for program {program} on sample_id {sample_id}!"
+                f"Scan failed for program {program} on sample_id {sample_id}! Aeris returned: {reply}"
             )
 
     def load_scan_results(self, sample_id: str) -> Tuple[np.array, np.array]:
@@ -210,6 +211,7 @@ class Aeris:
             ]["counts"]["#text"]
             intensities = np.array([float(val) for val in intensities.split()])
             angles = np.linspace(min_angle, max_angle, len(intensities))
+        print(f"{self.get_current_time()} Scan results for {sample_id} loaded successfully")
 
         return angles, intensities
 
@@ -248,7 +250,7 @@ class Aeris:
         msg = f"@SAMPLE@ADD@APPLICATION={default_program}@SAMPLE_ID={sample_id}@AT=0,{slot_index}@END"
         reply = self._query(msg)
         if "fatal" in reply:
-            raise AerisException(f"Could not add sample {sample_id} to location {loc}!")
+            raise AerisException(f"Could not add sample {sample_id} to location {loc}! Aeris returned: {reply}")
 
     def remove(self, sample_id: str):
         """Removes a sample from the Aeris' memory. This is necessary once the sample is physically removed from the instrument.
@@ -260,7 +262,7 @@ class Aeris:
         reply = self._query(msg)
         if "fatal" in reply:
             raise AerisException(
-                f"Could not remove sample_id {sample_id} from the Aeris' memory"
+                f"Could not remove sample_id {sample_id} from the Aeris' memory. Aeris returned: {reply}"
             )
 
     def remove_by_slot(self, loc: Union[str, int]):
@@ -274,7 +276,7 @@ class Aeris:
         reply = self._query(msg)
         if "fatal" in reply:
             raise AerisException(
-                f"Could not remove sample from location {loc} from the Aeris' memory"
+                f"Could not remove sample from location {loc} from the Aeris' memory. Aeris returned: {reply}"
             )
 
     def move(
@@ -299,11 +301,14 @@ class Aeris:
         reply = self._query(msg)
         if "fatal" in reply:
             raise AerisException(
-                f"Failed to move sample from location {initial_loc} to location {target_loc}!"
+                f"Failed to move sample from location {initial_loc} to location {target_loc}! Aeris returned: {reply}"
             )
 
     def move_arm_out_of_the_way(self):
         self.move(5, 4)
+
+    def get_current_time(self) -> str:
+        return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
 
 # Write XRD data to file

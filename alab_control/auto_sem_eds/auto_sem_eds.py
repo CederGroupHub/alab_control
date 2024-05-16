@@ -1,0 +1,411 @@
+from enum import Enum
+import abc
+import PyPhenom as ppi
+import matplotlib.pyplot as plt
+import numpy as np
+from alab_control._base_phenom_device import PhenomDevice
+# from .._base_phenom_device import PhenomDevice
+
+class SEMError(Exception):
+    """ 
+    Custom exception class for SEM-related errors.
+    """
+    def __init__(self, message, code=None):
+        super().__init__(message)
+        self.code = code
+
+class InstrumentMode(Enum):
+    """ 
+    Enumeration of possible operational states for an SEM instrument.
+
+    Attributes:
+        OFF (str): Indicates the instrument is turned off.
+        OPERATIONAL (str): Indicates the instrument is operational and ready to use.
+        STANDBY (str): Indicates the instrument is in standby mode.
+        HIBERNATE (str): Indicates the instrument is in hibernate mode to save power.
+        INITIALIZING (str): Indicates the instrument is initializing.
+        CLOSING_DOWN (str): Indicates the instrument is in the process of shutting down.
+        ERROR (str): Indicates the instrument is experiencing an error.
+    """
+    OFF = "Off"
+    OPERATIONAL = "Operational"
+    STANDBY = "Standby"
+    HIBERNATE = "Hibernate"
+    INITIALIZING = "Initializing"
+    CLOSING_DOWN = "ClosingDown"
+    ERROR = "Error"
+
+class OperationalMode(Enum):
+    """
+    Enumeration of specific operational modes for managing SEM navigation and imaging functionalities.
+
+    Attributes:
+        UNAVAILABLE (str): Mode when operation is unavailable.
+        LOAD_POS (str): Load position mode for loading samples.
+        UNLOADING (str): Mode for unloading samples.
+        SELECTING_NAVCAM (str): Mode for selecting the navigation camera.
+        SELECTING_SEM (str): Mode for selecting the SEM for operations.
+        LIVE_NAVCAM (str): Live feed mode for the navigation camera.
+        LIVE_SEM (str): Live feed mode for the SEM.
+        ACQUIRE_NAVCAM_IMAGE (str): Mode to acquire images from the navigation camera.
+        ACQUIRE_SEM_IMAGE (str): Mode to acquire images using the SEM.
+    """
+    UNAVAILABLE = "Unavailable"
+    LOAD_POS = "Loadpos"
+    UNLOADING = "Unloading"
+    SELECTING_NAVCAM = "SelectingNavCam"
+    SELECTING_SEM = "SelectingSem"
+    LIVE_NAVCAM = "LiveNavCam"
+    LIVE_SEM = "LiveSem"
+    ACQUIRE_NAVCAM_IMAGE = "AcquireNavCamImage"
+    ACQUIRE_SEM_IMAGE = "AcquireSemImage"
+
+    #when InstrumentMode = operational you could do load
+    #stnad by means unavlualbel , activate means operational
+
+# got graphic inter ->check if its is connected -> standby(means door is closed the machine is sleeping)
+# -> initializing? -> operational -> picture with 32 sample -> load() and check if it is loadpos? does it mean lowading to sem
+#->  move navcam to the desire sample number (by position x,y) check that the nav cam moved where we wanted it -> run sem-eds -> for all samples -> 
+#  -> for every step check that it is done(blocks everything else) before moving to the next
+class ImagingDevice(Enum):
+    """
+    Enumeration representing the types of imaging devices available in a system.
+
+    Attributes:
+        NAVCAM (str): Represents a Navigation Camera, used for general viewing and navigation purposes.
+        SEM (str): Represents a Scanning Electron Microscope, used for high-resolution imaging at the microscale.
+    """
+    NAVCAM = "NavCam"
+    SEM = "SEM"
+
+class SEMDevice(PhenomDevice):
+    """
+    Class for controlling a Scanning Electron Microscope (SEM).
+    """
+
+    def get_instrument_mode(self) -> InstrumentMode:
+        """
+        Get the current instrument mode of the Phenom.
+
+        Returns:
+            str: The current instrument mode.
+        """
+        if self.is_connected:
+            try:
+                mode = self.phenom.GetInstrumentMode()
+                print(f"Instrument mode: {mode}")
+                return InstrumentMode(str(mode))
+            except ImportError:
+                print("Error getting instrument mode")
+        else:
+            print("Device is not connected.")
+
+    def get_operational_mode(self) -> OperationalMode:
+        """
+        Get the operational status of the Phenom.
+
+        Returns:
+            str: The current operational mode.
+        """
+        if self.is_connected:
+            try:
+                mode = self.phenom.GetOperationalMode()
+                print(f"Operational mode: {mode}")
+                return OperationalMode(str(mode))
+            except ImportError:
+                print("Error getting operational mode")
+        else:
+            print("Device is not connected.")
+
+    def activate(self):
+        """
+        Activate the Phenom, transitioning it to operational mode.
+        """
+        if self.is_connected:
+            print("Device is connected.")
+            return self.phenom.Activate() # how do we know if it is activated  -> Instrument mode: Operational and Operational mode is unavailable
+        else:
+            print("Device is not connected.")
+    
+    def load(self):
+        """
+        Load the sample. 
+        This has to be done when OperationalMode is LoadPos and InstrumentMode is Operational.
+        This changes the OperationalMode to LiveNavCam.
+        """
+        if self.is_connected:
+            print(str(self.get_instrument_mode()))
+            if self.get_instrument_mode() == InstrumentMode("Operational") and self.get_operational_mode() == OperationalMode("Loadpos"): #"Operational"
+                return self.phenom.Load()
+            else:
+                print("Instrument mode is not in Operational and operational mode is not in Loadpos, activate first.")
+        else:
+            print("Device is not connected.")
+
+    def unload(self):
+        """
+        Unload the sample. Only unloads the sample and not open door TODO: FIND OPEN DOOR.
+        """
+        if self.get_instrument_mode() == InstrumentMode("Operational") and self.get_operational_mode() == OperationalMode("LiveNavCam"): 
+            return self.phenom.Unload()
+        else:
+            print("Device is not in Loadpos operational mode.")
+    
+    def standby(self):
+        """
+        Set Phenom in standby mode.
+        """
+        return self.phenom.Standby()
+    
+    def hibernate(self):
+        """
+        Set Phenom in hibernate mode.
+        CAUTON: UNTESTED.
+        """
+        return self.phenom.Hibernate()
+    
+    # def poweroff(self):
+    #     """
+    #     Switch off Phenom. 
+    #     WARNING!!!: WE DO NOT TEST THIS AS THIS WILL SHUTDOWN THE PHENOM FOR 14 HOURS OR MORE AND REQUIRE A LOT OF MANUAL HANDLING BEFOREHAND
+    #     """
+    #     return self.phenom.PowerOff()
+
+    def to_nav(self):
+        """
+        Switches the Phenom device to use the navigation camera.
+        """
+        if not self.is_connected:
+            print("Device is not connected. Please connect the device first.")
+            return
+
+        try:
+            self.phenom.MoveToNavCam()
+            print("Successfully switched to navigation camera.")
+        except ImportError:
+            print("Failed to switch to navigation camera")
+
+    def to_SEM(self):
+        """
+        Switch to live SEM view.
+        """
+        if self.is_connected:
+            try:
+                self.phenom.MoveToSem()
+                print("Successfully switched to SEM view.")
+            except ImportError:
+                print("Failed to switch to SEM view")
+        else:
+            print("Device is not connected.")
+        # check that self.get_operational_mode() ==SelectingSem
+
+    def auto_focus(self):
+        """
+        Automatically optimize the focus.
+        """
+        if self.is_connected:
+            try:
+                self.phenom.SemAutoFocus()
+                print("Auto-focus completed.")
+            except ImportError:
+                print("Auto-focus failed")
+        else:
+            print("Device is not connected.")
+
+    def auto_contrast_brightness(self):
+        """
+        Automatically optimize contrast and brightness.
+        """
+        if self.is_connected:
+            try:
+                self.phenom.SemAutoContrastBrightness()
+                print("Auto-contrast and brightness optimization completed.")
+            except ImportError:
+                print("Failed to optimize contrast and brightness")
+        else:
+            print("Device is not connected.")
+
+    def adjust_focus(self, new_wd):
+        """
+        Adjust the focus into some working distance in mm.
+        """
+        if self.is_connected:
+            try:
+                self.phenom.SetSemWD(new_wd * 0.001)
+                print("Focus adjusted.")
+            except ImportError:
+                print("Failed to adjust focus")
+        else:
+            print("Device is not connected.")
+
+    def move_to(self, x, y):
+        """
+        Move to a position specified by absolute coordinates.
+        x, y: 
+            Stage position in absolute coordinates (in millimeters)
+        """
+        if self.is_connected:
+            try:
+                self.phenom.MoveTo(x * 0.001, y * 0.001)
+                print("Movement completed.")
+            except ImportError:
+                print("Failed to move")
+        else:
+            print("Device is not connected.")
+
+    def move_by(self, delta_x, delta_y):
+        """
+        Move to a position specified relative to the current position
+        delta_x: 
+            Stage movement in x-direction, in milimeters from the current position.
+        delta_y: 
+            Stage movement in y-direction, in milimeters from the current position.
+        """
+        if self.is_connected:
+            try:
+                self.phenom.MoveBy(delta_x * 0.001, delta_y * 0.001)
+                print("Movement completed.")
+            except ImportError:
+                print("Failed to move")
+        else:
+            print("Device is not connected.")
+
+    def position(self):
+        """
+        Get the current position of the stage.
+        """
+        if self.is_connected:
+            try:
+                pos = self.phenom.GetCurrentPos()
+                print(f"Current position: {pos}")
+                return pos
+            except ImportError:
+                print("Failed to get position")
+                return None
+        else:
+            print("Device is not connected.")
+            return None
+
+    def get_sem_high_tension(self):
+        """ 
+        Get the SEM High Tension value (in Volt). 
+        """
+        value = - self.phenom.GetSemHighTension()
+        print(f"SEM high tension is: {value} Volts.")
+        return value
+       
+    def set_sem_high_tension(self, value):
+        """ 
+        Set the SEM High Tension value (in Volt). 
+        """
+        print(f"Setting the SEM high tension to {value} Volts.")
+        return self.phenom.SetSemHighTension(-value)
+
+    def get_sem_spot_size(self):
+        """
+        Query the current SEM spot size (in Amps / Volt½)
+        """
+        value=self.phenom.GetSemSpotSize()
+        print(f"SEM Beam intensity (spot size) is: {value} Amps / Volt½")
+        return value
+    
+    def set_sem_spot_size(self,value):
+        """
+        Set the SEM spot size (in Amps / Volt½)
+        TODO: default values and range
+        For now should just use one fixed value (MAP) as spot size change might need stigmate calibration.
+        """
+        self.phenom.SetSemSpotSize(value)
+        value_get=self.phenom.GetSemSpotSize()
+        print(f"SEM Beam intensity (spot size) set to {value_get} Amps / Volt½")
+        return 
+   
+    def get_frame_width(self):
+        """
+        Get the current frame width.
+        """
+        if self.is_connected:
+            try:
+                value=self.phenom.GetHFW()
+                print(f"Frame width (FW) is: {value} mm.")
+                return value
+            except ImportError:
+                print("Failed to get frame width")
+                return None
+        else:
+            print("Device is not connected.")
+            return None
+
+    def zoom(self, amt):
+        """
+        Zoom in or out by a given amount. 0.5 is 50% zoom in, 2 is 200% zoom out.
+        """
+        if self.is_connected:
+            try:
+                current_width = self.phenom.GetHFW()
+                new_width = amt * current_width
+                self.phenom.SetHFW(new_width)
+                print("Zoom adjusted.")
+            except ImportError:
+                print("Failed to adjust zoom")
+        else:
+            print("Device is not connected.")
+
+    def get_magnification(self, display_size):
+        """
+        Returns the image magnification for the given HFW relative to the given display size.
+        """
+        magnification =  ppi.MagnificationFromFieldWidth(self.phenom.GetHFW(), display_size)
+        print(display_size)
+        print(magnification)
+        return magnification
+    
+    def framewidth(self):
+
+        current_width = self.phenom.GetHFW()
+
+        return current_width
+
+    def save_image(self, fname='Image.tiff', res_x=1080, res_y=1080, frame_avg=16):
+        """
+        Save an SEM image.
+        """
+        if self.is_connected:
+            try:
+                acq = self.phenom.SemAcquireImage(res_x, res_y, frame_avg)
+                ppi.Save(acq, fname)
+                print(f"Image saved as {fname}.")
+            except ImportError:
+                print("Failed to save image")
+        else:
+            print("Device is not connected.")
+
+    def get_image_data(self, res_x=1080, res_y=1080, frame_avg=16):
+        """
+        Get SEM image data.
+        """
+        if self.is_connected:
+            try:
+                acq = self.phenom.SemAcquireImage(res_x, res_y, frame_avg)
+                img_data = np.asarray(acq.image)
+                width = acq.metadata.pixelSize.width * acq.image.width
+                height = acq.metadata.pixelSize.height * acq.image.height
+                pixel_size = acq.metadata.pixelSize
+                return img_data,width,height, pixel_size
+            except ImportError:
+                print("Failed to get image data")
+                return None
+        else:
+            print("Device is not connected.")
+            return None
+
+    def show_image(self):
+        """
+        Display the SEM image.
+        """
+        img = self.get_image_data()
+        if img is not None:
+            plt.imshow(img, cmap='gray')
+            plt.show()
+        else:
+            print("No image data to display.")

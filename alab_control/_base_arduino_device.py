@@ -31,3 +31,6 @@ class BaseArduinoDevice(abc.ABC):
         if jsonify:
             return response.json()
         return response
+    
+    def get_current_time(self) -> str:
+        return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())

@@ -306,6 +306,7 @@ class FurnaceController(FurnaceRegister):
         """
         self.configure_segments(*segments)
         self.play()
+        print(f"{self.get_current_time()} Running Program on port {self._port}")
 
     def play(self):
         """
@@ -476,3 +477,6 @@ class FurnaceController(FurnaceRegister):
             ramp_rate_per_min=ramp_rate_per_min,
             endt=endt.value if endt is not None else endt,
         )))
+
+    def get_current_time(self) -> str:
+        return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())

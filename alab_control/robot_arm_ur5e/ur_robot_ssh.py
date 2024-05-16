@@ -40,6 +40,28 @@ class URRobotSSH:
             compressed_program = gzip.compress(program_string.encode("utf-8"))
             with sftp.open((Path(base) / file_name).as_posix(), "wb") as f:
                 f.write(compressed_program)
+    
+    def upload_file(self, local_file_path: str, remote_file_path: str):
+        with self._ssh.open_sftp() as sftp:
+            sftp.put(local_file_path, remote_file_path)
+
+    def remove_file(self, file_path: str):
+        with self._ssh.open_sftp() as sftp:
+            sftp.remove(file_path)
+        
+    def download_folder(self, remote_folder_path: str, local_folder_path: str, remove_remote_files: bool = False):
+        """
+        Sync a remote folder to a local folder.
+        Download files from the remote folder that are not in the local folder.
+        Remove files from the remote folder that are downloaded if remove_remote_files is True.
+        """
+        with self._ssh.open_sftp() as sftp:
+            for remote_file in sftp.listdir(remote_folder_path):
+                local_file = Path(local_folder_path) / remote_file
+                if not local_file.exists():
+                    sftp.get(remote_folder_path + "/" + remote_file, local_file.as_posix())
+                    if remove_remote_files:
+                        sftp.remove(remote_folder_path + "/" + remote_file)
 
     def close(self):
         self._ssh.close()
