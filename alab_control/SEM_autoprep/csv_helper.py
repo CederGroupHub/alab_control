@@ -9,7 +9,9 @@ def float_or_none(s):
   return float(s)
 
 
-def read_CSV_into_positions(path=CWD + '\\alab_control\\SEM_autoprep\\Tests\\SampleFile.csv'):
+def read_CSV_into_positions(path=CWD + '\\SEM_autoprep\\Tests\\SampleFile.csv'):
+  print(f"path of cwd is {CWD}")
+  print(f"path of csv file is {path}")
   with open(path, mode ='r') as file:
     csvFile = csv.reader(file)
     for lines in csvFile:

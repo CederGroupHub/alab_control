@@ -1,9 +1,20 @@
 from alab_control.ender3 import Ender3
 #from ender3 import Ender3
 import serial
+import socket
+import time
 
 EXPOSURE_DISTANCE = 25.0
+crucible_exp_dist = 89
 
+def send_command(message, host = '192.168.0.46', port = '8888'):
+    port=int(port)
+    
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.connect((host,port))
+        s.sendall(message.encode())
+        data = s.recv(1024)
+        print('Received: ', repr(data))
 
 class SamplePrepEnder3(Ender3):
     """This class is for controlling the Ender3 3D printer for sample preparation."""
@@ -13,10 +24,10 @@ class SamplePrepEnder3(Ender3):
     
 
     # positions
-    HOME = (90, 120, 60)
-    STUB1 = (4.5, 129.6, None)  # z is set later
-    STUB2 = (20.5, 129.5, None)  # z is set later
-    PREP_EXP = (110, 18.5, None)
+    HOME = (90, 120, 5)
+    STUB1 = (48.2, 125.7, None)  # z is set later
+    STUB2 = (48.2, 125.7, None)  # z is set later
+    PREP_EXP = (60, 48, None)
 
     #we need 18 clean stubs
     #we need 18 prepared stubs
@@ -35,8 +46,13 @@ if __name__ == "__main__":
         "**************************************************************************** \n "
     )
 
+    print("Starting the control panel...")
+    send_command("STANDBY")
+    time.sleep(3)
+    print("Done.")
+
     try:
-        r = SamplePrepEnder3("COM6") 
+        r = SamplePrepEnder3("COM7") 
     except Exception as var_error:
         print(f"An error occurred: {var_error}")
         print(f"These are the available connections: \n")
@@ -53,6 +69,8 @@ if __name__ == "__main__":
     r.moveto(*r.HOME)
     r.speed = 0.5
     print("Done.")
+
+    
     
     
     while True:
@@ -81,14 +99,18 @@ if __name__ == "__main__":
             else:
                 print("Invalid choice. Please try again.")
 
-        pump_confirm = input("Please turn on vacuum pump and press enter.")
+        #pump_confirm = input("Please enter to turn on vacuum pump:")
+        send_command("SEMPREPVAC1")
+        time.sleep(2)
         r.moveto(z=99)
         r.speed = 0.02
-        r.moveto(z=104)
+        r.moveto(z=103)
         r.speed = 0.005
-        r.moveto(z=107.3)
+        r.moveto(z=108)
+        r.moveto(z=105)
 
-        r.moveto(z=104)
+        r.speed = 0.5
+        r.moveto(z=15)
 
         while True:
             picked_confirm = input(
@@ -97,8 +119,9 @@ if __name__ == "__main__":
             if picked_confirm.lower() == "c":  # abort not available yet
                 break
             elif picked_confirm.lower() == "r":
-                r.moveto(z=107.3)
+                r.speed = 0.02
                 r.moveto(z=104)
+                r.moveto(z=108)
                 picked_confirm = input(
                     "Stub picked? If not, R to try again, C to continue: "
                 )
@@ -106,7 +129,7 @@ if __name__ == "__main__":
                     break
             elif picked_confirm.lower() == "m":
                 r.speed = 0.5
-                r.moveto(z=60)
+                r.moveto(z=15)
                 r.moveto(*r.HOME)
                 picked_confirm = input(
                     "Press enter when the stub is properly attached."
@@ -116,14 +139,14 @@ if __name__ == "__main__":
                 print("Invalid choice. Please try again.")
 
         r.speed = 0.5
-        r.moveto(z=60)
+        r.moveto(z=15)
 
         r.moveto(*r.HOME)
         #input("PRESS ENTER TO GO TO EXPOSURE POSITION")
 
 
         r.moveto(*r.PREP_EXP)
-        r.moveto(z=132 - r.CRUCIBLE_HEIGHT)
+        r.moveto(z=crucible_exp_dist - r.CRUCIBLE_HEIGHT)
 
         while True:
             exp_dist = float(
@@ -132,14 +155,16 @@ if __name__ == "__main__":
             if exp_dist < EXPOSURE_DISTANCE * -1 or exp_dist > EXPOSURE_DISTANCE:
                 exp_dist = 0
                 print("Invalid choice. Please try again.")
-                #Alex, can you make the exposition distance in decimals instead of integers? 
+                
             else:
                 break
 
-        r.moveto(z=132 -  r.CRUCIBLE_HEIGHT + exp_dist)
+        r.moveto(z=crucible_exp_dist -  r.CRUCIBLE_HEIGHT + exp_dist)
         print("\n***** STUB READY TO BE EXPOSED *****")
-        exp_confirm = input("Please press enter when the exposing is finished.")
-        r.moveto(z=60)
+        exp_confirm = input("Please press enter to start exposition")
+        send_command("EXPOSURV10000T05000")
+        time.sleep(7)
+        r.moveto(z=15)
         r.moveto(*r.HOME)
 
         if stub_choice == "1":
@@ -152,18 +177,24 @@ if __name__ == "__main__":
         r.moveto(z=105)
         r.speed = 0.005
         r.moveto(z=107.3)
-        pump_confirm = input("Please turn off vacuum pump and press enter.")
+        #pump_confirm = input("Please press enter to turn off vacuum pump")
+        send_command("STANDBY")
+        time.sleep(10)
         r.speed = 0.5
-        r.moveto(z=60)
+        r.moveto(z=15)
         r.moveto(*r.HOME)
 
         more_confirm = input("Do you have more samples to expose? Y/N and press enter:")
         if more_confirm == "y" or more_confirm == "Y":
             print("Restarting the procedure!")
+            r.moveto(x=15, y=15, z=15)
+            print("Homing head unit. Please wait...")
+            r.moveto(*r.HOME)
         elif more_confirm == "n" or more_confirm == "N":
             print("Wait until is safe to shutdown. Preparing...")
             r.moveto(x=15, y=15, z=15)
             print("Done. Now you can shutdown the system.")
+            send_command("SHUTDWN")
             break
         else:
             print("Invalid choice. Please try again.")

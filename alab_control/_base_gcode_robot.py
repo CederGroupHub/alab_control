@@ -122,7 +122,13 @@ class BaseGcodeRobot(ABC):
             zhop (bool): Whether to z-hop (raise the z-axis) before moving to the target position. This is useful to avoid collisions.
         """
         x, y, z = self.check_move_is_valid(x, y, z)  # check for invalid move
-        print("Moving to " + str((x, y, z)))
+
+        ######################################################
+        # Uncomment next line to print positions for each movement request
+
+        #print("Moving to " + str((x, y, z)))
+
+
         if (x == self.position[0]) and (y == self.position[1]):
             zhop = False  # turn off zhopping if we're not moving in x or y
 
@@ -141,6 +147,20 @@ class BaseGcodeRobot(ABC):
         else:
             self._movecommand(x, y, z)
             self._waitformovement()
+
+    def moverel(self, x=0, y=0, z=0, zhop=False):
+        """
+        moves by coordinates relative to the current position
+        """
+        try:
+            if len(x) == 3:
+                x, y, z, = x #split 3 coordinates into appropriate variables
+        except:
+            pass
+        x += self.position[0]
+        y += self.position[1]
+        z+= self.position[2]
+        self.moveto(x, y, z, zhop)
 
     def moveto_sequence(
         self, coordinates: List[tuple[float | None, float | None, float | None]]

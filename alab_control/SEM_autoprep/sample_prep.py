@@ -44,7 +44,7 @@ if __name__ == "__main__":
     )
 
     try:
-        r = SamplePrepEnder3("COM6") 
+        r = SamplePrepEnder3("COM7") 
     except Exception as var_error:
         print(f"An error occurred: {var_error}")
         print(f"These are the available connections: \n")

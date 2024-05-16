@@ -17,25 +17,28 @@ if __name__ == "__main__":
     print(
         "**************************************************************************** \n "
     )
-    print("Hello! This code will guide you on positioning the needle or leveling the bed \n")
+    print("Hello! This code will help you with communicating with the 3D Printer \n")
     print(
         "**************************************************************************** \n "
     )
 
     try:
-        r = SamplePrepEnder3("COM6") 
+        r = SamplePrepEnder3("COM7") 
     except Exception as var_error:
         print(f"An error occurred: {var_error}")
         print(f"These are the available connections: \n")
         ports = list(serial.tools.list_ports.comports())
         for p in ports:
             print(p)
-        input("\n Edit the source code to match the MAPLE COM port. Press enter to end the program.")
+        input("\n Press enter to end the program.")
         exit()
 
     print("Printer is resetting the positioning system. Please wait... \n")
     r.gohome()
-    r.speed = 0.5
+
+    print("Homing head unit. Please wait...")
+    r.moveto(10,10,10)
+    r.speed = 0.2
     print("Done.")
 
 
@@ -44,14 +47,14 @@ if __name__ == "__main__":
 
         while True:
             # Ask the user to choose part 1 or part 2
-            getpos = input("Enter a list of numbers separated by space: ")
+            getpos = input("Enter the coordinates separated with spaces: ")
             getpos_list = getpos.split()
             getpos_list = [float(num) for num in getpos_list]
             TESTER = tuple(getpos_list)
             
             try:
                 r.moveto(x=TESTER[0],y=TESTER[1],z=TESTER[2])
-                print("REMINDER: Always be aware of obstacles! Move Z first to avoid breaking things!!! \n")
+                print("REMINDER: Always be aware of obstacles! Move Z up first to avoid breaking things!!! \n")
                 break
             except Exception:
                 print("Invalid choice. Please try again.")
