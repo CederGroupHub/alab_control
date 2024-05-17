@@ -8,6 +8,8 @@ import sys
 EXPOSURE_DISTANCE = 0 #value between -25 and +25, measured in mm, from the top of the crucible
 EXPOSURE_VOLTAGE = "10000" #value between 01000 and 30000, measured in volts
 EXPOSURE_TIME = "05000" #value between 250 and 99999, measured in millli seconds
+DESTINATION = 1 #0 is to return to stub holder. 1 is to place on phenom stage
+MANUAL_STUB_LOAD = 0 #0 is to automatically pick the stubs from the stub holder. 1 is to manually place them on the needle
 
 
 #constants for safe operation
@@ -32,26 +34,35 @@ def send_command(message, host = '192.168.0.46', port = '8888'):
         s.sendall(message.encode())
         data = s.recv(1024)
         decoded = data.decode('utf-8')
-        print('Socket reply>>'+decoded)
+        #print('Socket reply>>'+decoded)
+        return decoded
 
 class SamplePrepEnder3(Ender3):
     """This class is for controlling the Ender3 3D printer for sample preparation."""
 
 
     # positions
-    HOME = (90, 120, 5)
-    STUB = (49.7, 124.8, None)  # z is set later
+    CENTRE_POS = (90, 120, 5)
     PREP_EXP = (60, 48, None)
     STANDBY = (15, 15, 15)
-    Z_STANDBY = (None, None, 15)
-    Z_STUB_PICK0 = (None, None, 107.3)
-    Z_STUB_PICK1 = (None, None, 103)
-    Z_STUB_PICK2 = (None, None, 99)
-
-
-
-
-
+    Z_STANDBY = (None, None, 5)
+    STUB = (50.5, 125.5, None)
+    Z_STUB_PICK2 = (None, None, 61)
+    Z_STUB_PICK1 = (None, None, 67)
+    Z_STUB_PICK0 = (None, None, 70)
+    LASER = (165, 145, None)
+    Z_LASER = (None, None, 62)
+    MIRROR = (103, 97, None)
+    Z_MIRROR = (None, None, 65)
+    ROTATOR_0 = (120, 109.5, None)
+    Z_ROTATOR_0 = (None, None, 66)
+    ROTATOR_1 = (134, 109.5, 66) #Z value MUST agree with Z_ROTATOR_0
+    GRIPPER_0 = (110, 131, None)
+    Z_GRIPPER_0 = (None, None, 51)
+    GRIPPER_1 = (95, None, None)
+    PHENOM_POS8 = (133, 76, None)
+    Z_PHENOM_POS8_1 = (None, None, 32)
+    Z_PHENOM_POS8_0 = (None, None, 35)
 
     #we need 18 clean stubs
     #we need 18 prepared stubs
@@ -96,11 +107,13 @@ if __name__ == "__main__":
     r.gohome()
 
     print("Homing head unit. Please wait...")
-    r.moveto(*r.HOME)
+    r.moveto(*r.STANDBY)
     r.speed = SPEED_NORMAL
     print("Done.")
     r.moveto(*r.STUB)
-    send_command("SEMPREPVAC1")
+    print("Turning on vacuum pump 1...")
+    reply = send_command("SEMPREPVAC1")
+    print("Control panel replied >>" + reply)
     time.sleep(PAUSE)
     r.moveto(*r.Z_STUB_PICK2)
     r.speed = SPEED_LOW
@@ -112,6 +125,7 @@ if __name__ == "__main__":
     r.speed = SPEED_NORMAL
     r.moveto(*r.Z_STANDBY)
 
+    '''
     while True:
         picked_confirm = input(
             "Stub picked? C to continue, R to try again, M for manual, A to abort: "
@@ -134,18 +148,49 @@ if __name__ == "__main__":
         elif picked_confirm.lower() == "m":
             r.speed = SPEED_NORMAL
             r.moveto(*r.Z_STANDBY)
-            r.moveto(*r.HOME)
+            #r.moveto(*r.HOME)
             picked_confirm = input(
                 "Press enter when the stub is properly attached."
             )
             break
         else:
             print("Invalid choice. Please try again.")
+    '''
+    stub_pick_trials = 0
+    while True:
+        if stub_pick_trials >= 2:
+            print("Stub not picked 3 times in a row. Aborted.")
+            sys.exit()
+
+        print("Checking if stub was picked...")
+        r.moveto(*r.Z_STANDBY)
+        r.moveto(*r.LASER)
+        r.moveto(*r.Z_LASER)
+        decoded = send_command("SEMPREPTEST")
+        if decoded == "LASER1":
+            print("Stub was picked!")
+            break
+        else:
+            print("...Trying again...")
+            r.moveto(*r.Z_STANDBY)
+            r.moveto(*r.STUB)
+            r.moveto(*r.Z_STUB_PICK2)
+            r.speed = SPEED_LOW
+            r.moveto(*r.Z_STUB_PICK1)
+            r.speed = SPEED_VLOW
+            r.moveto(*r.Z_STUB_PICK0)
+            r.moveto(*r.Z_STUB_PICK1)
+            r.speed = SPEED_NORMAL
+            r.moveto(*r.Z_STANDBY)
+            stub_pick_trials = stub_pick_trials+1
+
 
     r.speed = SPEED_NORMAL
     r.moveto(*r.Z_STANDBY)
 
-    r.moveto(*r.HOME)
+    r.moveto(*r.CENTRE_POS)
+
+    
     r.moveto(*r.PREP_EXP)
     r.moveto(z=crucible_exp_dist - CRUCIBLE_HEIGHT)
 
@@ -157,14 +202,68 @@ if __name__ == "__main__":
     time.sleep(int(EXPOSURE_TIME)/1000+2)
     print("\n***** EXPOSING PROCEDURE FINISHED *****")
     r.moveto(*r.Z_STANDBY)
-    r.moveto(*r.HOME)
-    r.moveto(*r.STUB)
+    #r.moveto(*r.STANDBY)
 
-    r.moveto(*r.Z_STUB_PICK1)
-    r.speed = SPEED_VLOW
-    r.moveto(*r.Z_STUB_PICK0)
-    send_command("STANDBY")
-    time.sleep(PAUSE_VAC)
-    r.speed = SPEED_NORMAL
+    
+    print("\nTaking a picture of the stub...")
+    r.moveto(*r.MIRROR)
+    r.moveto(*r.Z_MIRROR)
+    print("\n... **CLICK** ...")
+    time.sleep(2)
+    print("\nDone.")
     r.moveto(*r.Z_STANDBY)
-    r.moveto(*r.STANDBY)
+    #r.moveto(*r.STANDBY)
+    
+
+    if DESTINATION == 0:
+        print("\nStoring stub back on the stub holder...")
+        r.moveto(*r.STUB)
+        r.moveto(*r.Z_STUB_PICK1)
+        r.speed = SPEED_VLOW
+        r.moveto(*r.Z_STUB_PICK0)
+        send_command("STANDBY")
+        time.sleep(PAUSE_VAC)
+        r.speed = SPEED_NORMAL
+        print("\nDone.")
+        r.moveto(*r.Z_STANDBY)
+        r.moveto(*r.STANDBY)
+    elif DESTINATION == 1:
+        print("\nStoring stub on the phenom stage...")
+        r.moveto(*r.ROTATOR_0)
+        r.moveto(*r.Z_ROTATOR_0)
+        r.speed = SPEED_VLOW
+        r.moveto(*r.ROTATOR_1)
+        send_command("STANDBY")
+        time.sleep(PAUSE_VAC/2)
+        r.speed = SPEED_NORMAL
+        r.moveto(*r.Z_STANDBY)
+        send_command("SEMPREPR155")
+        r.moveto(*r.GRIPPER_0)
+        r.moveto(*r.Z_GRIPPER_0)
+        send_command("SEMSTORG105")
+        time.sleep(2)
+        r.speed = SPEED_VLOW
+        r.moveto(*r.GRIPPER_1)
+        r.speed = SPEED_NORMAL
+        r.moveto(*r.Z_STANDBY)
+        send_command("SEMPREPR020")
+        send_command("PHLIDMVL040")
+        time.sleep(7)
+        r.moveto(*r.PHENOM_POS8)
+        r.moveto(*r.Z_PHENOM_POS8_1)
+        r.speed = SPEED_VLOW
+        r.moveto(*r.Z_PHENOM_POS8_0)
+        send_command("SEMSTORG085")
+        r.speed = SPEED_NORMAL
+        r.moveto(*r.Z_STANDBY)
+        send_command("SEMSTORG000")
+        send_command("PHLIDMVL150")
+        r.moveto(*r.STANDBY)
+
+
+
+
+
+        print("\nDone.")
+        #r.moveto(*r.Z_STANDBY)
+        #r.moveto(*r.STANDBY)
