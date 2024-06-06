@@ -1,1 +1,1 @@
-from .auto_sem_eds import SEMDevice, SEMError, InstrumentMode, OperationalMode, ImagingDevice
+from .auto_sem_eds import PhenomDriver, SEMError, InstrumentMode, OperationalMode, ImagingDevice
