@@ -2,6 +2,7 @@ from enum import Enum
 import abc
 import matplotlib.pyplot as plt
 import numpy as np
+import sys
 # from .._base_phenom_device import PhenomDevice
 
 class SEMError(Exception):
@@ -97,7 +98,7 @@ class PhenomDriver():
         """
         Install and verify the license for the Phenom device.
         """
-        if "ppi" not in list(globals()["imported_modules"]) or "PyPhenom" not in list(globals()["imported_modules"]):
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
             import PyPhenom as ppi
         # Extracting license details
         instrument = self.license_details.get('instrument')
@@ -117,7 +118,7 @@ class PhenomDriver():
         """
         Connect to the Phenom device.
         """
-        if "ppi" not in list(globals()["imported_modules"]) or "PyPhenom" not in list(globals()["imported_modules"]):
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
             import PyPhenom as ppi
 
         try:
@@ -410,7 +411,7 @@ class PhenomDriver():
         """
         Returns the image magnification for the given HFW relative to the given display size.
         """
-        if "ppi" not in list(globals()["imported_modules"]) or "PyPhenom" not in list(globals()["imported_modules"]):
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
             import PyPhenom as ppi
         magnification =  ppi.MagnificationFromFieldWidth(self.phenom.GetHFW(), display_size)
         print(display_size)
@@ -427,7 +428,7 @@ class PhenomDriver():
         """
         Save an SEM image.
         """
-        if "ppi" not in list(globals()["imported_modules"]) or "PyPhenom" not in list(globals()["imported_modules"]):
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
             import PyPhenom as ppi
         if self.is_connected:
             try:
