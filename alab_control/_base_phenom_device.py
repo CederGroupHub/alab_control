@@ -1,7 +1,5 @@
-import PyPhenom as ppi
-
 class PhenomDevice:
-    def __init__(self, device_name, license_details):
+    def __init__(self, license_details):
         """
         Initialize the Phenom device with license installation.
         
@@ -9,7 +7,6 @@ class PhenomDevice:
             device_name (str): A descriptive name for the Phenom device.
             license_details (dict): Details necessary for license installation, including 'instrument', 'username', 'password', and optionally 'PhenomID' if it's different from the instrument for licensing.
         """
-        self.device_name = device_name
         self.license_details = license_details
         self.phenom = None  # This will be initialized in the connect method
         self.is_connected = False
@@ -37,15 +34,17 @@ class PhenomDevice:
         """
         Connect to the Phenom device.
         """
+        import PyPhenom as ppi
+
         try:
             if self.phenomID:
                 self.phenom = ppi.Phenom(self.phenomID, self.license_details['username'], self.license_details['password'])
             else:
                 self.phenom = ppi.Phenom()
             self.is_connected = True
-            print(f"{self.device_name} connected successfully.")
+            print("Phenom connected successfully.")
         except ImportError:
-            print(f"Failed to connect to {self.device_name}")
+            print("Failed to connect to Phenom.")
             self.is_connected = False
 
     def disconnect(self):
