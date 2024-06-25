@@ -11,3 +11,4 @@ opencv-python
 xmltodict~=0.13.0
 molmass
 urx @ git+https://github.com/Alab-Hub/python-urx
+zeep
