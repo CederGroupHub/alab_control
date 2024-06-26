@@ -137,7 +137,7 @@ class PhenomDriver():
         Disconnect from the Phenom device.
         """
         self.is_connected = False
-        print(f"{self.device_name} disconnected.")
+        print("Phenom disconnected.")
 
     def get_instrument_mode(self) -> InstrumentMode:
         """
@@ -150,7 +150,7 @@ class PhenomDriver():
             try:
                 mode = self.phenom.GetInstrumentMode()
                 print(f"Instrument mode: {mode}")
-                return InstrumentMode(str(mode))
+                return str(mode)
             except ImportError:
                 print("Error getting instrument mode")
         else:
@@ -167,7 +167,7 @@ class PhenomDriver():
             try:
                 mode = self.phenom.GetOperationalMode()
                 print(f"Operational mode: {mode}")
-                return OperationalMode(str(mode))
+                return str(mode)
             except ImportError:
                 print("Error getting operational mode")
         else:
@@ -414,11 +414,10 @@ class PhenomDriver():
         if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
             import PyPhenom as ppi
         magnification =  ppi.MagnificationFromFieldWidth(self.phenom.GetHFW(), display_size)
-        print(display_size)
-        print(magnification)
         return magnification
     
     def framewidth(self):
+        """Returns the frame width."""
 
         current_width = self.phenom.GetHFW()
 
@@ -447,7 +446,7 @@ class PhenomDriver():
         if self.is_connected:
             try:
                 acq = self.phenom.SemAcquireImage(res_x, res_y, frame_avg)
-                img_data = np.asarray(acq.image)
+                img_data = acq.image
                 width = acq.metadata.pixelSize.width * acq.image.width
                 height = acq.metadata.pixelSize.height * acq.image.height
                 pixel_size = acq.metadata.pixelSize
@@ -464,6 +463,7 @@ class PhenomDriver():
         Display the SEM image.
         """
         img = self.get_image_data()
+        img = np.asarray(img[0])
         if img is not None:
             plt.imshow(img, cmap='gray')
             plt.show()
