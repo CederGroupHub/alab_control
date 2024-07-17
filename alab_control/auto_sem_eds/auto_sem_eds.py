@@ -1,5 +1,6 @@
 from enum import Enum
 import abc
+import time
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
@@ -93,6 +94,7 @@ class PhenomDriver():
         self.phenom = None  # This will be initialized in the connect method
         self.is_connected = False
         self.phenomID = license_details.get('PhenomID', '')  # Optional: Use a specific PhenomID if provided
+        self.have_just_move_to_SEM = True
 
     def install_license(self):
         """
@@ -138,8 +140,11 @@ class PhenomDriver():
         """
         self.is_connected = False
         print(f"{self.device_name} disconnected.")
+    
+    def reset_have_just_move_to_SEM(self):
+        self.have_just_move_to_SEM = True
 
-    def get_instrument_mode(self) -> InstrumentMode:
+    def get_instrument_mode(self) -> str:
         """
         Get the current instrument mode of the Phenom.
 
@@ -150,13 +155,13 @@ class PhenomDriver():
             try:
                 mode = self.phenom.GetInstrumentMode()
                 print(f"Instrument mode: {mode}")
-                return InstrumentMode(str(mode))
+                return str(mode)
             except ImportError:
                 print("Error getting instrument mode")
         else:
             print("Device is not connected.")
 
-    def get_operational_mode(self) -> OperationalMode:
+    def get_operational_mode(self) -> str:
         """
         Get the operational status of the Phenom.
 
@@ -167,7 +172,7 @@ class PhenomDriver():
             try:
                 mode = self.phenom.GetOperationalMode()
                 print(f"Operational mode: {mode}")
-                return OperationalMode(str(mode))
+                return str(mode)
             except ImportError:
                 print("Error getting operational mode")
         else:
@@ -447,11 +452,7 @@ class PhenomDriver():
         if self.is_connected:
             try:
                 acq = self.phenom.SemAcquireImage(res_x, res_y, frame_avg)
-                img_data = np.asarray(acq.image)
-                width = acq.metadata.pixelSize.width * acq.image.width
-                height = acq.metadata.pixelSize.height * acq.image.height
-                pixel_size = acq.metadata.pixelSize
-                return img_data,width,height, pixel_size
+                return acq.image
             except ImportError:
                 print("Failed to get image data")
                 return None
@@ -469,3 +470,64 @@ class PhenomDriver():
             plt.show()
         else:
             print("No image data to display.")
+
+    def get_pressure(self):
+        """
+        Get the current vacuum pressure in the SEM chamber.
+        """
+        pressure = self.phenom.SemGetVacuumChargeReductionState().pressureEstimate
+        print(f"Current vacuum pressure: {pressure} Pa.")
+        return float(pressure)
+
+    def set_detector(self, detector_name):
+        """
+        Set the detector to use.
+
+        Args:
+            detector_name (str): Name of the detector to use. Can be one of the following:
+                "BSD All", "BSD NorthSouth", "BSD EastWest", "SED", "BSD A", "BSD B", "BSD C", "BSD D"
+        
+        Returns:
+            detector_name (str): Name of the detector set.
+        """
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+            import PyPhenom as ppi
+        if detector_name == "BSD All":
+            requested_mode = ppi.DetectorMode.All
+        elif detector_name == "BSD NorthSouth":
+            requested_mode = ppi.DetectorMode.NorthSouth
+        elif detector_name == "BSD EastWest":
+            requested_mode = ppi.DetectorMode.EastWest
+        elif detector_name == "SED":
+            if self.get_pressure() > 1:
+                # wait for 2 minute max for the pressure to drop below 1 Pa and check again every 10 seconds
+                for i in range(12):
+                    if self.get_pressure() <= 1:
+                        break
+                    time.sleep(10)
+                if self.get_pressure() > 1:
+                    raise SEMError("Cannot enable SED when vacuum pressure is above 1 Pa.")
+            try:
+                if self.have_just_move_to_SEM:
+                    self.phenom.SemEnableSed()
+                    self.have_just_move_to_SEM = False
+                    time.sleep(60)
+                else:
+                    self.phenom.SemEnableSed()
+                requested_mode = ppi.DetectorMode.Sed
+            except ppi.Error as e:
+                raise SEMError(f"Failed to enable SED detector. Error message: {e.args[0]}.")
+        elif detector_name == "BSD A":
+            requested_mode = ppi.DetectorMode.A
+        elif detector_name == "BSD B":
+            requested_mode = ppi.DetectorMode.B
+        elif detector_name == "BSD C":
+            requested_mode = ppi.DetectorMode.C
+        elif detector_name == "BSD D":
+            requested_mode = ppi.DetectorMode.D
+        else:
+            raise SEMError("Invalid viewing mode specified.")
+        viewingMode = self.phenom.GetSemViewingMode()
+        viewingMode.scanParams.detector = requested_mode
+        self.phenom.SetSemViewingMode(viewingMode)
+        return detector_name
