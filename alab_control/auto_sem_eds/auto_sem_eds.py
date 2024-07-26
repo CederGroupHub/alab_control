@@ -509,9 +509,9 @@ class PhenomDriver():
             print(f"Failed to get spectroscopy element information for {element_name}.")
             return None
         
-    def set_position(self, x, y):
+    def get_position(self, x, y):
         """
-        Sets the position using the specified x and y relative coordinates.
+        Gets the position using the specified x and y relative coordinates.
         """
         if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
             import PyPhenom as ppi
