@@ -1,5 +1,6 @@
 from enum import Enum
 import abc
+import time
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
@@ -241,19 +242,27 @@ class PhenomDriver():
         except ImportError:
             print("Failed to switch to navigation camera")
 
-    def to_SEM(self):
+    def to_SEM(self, max_retries=2):
         """
         Switch to live SEM view.
+        max_retries:
+            Maximum number of retries to switch to SEM view (default is 2)
         """
         if self.is_connected:
-            try:
-                self.phenom.MoveToSem()
-                print("Successfully switched to SEM view.")
-            except ImportError:
-                print("Failed to switch to SEM view")
+            wait_time = 30
+            retries = 0
+            while retries < max_retries:
+                try:
+                    self.phenom.MoveToSem()
+                    print("Successfully switched to SEM view.")
+                    return
+                except:
+                    retries += 1
+                    print(f'Failed to switch to SEM view. Attempt {retries} of {max_retries}.\nWaiting {wait_time} seconds before retrying.')
+                    time.sleep(wait_time)
+            print("Maximum retries reached. Failed to switch to SEM view.")
         else:
             print("Device is not connected.")
-        # check that self.get_operational_mode() ==SelectingSem
 
     def auto_focus(self):
         """
