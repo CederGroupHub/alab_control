@@ -478,3 +478,85 @@ class PhenomDriver():
             plt.show()
         else:
             print("No image data to display.")
+
+    def load_pulse_processor_settings(self):
+        """
+        Load pulse processor settings.
+        """
+        if self.is_connected:
+            try:
+                self.phenom.LoadPulseProcessorSettings()
+                print("Pulse processor settings loaded successfully.")
+                return True
+            except ImportError:
+                print("Failed to load pulse processor settings.")
+                return False
+        else:
+            print("Device is not connected.")
+            return False
+    
+    def get_spectroscopy_element(self, element_name):
+        """
+        Returns the spectroscopy element information for the given element name.
+        """
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+            import PyPhenom as ppi
+        
+        try:
+            element = ppi.Spectroscopy.Element(element_name)
+            return element
+        except ImportError:
+            print(f"Failed to get spectroscopy element information for {element_name}.")
+            return None
+        
+    def set_position(self, x, y):
+        """
+        Sets the position using the specified x and y relative coordinates.
+        """
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+            import PyPhenom as ppi
+        
+        try:
+            position = ppi.Position(x, y)
+            return position
+        except ImportError:
+            print(f"Failed to set position to ({x}, {y}).")
+            return None
+        
+    def run_eds_job_analyzer(self):
+        """
+        Runs the EDS Job Analyzer on the Phenom device.
+        """
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+            import PyPhenom as ppi
+        
+        try:
+            analyzer = ppi.Application.ElementIdentification.EdsJobAnalyzer(self.phenom)
+            print("EDS Job Analyzer initialized successfully.")
+            return analyzer
+        except ImportError:
+            print("Failed to initialize EDS Job Analyzer.")
+            return None
+
+    def quantify_spectrum(self, spectrum, elements):
+        """
+        Quantifies the given spectrum for the specified elements.
+        
+        Parameters:
+        - spectrum: The spectrum to be quantified.
+        - elements: A list of elements to quantify in the spectrum.
+        
+        Returns:
+        - The quantified result if successful, None otherwise.
+        """
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+            import PyPhenom as ppi
+        
+        try:
+            quantified_result = ppi.Spectroscopy.Quantify(spectrum, elements)
+            print("Spectrum quantified successfully.")
+            return quantified_result
+        except ImportError:
+            print("Failed to quantify spectrum.")
+            return None
+    
