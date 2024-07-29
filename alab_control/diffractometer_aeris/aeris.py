@@ -230,7 +230,7 @@ class Aeris:
         self.scan(sample_id, program)
         time.sleep(10) #wait for the sample to be loaded and the scan to start
         while self.xrd_is_busy:
-            time.sleep(2)
+            time.sleep(2) # TODO: will think it is busy even though goniometer error happens. Check for error somehow or have a timeout based on the program used.
         time.sleep(5)  # wait for the gripper to fully stop
         return self.load_scan_results(sample_id)
 
