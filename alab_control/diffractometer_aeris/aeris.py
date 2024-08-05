@@ -150,19 +150,19 @@ class Aeris:
             return False
         else:
             raise AerisException(
-                "Could not determine if slot {loc} is empty -- Aeris returned {status}!"
+                f"Could not determine if slot {loc} is empty -- Aeris returned {status}!"
             )
 
     def scan(
         self,
         sample_id: str,
-        program: str = "10-140_2-min",
+        program: str = "10-100_8-minutes",
     ):
         """perform an XRD measurement using an existing program
 
         Args:
             sample_id (str, optional): sample_id that Aeris should assign to this scan. Defaults to "unknown_sample".
-            program (str, optional): Scan program that the Aeris should use to acquire data. This must be created beforehand. Defaults to "10-140_2-min".
+            program (str, optional): Scan program that the Aeris should use to acquire data. This must be created beforehand. Defaults to "10-100_8-minutes".
 
         Raises:
             ScanFailed: Scan failed for some reason
@@ -216,13 +216,13 @@ class Aeris:
         return angles, intensities
 
     def scan_and_return_results(
-        self, sample_id: str, program: str = "10-140_2-min"
+        self, sample_id: str, program: str = "10-100_8-minutes"
     ) -> Tuple[np.array, np.array]:
         """Perform an XRD scan and return the results. Blocks until results are available.
 
         Args:
             sample_id (str): sample_id that Aeris should assign to this scan
-            program (str, optional): Scan program that the Aeris should use to acquire data. This must be created beforehand. Defaults to "10-140_2-min".
+            program (str, optional): Scan program that the Aeris should use to acquire data. This must be created beforehand. Defaults to "10-100_8-minutes".
 
         Returns:
             Tuple[np.array, np.array]: arrays of 2theta and intensity values
@@ -238,7 +238,7 @@ class Aeris:
         self,
         sample_id: str,
         loc: Union[str, int],
-        default_program: str = "10-140_2-min",
+        default_program: str = "10-100_8-minutes",
     ):
         """Add a sample to the Aeris' memory. This should be run when physically loading a sample onto the instrument.
 
@@ -322,5 +322,5 @@ def write_spectrum(dir, sample_id, angles, intensities):
 if __name__ == "__main__":
     a = Aeris(debug=True)
     print(a.add("test_remote", loc=1, default_program="10-100_8-minutes"))
-    print(a.scan_and_return_results("test_remote", program="10-60_2-min"))
+    print(a.scan_and_return_results("test_remote", program="10-100_8-minutes"))
     print(a.remove("test_remote"))
