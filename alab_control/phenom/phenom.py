@@ -577,6 +577,31 @@ class PhenomDriver():
         except ImportError:
             print("Failed to quantify spectrum.")
             return None
+        
+    def write_msa_file(self, msa_data, filename):
+        """
+        Writes the given EDS acquisition or MSA data to a specified file.
+
+        Parameters:
+        - msa_data: The MSA data or EDS acquisition data to be written.
+        - filename: The name of the file to write the data to.
+
+        Returns:
+        - True if the file was written successfully, False otherwise.
+        """
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+            import PyPhenom as ppi
+        
+        try:
+            ppi.Spectroscopy.WriteMsaFile(msa_data, filename)
+            print(f"Data written successfully to {filename}.")
+            return True
+        except ImportError:
+            print("Failed to import necessary modules for writing MSA file.")
+            return False
+        except Exception as e:
+            print(f"An error occurred while writing the MSA file: {e}")
+            return False
     
     def get_pressure(self):
         """
