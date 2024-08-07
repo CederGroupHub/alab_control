@@ -188,7 +188,7 @@ class PhenomDriver():
         else:
             print("Device is not connected.")
     
-    def load(self):
+    def load(self, file_path=None):
         """
         Load the sample. 
         This has to be done when OperationalMode is LoadPos and InstrumentMode is Operational.
@@ -197,6 +197,8 @@ class PhenomDriver():
         if self.is_connected:
             print(str(self.get_instrument_mode()))
             if self.get_instrument_mode() == InstrumentMode("Operational") and self.get_operational_mode() == OperationalMode("Loadpos"): #"Operational"
+                if file_path:
+                    return self.phenom.Load(file_path)
                 return self.phenom.Load()
             else:
                 print("Instrument mode is not in Operational and operational mode is not in Loadpos, activate first.")
@@ -459,9 +461,25 @@ class PhenomDriver():
         if self.is_connected:
             try:
                 acq = self.phenom.SemAcquireImage(res_x, res_y, frame_avg)
-                return acq.image
+                return acq
             except ImportError:
                 print("Failed to get image data")
+                return None
+        else:
+            print("Device is not connected.")
+            return None
+
+
+    def get_image_info(self, file_path):
+        """
+        Get SEM image info (metadata).
+        """
+        if self.is_connected:
+            try:
+                acq = self.phenom.GetImageInfo(file_path)
+                return acq
+            except ImportError:
+                print("Failed to get image info")
                 return None
         else:
             print("Device is not connected.")
