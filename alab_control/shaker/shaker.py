@@ -40,13 +40,12 @@ class Shaker(BaseArduinoDevice):
         "reset": "/reset",
     }
 
-    def get_state(self) -> ShakerState:
+    def get_state(self):
         """
-        Get current status of the shaker machine and the grabber
+        Get current status of the shaker machine and the gripper
         """
         response = self.send_request(self.ENDPOINTS["state"], suppress_error=True, timeout=10, max_retries=5)
-        if response["system_status"] == "ERROR":
-            raise ShakerError("Shaker machine is in error state.")
+        time.sleep(1)
         return response
     
     def is_gripper_closed(self) -> bool:
@@ -81,44 +80,62 @@ class Shaker(BaseArduinoDevice):
         """
         Close the gripper to hold the container
         """
-        state = self.get_state()
-        print(f"{self.get_current_time()} Grabbing the container")
+        state=self.get_state()
+        print(f"{self.get_current_time()} Gripping the container")
         self.send_request(self.ENDPOINTS["close gripper"], suppress_error=True, timeout=10, max_retries=3)
         while not (GripperState(state["gripper_status"]) == GripperState.CLOSE):
-            time.sleep(0.1)
+            state = self.get_state()
+            if SystemState(state["system_status"]) == SystemState.ERROR:
+                raise ShakerError("Shaker machine is in error state. Failed to grip.")
+            time.sleep(1)
+        if int(state["force_reading"]) > 200:
+            raise ShakerError("Gripper is not fully closed or has lost grip.")
 
     def open_gripper(self):
         """
         Open the gripper to release the container
         """
-        state = self.get_state()
-        print(f"{self.get_current_time()} Releasing the grabber")
+        state=self.get_state()
+        print(f"{self.get_current_time()} Releasing the gripper")
         self.send_request(self.ENDPOINTS["open gripper"], suppress_error=True, timeout=10, max_retries=3)
-        while GripperState(state["gripper_status"]) != GripperState.OPEN:
-            time.sleep(0.1)
+        while not (GripperState(state["gripper_status"]) == GripperState.OPEN):
+            state = self.get_state()
+            if SystemState(state["system_status"]) == SystemState.ERROR:
+                raise ShakerError("Shaker machine is in error state. Failed to release.")
+            time.sleep(1)
+        if int(state["force_reading"]) < 200:
+            raise ShakerError("Gripper is not fully open or something is attached to the upper part.")
 
-    def shaking(self, duration_sec: float, gripper_closed: bool = False):
+    def shaking(self, duration_sec: float):
         """
         Start the shaker machine for a given duration (seconds)
 
         Args:
             duration_sec: duration of shaking in seconds
+            gripper_closed: flag whether the gripper is expected to be closed gripping something or not.
+                it is used to check if the gripper is gripping something while shaking.
         """
         start_time = time.time()
         print(f"{self.get_current_time()} Starting the shaker machine for {duration_sec} seconds")
         try:
             while time.time() - start_time < duration_sec:
                 state=self.get_state()
-                if GripperState(self.get_state()["gripper_status"]) != GripperState.CLOSE and gripper_closed:
-                    if state["force_reading"] > 200:
+                if ShakerState(state["shaker_status"]) != ShakerState.STARTING:
+                    if GripperState(self.get_state()["gripper_status"]) == GripperState.CLOSE:
+                        if int(state["force_reading"]) > 200:
+                            self.stop()
+                            raise ShakerError("Gripper is not closed or has lost grip.")
+                    if SystemState(state["system_status"]) == SystemState.ERROR:
                         self.stop()
-                        raise ShakerError("Gripper is not closed or has lost grip.")
-                if SystemState(state["system_status"]) == SystemState.ERROR:
-                    self.stop()
-                    raise ShakerError("Shaker machine is in error state.")
-                self.start()
-                time.sleep(5)
+                        raise ShakerError("Shaker machine is in error state.")
+                    self.start()
+                time.sleep(6)
         finally:
+            while ShakerState(state["shaker_status"]) == ShakerState.STARTING:
+                state=self.get_state()
+                if SystemState(state["system_status"]) == SystemState.ERROR:
+                    raise ShakerError("Shaker machine is in error state.")
+                time.sleep(1)
             self.stop()
 
     def close_gripper_and_shake(self, duration_sec: int):
@@ -129,8 +146,8 @@ class Shaker(BaseArduinoDevice):
             duration_sec: duration of shaking in seconds
         """
         self.close_gripper()
-        time.sleep(2)
-        self.shaking(duration_sec=duration_sec, gripper_closed=True)
+        time.sleep(3)
+        self.shaking(duration_sec=duration_sec)
         time.sleep(3)
         self.open_gripper()
 
@@ -145,3 +162,10 @@ class Shaker(BaseArduinoDevice):
         Send a stop command to the shaker machine
         """
         self.send_request(self.ENDPOINTS["stop"], timeout=10, max_retries=3)
+
+    def reset(self):
+        """
+        Reset the shaker machine
+        """
+        self.send_request(self.ENDPOINTS["reset"], timeout=10, max_retries=3)
+        time.sleep(8)
