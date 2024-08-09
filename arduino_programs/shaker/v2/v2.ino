@@ -15,7 +15,7 @@ using namespace ace_routine;
 #define NIP 192, 168, 0, 32 // IP address of the device
 static byte mymac[] = { 0x74, 0x69, 0x30, 0x2F, 0x22, 0x32 }; // MAC address of the device
 static byte myip[] = { NIP }; // IP address of the device
-byte Ethernet::buffer[400]; // Buffer for Ethernet
+static byte Ethernet::buffer[400]; // Buffer for Ethernet
 BufferFiller bfill; // Buffer for the response
 // Array of string to list the possible commands
 const char* commands[] = { 
@@ -136,10 +136,18 @@ static void sendHTTPJSONReply(int httpStatusCode, const char* communicationStatu
   response["shaker_status"] = shakerStateToString(shakerState);
   response["force_reading"] = String(force_reading);
 
-  buf.emit_p(PSTR("HTTP/1.0 "));
-  buf.emit_p(String(httpStatusCode).c_str()); // Convert status code to string
-  buf.emit_p(PSTR(" \r\n"));
-  buf.emit_p(PSTR("Content-Type: application/json\r\n\r\n"));
+  if (httpStatusCode == 200){ 
+    buf.emit_p(PSTR(
+        "HTTP/1.0 200 OK\r\n"
+        "Content-Type: application/json\r\n"
+        "\r\n"));
+  }
+  else if (httpStatusCode == 404) {
+    buf.emit_p(PSTR(
+        "HTTP/1.0 404 Not Found\r\n"
+        "Content-Type: application/json\r\n"
+        "\r\n"));
+  }
   serializeJson(response, buf);
 }
 
@@ -157,13 +165,8 @@ void shakerStart() {
 }
 
 static void shakerStart(const char* data, BufferFiller& buf) {
-  if (systemState == IDLE) {
-    shakerStart();
-    sendHTTPJSONReply(200, "SUCCESS", "Communication with the device is successful.", buf);
-  }
-  else {
-    sendHTTPJSONReply(400, "FAILED", "The machine has to be IDLE before starting shaking.", buf);
-  }
+  shakerStart();
+  sendHTTPJSONReply(200, "SUCCESS", "Communication with the device is successful.", buf);
 }
 
 void shakerStop() {
@@ -193,7 +196,7 @@ COROUTINE(shaker) {
         shakerState=ON;
       }
     }
-    if (systemState == RUNNING && command == commands[1]) {
+    else if (systemState == RUNNING && command == commands[1]) {
       shakerTime = millis();
       digitalWrite(output2, HIGH);
       shakerState=STOPPING;
@@ -204,6 +207,10 @@ COROUTINE(shaker) {
         shakerState=OFF;
       }
     }
+    else{
+      digitalWrite(output1, LOW);
+      digitalWrite(output2, LOW);
+    }
   }
 }
 
@@ -211,6 +218,7 @@ COROUTINE(gripper) {
   COROUTINE_LOOP() {
     COROUTINE_DELAY(30);
     readForceSensor();
+    COROUTINE_DELAY(30);
     if (systemState == RUNNING && command == commands[2]) {
       Serial.println(F("opening gripper."));
       mag = 1600;
@@ -254,13 +262,8 @@ void gripperOpen() {
 }
 
 static void gripperOpen(const char* data, BufferFiller& buf) {
-  if (systemState == IDLE) {
-    gripperOpen();
-    sendHTTPJSONReply(200, "SUCCESS", "Communication with the device is successful.", buf);
-  }
-  else {
-    sendHTTPJSONReply(400, "FAILED", "The machine has to be IDLE before opening the gripper.", buf);
-  }
+  gripperOpen();
+  sendHTTPJSONReply(200, "SUCCESS", "Communication with the device is successful.", buf);
 }
 
 void gripperClose() {
@@ -272,13 +275,8 @@ void gripperClose() {
 }
 
 static void gripperClose(const char* data, BufferFiller& buf) {
-  if (systemState == IDLE) {
-    gripperClose();
-    sendHTTPJSONReply(200, "SUCCESS", "Communication with the device is successful.", buf);
-  }
-  else {
-    sendHTTPJSONReply(400, "FAILED", "The machine has to be IDLE before closing the gripper.", buf);
-  }
+  gripperClose();
+  sendHTTPJSONReply(200, "SUCCESS", "Communication with the device is successful.", buf);
 }
 
 COROUTINE(reset) {
@@ -339,7 +337,7 @@ COROUTINE(handleRemoteRequest) {
       else if (strncmp("GET /gripper-close", data, 18) == 0) {
         gripperClose(data, bfill);
       }
-      else if (strncmp("GET /reset", data, 9) == 0) {
+      else if (strncmp("GET /reset", data, 10) == 0) {
         resetSystem(data, bfill);
       }
       else {
@@ -374,10 +372,8 @@ void setup()
   pinMode(analogIn, INPUT_PULLUP);
   pinMode(output1, OUTPUT);
   pinMode(output2, OUTPUT);
-  pinMode(output5, OUTPUT);
   digitalWrite(output1, LOW);
   digitalWrite(output2, LOW);
-  digitalWrite(output5, LOW);
   shakerStop();
   actuator.writeMicroseconds(mag);
   gripperState = OPEN;
@@ -386,6 +382,9 @@ void setup()
   gripperTimePrev = millis();
   shakerTime = millis();
   shakerTimePrev = millis();
+  resetTime = millis();
+  resetTimePrev = millis();
+  readForceSensor();
 }
 
 void loop()
