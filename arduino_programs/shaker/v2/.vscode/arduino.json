@@ -1,0 +1,6 @@
+{
+    "sketch": "v2.ino",
+    "board": "arduino:avr:micro",
+    "programmer": "arduino:avrisp",
+    "port": "/dev/tty.usbmodem12201"
+}
