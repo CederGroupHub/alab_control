@@ -1,5 +1,6 @@
 from enum import Enum
 import abc
+import time
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
@@ -93,6 +94,7 @@ class PhenomDriver():
         self.phenom = None  # This will be initialized in the connect method
         self.is_connected = False
         self.phenomID = license_details.get('PhenomID', '')  # Optional: Use a specific PhenomID if provided
+        self.have_just_move_to_SEM = True
 
     def install_license(self):
         """
@@ -137,9 +139,12 @@ class PhenomDriver():
         Disconnect from the Phenom device.
         """
         self.is_connected = False
-        print(f"{self.device_name} disconnected.")
+        print("Phenom disconnected.")
+    
+    def reset_have_just_move_to_SEM(self):
+        self.have_just_move_to_SEM = True
 
-    def get_instrument_mode(self) -> InstrumentMode:
+    def get_instrument_mode(self) -> str:
         """
         Get the current instrument mode of the Phenom.
 
@@ -150,13 +155,13 @@ class PhenomDriver():
             try:
                 mode = self.phenom.GetInstrumentMode()
                 print(f"Instrument mode: {mode}")
-                return InstrumentMode(str(mode))
+                return str(mode)
             except ImportError:
                 print("Error getting instrument mode")
         else:
             print("Device is not connected.")
 
-    def get_operational_mode(self) -> OperationalMode:
+    def get_operational_mode(self) -> str:
         """
         Get the operational status of the Phenom.
 
@@ -167,7 +172,7 @@ class PhenomDriver():
             try:
                 mode = self.phenom.GetOperationalMode()
                 print(f"Operational mode: {mode}")
-                return OperationalMode(str(mode))
+                return str(mode)
             except ImportError:
                 print("Error getting operational mode")
         else:
@@ -183,7 +188,7 @@ class PhenomDriver():
         else:
             print("Device is not connected.")
     
-    def load(self):
+    def load(self, file_path=None):
         """
         Load the sample. 
         This has to be done when OperationalMode is LoadPos and InstrumentMode is Operational.
@@ -192,6 +197,8 @@ class PhenomDriver():
         if self.is_connected:
             print(str(self.get_instrument_mode()))
             if self.get_instrument_mode() == InstrumentMode("Operational") and self.get_operational_mode() == OperationalMode("Loadpos"): #"Operational"
+                if file_path:
+                    return self.phenom.Load(file_path)
                 return self.phenom.Load()
             else:
                 print("Instrument mode is not in Operational and operational mode is not in Loadpos, activate first.")
@@ -241,19 +248,27 @@ class PhenomDriver():
         except ImportError:
             print("Failed to switch to navigation camera")
 
-    def to_SEM(self):
+    def to_SEM(self, max_retries=2):
         """
         Switch to live SEM view.
+        max_retries:
+            Maximum number of retries to switch to SEM view (default is 2)
         """
         if self.is_connected:
-            try:
-                self.phenom.MoveToSem()
-                print("Successfully switched to SEM view.")
-            except ImportError:
-                print("Failed to switch to SEM view")
+            wait_time = 30
+            retries = 0
+            while retries < max_retries:
+                try:
+                    self.phenom.MoveToSem()
+                    print("Successfully switched to SEM view.")
+                    return
+                except:
+                    retries += 1
+                    print(f'Failed to switch to SEM view. Attempt {retries} of {max_retries}.\nWaiting {wait_time} seconds before retrying.')
+                    time.sleep(wait_time)
+            print("Maximum retries reached. Failed to switch to SEM view.")
         else:
             print("Device is not connected.")
-        # check that self.get_operational_mode() ==SelectingSem
 
     def auto_focus(self):
         """
@@ -414,11 +429,10 @@ class PhenomDriver():
         if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
             import PyPhenom as ppi
         magnification =  ppi.MagnificationFromFieldWidth(self.phenom.GetHFW(), display_size)
-        print(display_size)
-        print(magnification)
         return magnification
     
     def framewidth(self):
+        """Returns the frame width."""
 
         current_width = self.phenom.GetHFW()
 
@@ -447,13 +461,25 @@ class PhenomDriver():
         if self.is_connected:
             try:
                 acq = self.phenom.SemAcquireImage(res_x, res_y, frame_avg)
-                img_data = np.asarray(acq.image)
-                width = acq.metadata.pixelSize.width * acq.image.width
-                height = acq.metadata.pixelSize.height * acq.image.height
-                pixel_size = acq.metadata.pixelSize
-                return img_data,width,height, pixel_size
+                return acq
             except ImportError:
                 print("Failed to get image data")
+                return None
+        else:
+            print("Device is not connected.")
+            return None
+
+
+    def get_image_info(self, file_path):
+        """
+        Get SEM image info (metadata).
+        """
+        if self.is_connected:
+            try:
+                acq = self.phenom.GetImageInfo(file_path)
+                return acq
+            except ImportError:
+                print("Failed to get image info")
                 return None
         else:
             print("Device is not connected.")
@@ -464,8 +490,176 @@ class PhenomDriver():
         Display the SEM image.
         """
         img = self.get_image_data()
+        img = np.asarray(img[0])
         if img is not None:
             plt.imshow(img, cmap='gray')
             plt.show()
         else:
             print("No image data to display.")
+
+    def load_pulse_processor_settings(self):
+        """
+        Load pulse processor settings.
+        """
+        if self.is_connected:
+            try:
+                self.phenom.LoadPulseProcessorSettings()
+                print("Pulse processor settings loaded successfully.")
+                return True
+            except ImportError:
+                print("Failed to load pulse processor settings.")
+                return False
+        else:
+            print("Device is not connected.")
+            return False
+    
+    def get_spectroscopy_element(self, element_name):
+        """
+        Returns the spectroscopy element information for the given element name.
+        """
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+            import PyPhenom as ppi
+        
+        try:
+            element = ppi.Spectroscopy.Element(element_name)
+            return element
+        except ImportError:
+            print(f"Failed to get spectroscopy element information for {element_name}.")
+            return None
+        
+    def get_position(self, x, y):
+        """
+        Gets the position using the specified x and y relative coordinates.
+        """
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+            import PyPhenom as ppi
+        
+        try:
+            position = ppi.Position(x, y)
+            return position
+        except ImportError:
+            print(f"Failed to set position to ({x}, {y}).")
+            return None
+        
+    def run_eds_job_analyzer(self):
+        """
+        Runs the EDS Job Analyzer on the Phenom device.
+        """
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+            import PyPhenom as ppi
+        
+        try:
+            analyzer = ppi.Application.ElementIdentification.EdsJobAnalyzer(self.phenom)
+            print("EDS Job Analyzer initialized successfully.")
+            return analyzer
+        except ImportError:
+            print("Failed to initialize EDS Job Analyzer.")
+            return None
+
+    def quantify_spectrum(self, spectrum, elements):
+        """
+        Quantifies the given spectrum for the specified elements.
+        
+        Parameters:
+        - spectrum: The spectrum to be quantified.
+        - elements: A list of elements to quantify in the spectrum.
+        
+        Returns:
+        - The quantified result if successful, None otherwise.
+        """
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+            import PyPhenom as ppi
+        
+        try:
+            quantified_result = ppi.Spectroscopy.Quantify(spectrum, elements)
+            print("Spectrum quantified successfully.")
+            return quantified_result
+        except ImportError:
+            print("Failed to quantify spectrum.")
+            return None
+        
+    def write_msa_file(self, msa_data, filename):
+        """
+        Writes the given EDS acquisition or MSA data to a specified file.
+
+        Parameters:
+        - msa_data: The MSA data or EDS acquisition data to be written.
+        - filename: The name of the file to write the data to.
+
+        Returns:
+        - True if the file was written successfully, False otherwise.
+        """
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+            import PyPhenom as ppi
+        
+        try:
+            ppi.Spectroscopy.WriteMsaFile(msa_data, filename)
+            print(f"Data written successfully to {filename}.")
+            return True
+        except ImportError:
+            print("Failed to import necessary modules for writing MSA file.")
+            return False
+        except Exception as e:
+            print(f"An error occurred while writing the MSA file: {e}")
+            return False
+    
+    def get_pressure(self):
+        """
+        Get the current vacuum pressure in the SEM chamber.
+        """
+        pressure = self.phenom.SemGetVacuumChargeReductionState().pressureEstimate
+        print(f"Current vacuum pressure: {pressure} Pa.")
+        return float(pressure)
+
+    def set_detector(self, detector_name):
+        """
+        Set the detector to use.
+
+        Args:
+            detector_name (str): Name of the detector to use. Can be one of the following:
+                "BSD All", "BSD NorthSouth", "BSD EastWest", "SED", "BSD A", "BSD B", "BSD C", "BSD D"
+        
+        Returns:
+            detector_name (str): Name of the detector set.
+        """
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+            import PyPhenom as ppi
+        if detector_name == "BSD All":
+            requested_mode = ppi.DetectorMode.All
+        elif detector_name == "BSD NorthSouth":
+            requested_mode = ppi.DetectorMode.NorthSouth
+        elif detector_name == "BSD EastWest":
+            requested_mode = ppi.DetectorMode.EastWest
+        elif detector_name == "SED":
+            if self.get_pressure() > 1:
+                # wait for 2 minute max for the pressure to drop below 1 Pa and check again every 10 seconds
+                for i in range(12):
+                    if self.get_pressure() <= 1:
+                        break
+                    time.sleep(10)
+                if self.get_pressure() > 1:
+                    raise SEMError("Cannot enable SED when vacuum pressure is above 1 Pa.")
+            try:
+                if self.have_just_move_to_SEM:
+                    self.phenom.SemEnableSed()
+                    self.have_just_move_to_SEM = False
+                    time.sleep(60)
+                else:
+                    self.phenom.SemEnableSed()
+                requested_mode = ppi.DetectorMode.Sed
+            except ppi.Error as e:
+                raise SEMError(f"Failed to enable SED detector. Error message: {e.args[0]}.")
+        elif detector_name == "BSD A":
+            requested_mode = ppi.DetectorMode.A
+        elif detector_name == "BSD B":
+            requested_mode = ppi.DetectorMode.B
+        elif detector_name == "BSD C":
+            requested_mode = ppi.DetectorMode.C
+        elif detector_name == "BSD D":
+            requested_mode = ppi.DetectorMode.D
+        else:
+            raise SEMError("Invalid viewing mode specified.")
+        viewingMode = self.phenom.GetSemViewingMode()
+        viewingMode.scanParams.detector = requested_mode
+        self.phenom.SetSemViewingMode(viewingMode)
+        return detector_name

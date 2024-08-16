@@ -19,6 +19,10 @@ class ScanFailed(AerisException):
 
     pass
 
+class FileExportFailed(AerisException):
+    """Failed to export file from Aeris"""
+
+    pass
 
 class Aeris:
     ALL_SLOTS: Dict[Union[str, int], int] = {
@@ -38,6 +42,7 @@ class Aeris:
     }  # slot locations that are allowed for ALab samples
     COMMUNICATION_DELAY: float = 0.2  # time to wait between sending a message to Aeris and searching for a response
     FILEWRITE_TIMEOUT: float = 10  # seconds to wait after trying to read a file before considering it a failure
+    XRD_ERROR_TIMEOUT: float = 3600  # seconds to wait after scanning before considering it as a failure
 
     # Replace IP, port, and directory paths with your own info
     def __init__(
@@ -150,19 +155,19 @@ class Aeris:
             return False
         else:
             raise AerisException(
-                "Could not determine if slot {loc} is empty -- Aeris returned {status}!"
+                f"Could not determine if slot {loc} is empty -- Aeris returned {status}!"
             )
 
     def scan(
         self,
         sample_id: str,
-        program: str = "10-140_2-min",
+        program: str = "10-100_8-minutes",
     ):
         """perform an XRD measurement using an existing program
 
         Args:
             sample_id (str, optional): sample_id that Aeris should assign to this scan. Defaults to "unknown_sample".
-            program (str, optional): Scan program that the Aeris should use to acquire data. This must be created beforehand. Defaults to "10-140_2-min".
+            program (str, optional): Scan program that the Aeris should use to acquire data. This must be created beforehand. Defaults to "10-100_8-minutes".
 
         Raises:
             ScanFailed: Scan failed for some reason
@@ -190,7 +195,7 @@ class Aeris:
         t_start = time.time()
         while filename not in os.listdir(self.results_dir):
             if (time.time() - t_start) > self.FILEWRITE_TIMEOUT:
-                raise ScanFailed(f"Scan results for {sample_id} not found!")
+                raise FileExportFailed(f"Scan results for {sample_id} not found!")
             time.sleep(self.FILEWRITE_TIMEOUT / 10)
 
         with open(os.path.join(self.results_dir, filename), "r", encoding="utf-8") as f:
@@ -216,29 +221,38 @@ class Aeris:
         return angles, intensities
 
     def scan_and_return_results(
-        self, sample_id: str, program: str = "10-140_2-min"
-    ) -> Tuple[np.array, np.array]:
+        self, sample_id: str, program: str = "10-100_8-minutes"
+    ) -> Tuple[Tuple[np.array, np.array], bool]:
         """Perform an XRD scan and return the results. Blocks until results are available.
 
         Args:
             sample_id (str): sample_id that Aeris should assign to this scan
-            program (str, optional): Scan program that the Aeris should use to acquire data. This must be created beforehand. Defaults to "10-140_2-min".
+            program (str, optional): Scan program that the Aeris should use to acquire data. This must be created beforehand. Defaults to "10-100_8-minutes".
 
         Returns:
             Tuple[np.array, np.array]: arrays of 2theta and intensity values
+            bool: True if scan was successful, False otherwise
         """
         self.scan(sample_id, program)
         time.sleep(10) #wait for the sample to be loaded and the scan to start
+        t_start = time.time()
         while self.xrd_is_busy:
+            if (time.time() - t_start) > self.XRD_ERROR_TIMEOUT:
+                raise ScanFailed(f"XRD scan for sample {sample_id} timed out! AERIS might have an error.")
             time.sleep(2)
         time.sleep(5)  # wait for the gripper to fully stop
-        return self.load_scan_results(sample_id)
+        try:
+            scan_results=self.load_scan_results(sample_id)
+            return scan_results, True
+        except FileExportFailed:
+            print(f"AERIS file export failed for {sample_id}!")
+            return (None,None), False
 
     def add(
         self,
         sample_id: str,
         loc: Union[str, int],
-        default_program: str = "10-140_2-min",
+        default_program: str = "10-100_8-minutes",
     ):
         """Add a sample to the Aeris' memory. This should be run when physically loading a sample onto the instrument.
 
@@ -322,5 +336,5 @@ def write_spectrum(dir, sample_id, angles, intensities):
 if __name__ == "__main__":
     a = Aeris(debug=True)
     print(a.add("test_remote", loc=1, default_program="10-100_8-minutes"))
-    print(a.scan_and_return_results("test_remote", program="10-60_2-min"))
+    print(a.scan_and_return_results("test_remote", program="10-100_8-minutes"))
     print(a.remove("test_remote"))
