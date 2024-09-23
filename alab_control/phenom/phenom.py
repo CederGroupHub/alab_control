@@ -422,13 +422,13 @@ class PhenomDriver():
         else:
             print("Device is not connected.")
 
-    def get_magnification(self, display_size):
+    def get_magnification(self):
         """
-        Returns the image magnification for the given HFW relative to the given display size.
+        Returns the image magnification shown in the phenom GUI.
         """
         if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
             import PyPhenom as ppi
-        magnification =  ppi.MagnificationFromFieldWidth(self.phenom.GetHFW(), display_size)
+        magnification =  ppi.MagnificationFromFieldWidth(self.phenom.GetHFW())
         return magnification
     
     def framewidth(self):
