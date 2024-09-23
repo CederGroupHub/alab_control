@@ -359,17 +359,17 @@ class PhenomDriver():
 
     def get_sem_high_tension(self):
         """ 
-        Get the SEM High Tension value (in Volt). 
+        Get the SEM High Tension value (in kVolt). 
         """
         value = - self.phenom.GetSemHighTension()
-        print(f"SEM high tension is: {value} Volts.")
+        print(f"SEM high tension is: {value} kVolts.")
         return value
        
     def set_sem_high_tension(self, value):
         """ 
-        Set the SEM High Tension value (in Volt). 
+        Set the SEM High Tension value (in kVolt). 
         """
-        print(f"Setting the SEM high tension to {value} Volts.")
+        print(f"Setting the SEM high tension to {value} kVolts.")
         return self.phenom.SetSemHighTension(-value)
 
     def get_sem_spot_size(self):
