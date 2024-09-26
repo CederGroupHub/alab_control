@@ -744,10 +744,12 @@ class PhenomDriver():
                 print(f"An error occurred while writing the MSA file: {e}")
                 return False
         try:
+            if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+                import PyPhenom as ppi
             analyzer = run_eds_job_analyzer()
 
             # Add a spot at the specified (x, y) position with the given maximum acquisition time
-            spotData = analyzer.AddSpot(self.phenom.get_position(x, y), maxTime=maxTime, maxCounts=30000)
+            spotData = analyzer.AddSpot(ppi.Position(x, y), maxTime=maxTime, maxCounts=30000)
 
             try:
                 analyzer.Wait()
