@@ -5,11 +5,16 @@ import time
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
-
+from pymatgen.core import Composition,periodic_table
 import pandas as pd
 
-from alab_analysis.src.alab_analysis.eds.run import from_weight_dict
-# from .._base_phenom_device import PhenomDevice
+
+def from_weight_dict( weight_dict) -> Composition:
+
+    weight_sum = sum(val / periodic_table.Element(el).atomic_mass for el, val in weight_dict.items())
+    comp_dict = {el: val / periodic_table.Element(el).atomic_mass / weight_sum for el, val in weight_dict.items()}
+
+    return comp_dict
 
 class InstrumentMode(Enum):
     """ 
@@ -64,16 +69,16 @@ class OperationalMode(Enum):
 # -> initializing? -> operational -> picture with 32 sample -> load() and check if it is loadpos? does it mean lowading to sem
 #->  move navcam to the desire sample number (by position x,y) check that the nav cam moved where we wanted it -> run sem-eds -> for all samples -> 
 #  -> for every step check that it is done(blocks everything else) before moving to the next
-class ImagingDevice(Enum):
-    """
-    Enumeration representing the types of imaging devices available in a system.
+# class ImagingDevice(Enum):
+#     """
+#     Enumeration representing the types of imaging devices available in a system.
 
-    Attributes:
-        NAVCAM (str): Represents a Navigation Camera, used for general viewing and navigation purposes.
-        SEM (str): Represents a Scanning Electron Microscope, used for high-resolution imaging at the microscale.
-    """
-    NAVCAM = "NavCam"
-    SEM = "SEM"
+#     Attributes:
+#         NAVCAM (str): Represents a Navigation Camera, used for general viewing and navigation purposes.
+#         SEM (str): Represents a Scanning Electron Microscope, used for high-resolution imaging at the microscale.
+#     """
+#     NAVCAM = "NavCam"
+#     SEM = "SEM"
 
 class PhenomDriver():
     """
@@ -253,7 +258,7 @@ class PhenomDriver():
             print("Failed to switch to navigation camera")
             return False
 
-    def to_SEM(self, max_retries=2):
+    def to_SEM(self, max_retries):
         """
         Switch to live SEM view.
         max_retries:
@@ -490,7 +495,7 @@ class PhenomDriver():
             print("Device is not connected.")
             return False, None
 
-    def save_image(self, fname='Image.tiff', res_x=1080, res_y=1080, frame_avg=16):
+    def save_image(self, fname, res_x, res_y, frame_avg):
         """
         Save an SEM image.
         """
@@ -509,7 +514,7 @@ class PhenomDriver():
             print("Device is not connected.")
             return False
 
-    def get_image_data(self, res_x=1080, res_y=1080, frame_avg=16):
+    def get_image_data(self, res_x, res_y, frame_avg):
         """
         Get SEM image data.
         """
@@ -764,7 +769,7 @@ class PhenomDriver():
             print(f"An error occurred during spot spectrum analysis at (x={x}, y={y}): {e}")
             return None, None
 
-    def sampler(self, base_dir, phase_system, maxTime=1, index=0, particle_index=0):
+    def sampler(self, base_dir, phase_system, maxTime, index, particle_index):
         """
         Performs sampling and spectrum analysis based on predefined samples.
 
