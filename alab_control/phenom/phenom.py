@@ -514,16 +514,18 @@ class PhenomDriver():
             print("Device is not connected.")
             return False
 
-    def get_image_data(self, res_x, res_y, frame_avg):
+    def get_image_metadata(self, res_x, res_y, frame_avg):
         """
         Get SEM image data.
         """
         if self.is_connected:
             try:
                 acq = self.phenom.SemAcquireImage(res_x, res_y, frame_avg)
-                if type(acq) == np.ndarray:
-                    acq = acq.tolist()
-                return True, acq
+                frame_width = acq.image.width
+                frame_height = acq.image.height
+                pixel_size_width = acq.metadata.pixelSize.width
+                pixel_size_height = acq.metadata.pixelSize.height
+                return True, int(frame_width), int(frame_height), float(pixel_size_width), float(pixel_size_height)
             except ImportError:
                 print("Failed to get image data")
                 return False, None
