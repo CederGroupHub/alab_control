@@ -1,18 +1,15 @@
 from enum import Enum
 import abc
+import os
 import time
 import matplotlib.pyplot as plt
 import numpy as np
 import sys
-# from .._base_phenom_device import PhenomDevice
 
-class SEMError(Exception):
-    """ 
-    Custom exception class for SEM-related errors.
-    """
-    def __init__(self, message, code=None):
-        super().__init__(message)
-        self.code = code
+import pandas as pd
+
+from alab_analysis.src.alab_analysis.eds.run import from_weight_dict
+# from .._base_phenom_device import PhenomDevice
 
 class InstrumentMode(Enum):
     """ 
@@ -240,20 +237,6 @@ class PhenomDriver():
         else:
             print("Device is not connected.")
             return False
-    
-    # def hibernate(self):
-    #     """
-    #     Set Phenom in hibernate mode.
-    #     CAUTION: UNTESTED.
-    #     """
-    #     return self.phenom.Hibernate()
-    
-    # def poweroff(self):
-    #     """
-    #     Switch off Phenom. 
-    #     WARNING!!!: WE DO NOT TEST THIS AS THIS WILL SHUTDOWN THE PHENOM FOR 14 HOURS OR MORE AND REQUIRE A LOT OF MANUAL HANDLING BEFOREHAND
-    #     """
-    #     return self.phenom.PowerOff()
 
     def to_nav(self):
         """
@@ -543,6 +526,90 @@ class PhenomDriver():
             print("Device is not connected.")
             return False, None
 
+    def get_pressure(self):
+        """
+        Get the current vacuum pressure in the SEM chamber.
+        """
+        if self.is_connected:
+            pressure = self.phenom.SemGetVacuumChargeReductionState().pressureEstimate
+            print(f"Current vacuum pressure: {pressure} Pa.")
+            return True, float(pressure)
+        else:
+            print("Device is not connected.")
+            return False, None
+
+    def set_detector(self, detector_name):
+        """
+        Set the detector to use.
+
+        Args:
+            detector_name (str): Name of the detector to use. Can be one of the following:
+                "BSD All", "BSD NorthSouth", "BSD EastWest", "SED", "BSD A", "BSD B", "BSD C", "BSD D"
+        """
+        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+            import PyPhenom as ppi
+        if detector_name == "BSD All":
+            requested_mode = ppi.DetectorMode.All
+        elif detector_name == "BSD NorthSouth":
+            requested_mode = ppi.DetectorMode.NorthSouth
+        elif detector_name == "BSD EastWest":
+            requested_mode = ppi.DetectorMode.EastWest
+        elif detector_name == "SED":
+            if self.get_pressure() > 1:
+                # wait for 2 minute max for the pressure to drop below 1 Pa and check again every 10 seconds
+                for i in range(12):
+                    if self.get_pressure() <= 1:
+                        break
+                    time.sleep(10)
+                if self.get_pressure() > 1:
+                    print("Cannot enable SED when vacuum pressure is above 1 Pa.")
+                    return False
+            try:
+                if self.have_just_move_to_SEM:
+                    self.phenom.SemEnableSed()
+                    self.have_just_move_to_SEM = False
+                    time.sleep(60)
+                else:
+                    self.phenom.SemEnableSed()
+                requested_mode = ppi.DetectorMode.Sed
+            except ppi.Error as e:
+                print(f"Failed to enable SED detector. Error message: {e.args[0]}.")
+                return False
+        elif detector_name == "BSD A":
+            requested_mode = ppi.DetectorMode.A
+        elif detector_name == "BSD B":
+            requested_mode = ppi.DetectorMode.B
+        elif detector_name == "BSD C":
+            requested_mode = ppi.DetectorMode.C
+        elif detector_name == "BSD D":
+            requested_mode = ppi.DetectorMode.D
+        else:
+            print("Invalid viewing mode specified.")
+            return False
+        try:
+            viewingMode = self.phenom.GetSemViewingMode()
+            viewingMode.scanParams.detector = requested_mode
+            self.phenom.SetSemViewingMode(viewingMode)
+            print(f"Detector set to {detector_name}.")
+        except:
+            print("Failed to set detector.")
+            return False
+        return True
+    
+    # def hibernate(self):
+    #     """
+    #     Set Phenom in hibernate mode.
+    #     CAUTION: UNTESTED.
+    #     """
+    #     return self.phenom.Hibernate()
+    
+    # def poweroff(self):
+    #     """
+    #     Switch off Phenom. 
+    #     WARNING!!!: WE DO NOT TEST THIS AS THIS WILL SHUTDOWN THE PHENOM FOR 14 HOURS OR MORE AND REQUIRE A LOT OF MANUAL HANDLING BEFOREHAND
+    #     """
+    #     return self.phenom.PowerOff()
+    
     # def get_image_info(self, file_path):
     #     """
     #     Get SEM image info (metadata).
@@ -569,18 +636,6 @@ class PhenomDriver():
     #         plt.show()
     #     else:
     #         print("No image data to display.")
-
-    def get_pressure(self):
-        """
-        Get the current vacuum pressure in the SEM chamber.
-        """
-        if self.is_connected:
-            pressure = self.phenom.SemGetVacuumChargeReductionState().pressureEstimate
-            print(f"Current vacuum pressure: {pressure} Pa.")
-            return True, float(pressure)
-        else:
-            print("Device is not connected.")
-            return False, None
 
     # def load_pulse_processor_settings(self):
     #     """
@@ -628,118 +683,190 @@ class PhenomDriver():
     #     except ImportError:
     #         print(f"Failed to set position to ({x}, {y}).")
     #         return None
-        
-    def run_eds_job_analyzer(self):
-        """
-        Runs the EDS Job Analyzer on the Phenom device.
-        """
-        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
-            import PyPhenom as ppi
-        
-        try:
-            analyzer = ppi.Application.ElementIdentification.EdsJobAnalyzer(self.phenom)
-            print("EDS Job Analyzer initialized successfully.")
-            return analyzer
-        except ImportError:
-            print("Failed to initialize EDS Job Analyzer.")
-            return None
-
-    def quantify_spectrum(self, spectrum, elements):
-        """
-        Quantifies the given spectrum for the specified elements.
-        
-        Parameters:
-        - spectrum: The spectrum to be quantified.
-        - elements: A list of elements to quantify in the spectrum.
-        
-        Returns:
-        - The quantified result if successful, None otherwise.
-        """
-        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
-            import PyPhenom as ppi
-        
-        try:
-            quantified_result = ppi.Spectroscopy.Quantify(spectrum, elements)
-            print("Spectrum quantified successfully.")
-            return quantified_result
-        except ImportError:
-            print("Failed to quantify spectrum.")
-            return None
-        
-    def write_msa_file(self, msa_data, filename):
-        """
-        Writes the given EDS acquisition or MSA data to a specified file.
-
-        Parameters:
-        - msa_data: The MSA data or EDS acquisition data to be written.
-        - filename: The name of the file to write the data to.
-
-        Returns:
-        - True if the file was written successfully, False otherwise.
-        """
-        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
-            import PyPhenom as ppi
-        
-        try:
-            ppi.Spectroscopy.WriteMsaFile(msa_data, filename)
-            print(f"Data written successfully to {filename}.")
-            return True
-        except ImportError:
-            print("Failed to import necessary modules for writing MSA file.")
-            return False
-        except Exception as e:
-            print(f"An error occurred while writing the MSA file: {e}")
-            return False
     
-    def set_detector(self, detector_name):
+    def Spot_Spectrum(self, x, y, path, maxTime=1):
         """
-        Set the detector to use.
+        Performs spot spectrum analysis at a given position (x, y) using the provided parameters.
 
-        Args:
-            detector_name (str): Name of the detector to use. Can be one of the following:
-                "BSD All", "BSD NorthSouth", "BSD EastWest", "SED", "BSD A", "BSD B", "BSD C", "BSD D"
-        
+        Parameters:
+          x: int or float. The x-coordinate of the spot position.
+          y: int or float. The y-coordinate of the spot position.
+          maxTime: int, optional. The maximum time for spectrum acquisition. Default is 1s.
+
         Returns:
-            detector_name (str): Name of the detector set.
+          spec: object. The spot spectrum data.
+          spectrum_data: numpy.ndarray. The processed spectrum data as a 1D array.
         """
-        if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
-            import PyPhenom as ppi
-        if detector_name == "BSD All":
-            requested_mode = ppi.DetectorMode.All
-        elif detector_name == "BSD NorthSouth":
-            requested_mode = ppi.DetectorMode.NorthSouth
-        elif detector_name == "BSD EastWest":
-            requested_mode = ppi.DetectorMode.EastWest
-        elif detector_name == "SED":
-            if self.get_pressure() > 1:
-                # wait for 2 minute max for the pressure to drop below 1 Pa and check again every 10 seconds
-                for i in range(12):
-                    if self.get_pressure() <= 1:
-                        break
-                    time.sleep(10)
-                if self.get_pressure() > 1:
-                    raise SEMError("Cannot enable SED when vacuum pressure is above 1 Pa.")
+        def run_eds_job_analyzer():
+            """
+            Runs the EDS Job Analyzer on the Phenom.
+            """
+            if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+                import PyPhenom as ppi
+            
             try:
-                if self.have_just_move_to_SEM:
-                    self.phenom.SemEnableSed()
-                    self.have_just_move_to_SEM = False
-                    time.sleep(60)
-                else:
-                    self.phenom.SemEnableSed()
-                requested_mode = ppi.DetectorMode.Sed
-            except ppi.Error as e:
-                raise SEMError(f"Failed to enable SED detector. Error message: {e.args[0]}.")
-        elif detector_name == "BSD A":
-            requested_mode = ppi.DetectorMode.A
-        elif detector_name == "BSD B":
-            requested_mode = ppi.DetectorMode.B
-        elif detector_name == "BSD C":
-            requested_mode = ppi.DetectorMode.C
-        elif detector_name == "BSD D":
-            requested_mode = ppi.DetectorMode.D
-        else:
-            raise SEMError("Invalid viewing mode specified.")
-        viewingMode = self.phenom.GetSemViewingMode()
-        viewingMode.scanParams.detector = requested_mode
-        self.phenom.SetSemViewingMode(viewingMode)
-        return detector_name
+                analyzer = ppi.Application.ElementIdentification.EdsJobAnalyzer(self.phenom)
+                print("EDS Job Analyzer initialized successfully.")
+                return analyzer
+            except ImportError:
+                print("Failed to initialize EDS Job Analyzer.")
+                return None
+            
+        def write_msa_file(msa_data, filename):
+            """
+            Writes the given EDS acquisition or MSA data to a specified file.
+
+            Parameters:
+            - msa_data: The MSA data or EDS acquisition data to be written.
+            - filename: The name of the file to write the data to.
+
+            Returns:
+            - True if the file was written successfully, False otherwise.
+            """
+            if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+                import PyPhenom as ppi
+            
+            try:
+                ppi.Spectroscopy.WriteMsaFile(msa_data, filename)
+                print(f"Data written successfully to {filename}.")
+                return True
+            except ImportError:
+                print("Failed to import necessary modules for writing MSA file.")
+                return False
+            except Exception as e:
+                print(f"An error occurred while writing the MSA file: {e}")
+                return False
+        try:
+            analyzer = run_eds_job_analyzer()
+
+            # Add a spot at the specified (x, y) position with the given maximum acquisition time
+            spotData = analyzer.AddSpot(self.phenom.get_position(x, y), maxTime=maxTime, maxCounts=30000)
+
+            try:
+                analyzer.Wait()
+            except:  # noqa: E722
+                return None, None
+
+            # Retrieve the spot spectrum data from the spotData object
+            spec = spotData.spotSpectrum
+
+            # Write the spectrum data to an MSA file with a filename based on the spot position
+            msa_filename = f"{path}spectrum{x, y}.msa"
+            write_msa_file(spec, msa_filename)
+
+            # Read the MSA file, extract the spectrum data, remove unwanted header rows,
+            # convert the data to a 1D array of floats
+            spectrum_data = pd.read_csv(msa_filename, header=None, skiprows=32, skipfooter=1, engine="python").reset_index(drop=True)[0].values.astype(float)  # noqa: E501
+
+            return spec, spectrum_data
+
+        except Exception as e:
+            print(f"An error occurred during spot spectrum analysis at (x={x}, y={y}): {e}")
+            return None, None
+
+    def sampler(self, base_dir, phase_system, maxTime=1, index=0, particle_index=0):
+        """
+        Performs sampling and spectrum analysis based on predefined samples.
+
+        Parameters:
+        - elems: list, optional. List of elements to quantify in the spectra. Default is [K, Na, Cl, Mg].
+        - max_tol: int, optional. Maximum tolerance value for the spectrum. Default is 100.
+        - maxTime: int, optional. The maximum time for spectrum acquisition. Default is 1.
+
+        """
+        def quantify_spectrum(spectrum, elements):
+            """
+            Quantifies the given spectrum for the specified elements.
+            
+            Parameters:
+            - spectrum: The spectrum to be quantified.
+            - elements: A list of elements to quantify in the spectrum.
+            
+            Returns:
+            - The quantified result if successful, None otherwise.
+            """
+            if "ppi" not in list(sys.modules.keys()) or "PyPhenom" not in list(sys.modules.keys()):
+                import PyPhenom as ppi
+            
+            try:
+                quantified_result = ppi.Spectroscopy.Quantify(spectrum, elements)
+                print("Spectrum quantified successfully.")
+                return quantified_result
+            except ImportError:
+                print("Failed to quantify spectrum.")
+                return None
+        # Read samples from CSV file
+        path = os.path.join(base_dir, f"Grid_search_{index}")
+        samples = pd.read_csv(f"{path}/samples_{particle_index}.csv")
+        nsamples = len(samples)
+
+        elements = phase_system.split("-")
+        # Initialize DataFrame for storing sample information
+        z = np.zeros(nsamples)
+        labels = pd.read_csv(f"{path}/labels_{particle_index}.csv")
+
+        df = pd.DataFrame({"Particle No.": z, "x": z, "y": z, **{f"{elem}": z for elem in elements}, "Spec": [np.zeros(2048) for _ in range(nsamples)]})  # noqa: E501
+
+        count1 = 0
+
+        for i in range(1):#len(samples)
+            y, x = samples.iloc[i, [-2, -1]].values
+            y, x = round((y - labels.shape[0] / 2) / (labels.shape[1]), 4), round((x - labels.shape[1] / 2) / (labels.shape[1]), 4)  # noqa: E501
+            # Acquire spectrum and its data
+            spec, temp = self.Spot_Spectrum(x, y,path, maxTime=maxTime)
+            df.loc[count1, "Spec"][:] = temp.tolist()
+
+            # Remove the temporary spectrum file
+            os.remove(f"{path}spectrum{x, y}.msa")
+
+            # Quantify the spectrum to obtain element composition
+            try:
+                q = quantify_spectrum(spec, self.elems)
+            except RuntimeError as e:
+                # Handle the runtime error here
+                print("A RuntimeError occurred during runtime:", e)
+                continue
+
+            count2 = 1
+            df.loc[count1, "x"], df.loc[count1, "y"] = x, y
+            # for elem in q.composition.constituents:
+            for element in elements:
+                bool = True
+                for elem in q.composition.constituents:
+                    if f"{elem.Z}"[-2:] == element:
+                        bool = False
+                        # df.loc[count1, f'q{count2}'] = [f'{elem.weightFraction}']
+                        df.loc[count1, element] = elem.weightFraction
+                if bool:
+                    df.loc[count1, element] = 0
+                count2 += 1
+            count1 += 1
+
+        #last_non_zero_index = df.apply(lambda row: row.astype(bool).any(), axis=1).cumsum().idxmax()
+        #last_non_zero_index = df.apply(lambda row: any(row != 0), axis=1).cumsum().idxmax()
+
+        # df = df.iloc[:last_non_zero_index + 1]  # Include the last non-zero row
+        df = df.dropna()
+        #last_non_zero_index = (df!=0).any(axis=1).cumsum().idxmax() # Find the last non-zero row in the DataFrame
+
+        #df = df.iloc[:last_non_zero_index] # Remove all rows after the last non-zero row
+
+        # Convert the weight fractions to atomic fractions and process the spectra
+
+        for i in range(len(df)):
+            weight_dict = {}
+            for elem in elements:
+                weight_dict[elem] = df.loc[i,elem]
+            comp = from_weight_dict(weight_dict)
+
+            for elem in elements:
+                df.loc[i,elem] = comp[elem]
+
+            temp = df.loc[i,"Spec"]
+            temp = np.array(temp)#ast.literal_eval(temp))
+            df.loc[i,"Spec"][:] = temp.tolist()
+        # convert all data into string before saving
+        for col in df.columns:
+            df[col] = df[col].astype(str)
+        df.to_csv(f"{path}/spectrum_{particle_index}.csv")
+        return True
