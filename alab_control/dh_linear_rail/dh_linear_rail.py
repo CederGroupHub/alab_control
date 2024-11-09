@@ -135,6 +135,7 @@ if __name__ == "__main__":
     )  # Update the port based on your setup
     # print(bin(rail.get_status())[2:][::-1])
     # print(rail.clear_alarm())
+    print(rail.initialize(wait=True))
     for _ in range(50):
         print(rail.move_to(0))
         print(rail.move_to(50))
@@ -142,7 +143,6 @@ if __name__ == "__main__":
     # rail.set_control_words(0)
     # time.sleep(5)
     # rail.set_control_words(0x4)
-    # print(rail.initialize(wait=True))
     # # print(rail.get_state())
     # print(rail.read_alarm_code())
     # print(rail.clear_alarm())
