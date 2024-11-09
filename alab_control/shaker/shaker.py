@@ -129,6 +129,7 @@ class Shaker(BaseArduinoDevice):
                         self.stop()
                         raise ShakerError("Shaker machine is in error state.")
                     self.start()
+                    # TODO: add stop for a certain duration to refresh the clicker. Sometimes it gets saturated.
                 time.sleep(6)
         finally:
             while ShakerState(state["shaker_status"]) == ShakerState.STARTING:
