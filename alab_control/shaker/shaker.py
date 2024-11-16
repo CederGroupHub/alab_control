@@ -108,13 +108,16 @@ class Shaker(BaseArduinoDevice):
 
     def shaking(self, duration_sec: float):
         """
-        Start the shaker machine for a given duration (seconds)
+        Start the shaker machine for a given duration (seconds).
+        This will initiate the stop command first to ensure the shaker is not running and to de-saturate the clicker.
 
         Args:
             duration_sec: duration of shaking in seconds
             gripper_closed: flag whether the gripper is expected to be closed gripping something or not.
                 it is used to check if the gripper is gripping something while shaking.
         """
+        self.stop()
+        time.sleep(6)
         start_time = time.time()
         print(f"{self.get_current_time()} Starting the shaker machine for {duration_sec} seconds")
         try:
@@ -129,7 +132,6 @@ class Shaker(BaseArduinoDevice):
                         self.stop()
                         raise ShakerError("Shaker machine is in error state.")
                     self.start()
-                    # TODO: add stop for a certain duration to refresh the clicker. Sometimes it gets saturated.
                 time.sleep(6)
         finally:
             while ShakerState(state["shaker_status"]) == ShakerState.STARTING:
