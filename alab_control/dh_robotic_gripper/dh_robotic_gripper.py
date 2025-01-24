@@ -148,6 +148,8 @@ class GripperController:
 
     def set_rotation_angle(self, deg: int):
         if -32768 <= deg <= 32767:
+            # convert deg to unsigned 16-bit integer
+            deg = deg & 0xFFFF
             response = self.client.write_register(0x0109, deg, unit=self.slave_address)
             self._check_response(response)
         else:
@@ -209,7 +211,7 @@ class GripperController:
             print(f"An error occurred: {e}")
             self.stop_rotation()
 
-    def grasp(self, speed_percentage=100, force_percentage=100):
+    def grasp(self, speed_percentage=100, force_percentage=100, check_gripper=True):
         self.set_gripper_speed(speed_percentage)
         self.set_gripper_force(force_percentage)
         self.set_gripper_position(0)
@@ -222,6 +224,9 @@ class GripperController:
 
         while self.read_gripper_status() == GripperStatus.MOVING:
             time.sleep(0.1)
+
+        if check_gripper and self.read_gripper_status() != GripperStatus.GRASPED:
+            raise ValueError("Gripper could not grasp the object.")
 
     def open_to(self, speed_percentage=100, force_percentage=100, position=1000):
         self.set_gripper_speed(speed_percentage)
@@ -260,9 +265,9 @@ if __name__ == "__main__":
         gripper.save_configuration()
         gripper.open_to(position=925)
         # time.sleep(5)
-        # gripper.grasp()
+        gripper.grasp()
         gripper.rotate(
-            RotationDirection.CLOCKWISE, 18000, force=100, check_gripper=False
+            RotationDirection.CLOCKWISE, 1800, force=100, check_gripper=False
         )
         gripper.open_to(position=925)
     except ModbusException as e:

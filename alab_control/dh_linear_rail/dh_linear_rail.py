@@ -130,9 +130,7 @@ class LinearRailController:
 # Example usage
 if __name__ == "__main__":
     # Initialize the gripper on COM port, assuming port name is 'COM3' or '/dev/ttyUSB0'
-    rail = LinearRailController(
-        port="/dev/tty.usbserial-BG004CS1"
-    )  # Update the port based on your setup
+    rail = LinearRailController(port="COM4")  # Update the port based on your setup
     # print(bin(rail.get_status())[2:][::-1])
     # print(rail.clear_alarm())
     print(rail.initialize(wait=True))
