@@ -11,11 +11,7 @@ from pymodbus.exceptions import ModbusException
 
 from alab_control.dh_robotic_gripper.dh_robotic_gripper import GripperController, RotationDirection
 from alab_control.dh_linear_rail.dh_linear_rail import LinearRailController
-<<<<<<< HEAD
 from alab_control.ohaus_scale.ohaus_scale_gpss import OhausScale 
-=======
-from alab_control.ohaus_scale.ohaus_scale import OhausScale 
->>>>>>> f09a4d0 (250224_junhee_gpss_code)
 from alab_control.gripper_shaker.gripper_shaker import GripperShaker
 
 from enum import Enum
