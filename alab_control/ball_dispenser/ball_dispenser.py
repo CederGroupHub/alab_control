@@ -3,17 +3,13 @@ from enum import Enum
 
 from alab_control._base_arduino_device import BaseArduinoDevice
 
-
 class BallDispenserState(Enum):
     STOPPED = "stopped"
     RUNNING = "running"
 
-
 class EmptyError(Exception):
     """An error that is raised when the ball dispenser is empty"""
-
     pass
-
 
 class BallDispenser(BaseArduinoDevice):
     """

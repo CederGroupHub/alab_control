@@ -232,7 +232,6 @@ void writeDisplay(int mode) {
 void dispense(Stepper myStepper,int stepperSpeed, int percent=25){
   if (stepperSpeed > 0) {
     myStepper.setSpeed(stepperSpeed);
-    // step n/100 of a revolution:
     myStepper.step(-percent*STEPS_PER_REV/100);
   }
   digitalWrite(stepPin1, LOW);
@@ -289,8 +288,6 @@ COROUTINE(handleSerialRequest) {
     String text;
 
     if (Serial.available() != 0) {
-      //Serial.println(Serial.read());
-      //reqSpheres = Serial.parseInt(); //Read the data the user has input
       text = Serial.readString();
       int reqSpheres = text.toInt();
       Serial.print(F("Received serial command. Dispensing "));
@@ -351,7 +348,6 @@ COROUTINE(handleRemoteRequest) {
     if (pos) {
       bfill = ether.tcpOffset();
       char* data = (char *) Ethernet::buffer + pos;
-  //    Serial.println(data);
       // receive buf hasn't been clobbered by reply yet
       if (strncmp("GET /start", data, 10) == 0) {
         start_work(data, bfill);
@@ -384,11 +380,6 @@ void setup () {
   }
   ether.staticSetup(myip);
 
-//  attachInterrupt(digitalPinToInterrupt(IRPin1), addSphereCount, RISING);
-//  attachInterrupt(digitalPinToInterrupt(IRPin2), addSphereCount, RISING);
-//  pinMode (button1, INPUT);
-//  pinMode (button2, INPUT);
-//  pinMode (button3, INPUT);
   pinMode(stepPin1, OUTPUT);
   pinMode(stepPin2, OUTPUT);
   pinMode(stepPin3, OUTPUT);
@@ -411,7 +402,6 @@ void setup () {
 
 void loop () {
   dispenseBalls.runCoroutine();
-//  handleButtonChange.runCoroutine();
   handleSerialRequest.runCoroutine();
   handleRemoteRequest.runCoroutine();
 }

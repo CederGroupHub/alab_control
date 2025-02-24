@@ -11,11 +11,9 @@ class RailInitializationStatus(Enum):
     INITIALIZED = 1
     INITIALIZING = 2
 
-
 class RailStatus(Enum):
     MOVING = 0
     ARRIVED = 1
-
 
 class LinearRailController:
     def __init__(self, port, slave_address=1, baudrate=115200):
@@ -32,8 +30,6 @@ class LinearRailController:
         self.slave_address = slave_address
         if not self.client.connect():
             raise ModbusException("Unable to connect to the gripper")
-
-        # self.load_defaults()
 
     def load_defaults(self):
         # set up MODBUS control
@@ -55,8 +51,15 @@ class LinearRailController:
         ):
             time.sleep(0.5)
         if wait:
+            start_time = time.time()
             while self.read_motion_state() != RailStatus.ARRIVED:
                 time.sleep(0.5)
+                if time.time() - start_time >= 10:
+                    self.set_control_words(0x22)
+                    time.sleep(0.5)
+                    if self.read_motion_state != RailStatus.ARRIVED:
+                        raise TimeoutError("State did not update to ARRIVED within the expected time.")
+            print(f"State after initializing: {self.read_motion_state()}")
 
     def get_control_words(self):
         response = self.client.read_holding_registers(0x1605, unit=self.slave_address)
@@ -75,6 +78,7 @@ class LinearRailController:
     def read_motion_state(self) -> RailStatus:
         response = self.client.read_holding_registers(0x1611, unit=self.slave_address)
         self._check_response(response)
+        response.registers[0]
         state = bin(response.registers[0])[2:]
         return RailStatus(int(state[4]))
 
@@ -99,14 +103,18 @@ class LinearRailController:
             0x1600, int(position * 100), unit=self.slave_address
         )
         self._check_response(response)
+        time.sleep(0.3)
         # this is moving commands
         self.set_control_words(0x21)
         time.sleep(0.5)
+        start_time = time.time()
         if wait:
             print(self.read_motion_state())
             while self.read_motion_state() != RailStatus.ARRIVED:
                 print(1)
-                time.sleep(0.1)
+                time.sleep(0.2)
+                if time.time() - start_time > 5:
+                    self.read_motion_state = RailStatus.ARRIVED
         self.set_control_words(0x20)
 
     def read_alarm_code(self):
@@ -129,18 +137,10 @@ class LinearRailController:
 
 # Example usage
 if __name__ == "__main__":
-    # Initialize the gripper on COM port, assuming port name is 'COM3' or '/dev/ttyUSB0'
-    rail = LinearRailController(port="COM4")  # Update the port based on your setup
-    # print(bin(rail.get_status())[2:][::-1])
-    # print(rail.clear_alarm())
-    print(rail.initialize(wait=True))
-    for _ in range(50):
-        print(rail.move_to(0))
-        print(rail.move_to(50))
-    # rail.set_control_words(0x120)
-    # rail.set_control_words(0)
-    # time.sleep(5)
-    # rail.set_control_words(0x4)
-    # # print(rail.get_state())
-    # print(rail.read_alarm_code())
-    # print(rail.clear_alarm())
+    # Initialize the gripper on COM port, assuming port name is 'COM6' or '/dev/ttyUSB0', '/dev/tty.usbserial-BG004CS1'
+    # Update the port based on your setup   
+    rail = LinearRailController(port="COM6")      
+    rail.initialize(wait=True)
+    rail.move_to(70, max_acceleration = 50, wait=True)
+    rail.move_to(0, max_acceleration = 50, wait=True)
+

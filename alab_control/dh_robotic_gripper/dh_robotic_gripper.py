@@ -11,24 +11,20 @@ class InitializationStatus(Enum):
     INITIALIZED = 1
     INITIALIZING = 2
 
-
 class RotationDirection(Enum):
     CLOCKWISE = 1
     COUNTERCLOCKWISE = -1
-
 
 class RotationStatus(Enum):
     MOVING = 0
     REACHED = 1
     BLOCKED = 3
 
-
 class GripperStatus(Enum):
     MOVING = 0
     ARRIVED = 1
     GRASPED = 2
     DROPPED = 3
-
 
 class GripperController:
     def __init__(self, port, slave_address=1, baudrate=115200):
@@ -47,6 +43,7 @@ class GripperController:
             raise ModbusException("Unable to connect to the gripper")
 
         self.load_defaults()
+        self.current_angle = -270
 
     def load_defaults(self):
         # stop when gripper is blocked
@@ -59,13 +56,19 @@ class GripperController:
         response = self.client.write_register(0x0100, 0xA5, unit=self.slave_address)
         self._check_response(response)
         start_time = time.time()
+                
         while self.check_initialization() != InitializationStatus.INITIALIZING and (
             time.time() - start_time < 5
         ):
             time.sleep(0.5)
         if wait:
+            start_wait = time.time()
             while self.check_initialization() != InitializationStatus.INITIALIZED:
+                if time.time() - start_wait > 10:  # set 10s for time out
+                    raise TimeoutError("Gripper initialization timeout.")
                 time.sleep(0.5)
+        
+        self.current_angle = -270
 
     def save_configuration(self):
         # save the configuration
@@ -125,6 +128,10 @@ class GripperController:
         )
         self._check_response(response)
         return GripperStatus(response.registers[0])
+    
+    def read_current_angle(self):
+        # return current angle
+        return self.current_angle    
 
     def set_rotation_speed(self, speed_percentage):
         # Command: Set the rotation speed (0x0501 register, value 1-100%)
@@ -148,8 +155,8 @@ class GripperController:
 
     def set_rotation_angle(self, deg: int):
         if -32768 <= deg <= 32767:
-            # convert deg to unsigned 16-bit integer
-            deg = deg & 0xFFFF
+            if deg < 0:
+                deg = 0xFFFF + deg + 1  # - integer cahnge to 2's complement
             response = self.client.write_register(0x0109, deg, unit=self.slave_address)
             self._check_response(response)
         else:
@@ -167,23 +174,43 @@ class GripperController:
         )
         self._check_response(response)
         return RotationStatus(response.registers[0])
-
+    
     def rotate(
         self,
         direction: RotationDirection,
-        deg: int = 720,
+        deg: int = 0,
         force: int = 30,
         speed: int = 100,
         check_gripper: bool = True,
     ) -> RotationStatus:
-        if check_gripper and self.read_gripper_status() != GripperStatus.GRASPED:
-            raise ValueError("Gripper must be grasped before rotating.")
+        # Calculate the required rotation based on the target absolute angle
+        target_angle = deg 
+
+        if target_angle>85 or target_angle<-270:
+            raise Exception("deg must be between -270< deg < 85")
+        
+        # Calculate the difference between current and target angle
+        angle_difference = target_angle - self.current_angle
+
+        # Determine the direction of rotation
+        if angle_difference == 0:
+            print("Already at the target angle.")
+            return RotationStatus.REACHED
+        elif angle_difference > 0:
+            direction = RotationDirection.CLOCKWISE
+        else:
+            direction = RotationDirection.COUNTERCLOCKWISE
+            angle_difference = abs(angle_difference)
+
+        # Set rotation force and speed
         self.set_rotation_force(force)
         self.set_rotation_speed(speed)
 
         try:
-            self.set_rotation_angle(direction.value * deg)
+            # Perform the rotation
+            self.set_rotation_angle(direction.value * angle_difference)
             start_time = time.time()
+
             while self.read_rotation_status() != RotationStatus.MOVING and (
                 time.time() - start_time < 5
             ):
@@ -206,12 +233,17 @@ class GripperController:
                         f"Gripper status changed to {self.read_gripper_status()} during rotating"
                     )
 
+            # Update the current angle
+            self.current_angle = target_angle
+            #print(f"Rotated to absolute angle {self.current_angle} degrees.")
+
             return self.read_rotation_status()
         except Exception as e:
             print(f"An error occurred: {e}")
             self.stop_rotation()
+            raise
 
-    def grasp(self, speed_percentage=100, force_percentage=100, check_gripper=True):
+    def grasp(self, speed_percentage=100, force_percentage=100):
         self.set_gripper_speed(speed_percentage)
         self.set_gripper_force(force_percentage)
         self.set_gripper_position(0)
@@ -224,9 +256,6 @@ class GripperController:
 
         while self.read_gripper_status() == GripperStatus.MOVING:
             time.sleep(0.1)
-
-        if check_gripper and self.read_gripper_status() != GripperStatus.GRASPED:
-            raise ValueError("Gripper could not grasp the object.")
 
     def open_to(self, speed_percentage=100, force_percentage=100, position=1000):
         self.set_gripper_speed(speed_percentage)
@@ -256,8 +285,9 @@ class GripperController:
 if __name__ == "__main__":
     # Initialize the gripper on COM port, assuming port name is 'COM3' or '/dev/ttyUSB0'
     gripper = GripperController(
-        port="/dev/tty.usbserial-BG005IB3"
-    )  # Update the port based on your setup
+        ## Update the port based on your setup ("/dev/tty.usbserial-BG005IB3")
+        port="COM9"
+    )  
 
     try:
         # Initialize the gripper
@@ -265,9 +295,9 @@ if __name__ == "__main__":
         gripper.save_configuration()
         gripper.open_to(position=925)
         # time.sleep(5)
-        gripper.grasp()
+        # gripper.grasp()
         gripper.rotate(
-            RotationDirection.CLOCKWISE, 1800, force=100, check_gripper=False
+            RotationDirection.CLOCKWISE, 180, force=100, check_gripper=False
         )
         gripper.open_to(position=925)
     except ModbusException as e:
