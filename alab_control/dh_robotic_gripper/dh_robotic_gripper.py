@@ -11,20 +11,24 @@ class InitializationStatus(Enum):
     INITIALIZED = 1
     INITIALIZING = 2
 
+
 class RotationDirection(Enum):
     CLOCKWISE = 1
     COUNTERCLOCKWISE = -1
+
 
 class RotationStatus(Enum):
     MOVING = 0
     REACHED = 1
     BLOCKED = 3
 
+
 class GripperStatus(Enum):
     MOVING = 0
     ARRIVED = 1
     GRASPED = 2
     DROPPED = 3
+
 
 class GripperController:
     def __init__(self, port, slave_address=1, baudrate=115200):
@@ -56,7 +60,7 @@ class GripperController:
         response = self.client.write_register(0x0100, 0xA5, unit=self.slave_address)
         self._check_response(response)
         start_time = time.time()
-                
+
         while self.check_initialization() != InitializationStatus.INITIALIZING and (
             time.time() - start_time < 5
         ):
@@ -67,7 +71,7 @@ class GripperController:
                 if time.time() - start_wait > 10:  # set 10s for time out
                     raise TimeoutError("Gripper initialization timeout.")
                 time.sleep(0.5)
-        
+
         self.current_angle = -270
 
     def save_configuration(self):
@@ -128,10 +132,10 @@ class GripperController:
         )
         self._check_response(response)
         return GripperStatus(response.registers[0])
-    
+
     def read_current_angle(self):
         # return current angle
-        return self.current_angle    
+        return self.current_angle
 
     def set_rotation_speed(self, speed_percentage):
         # Command: Set the rotation speed (0x0501 register, value 1-100%)
@@ -174,21 +178,20 @@ class GripperController:
         )
         self._check_response(response)
         return RotationStatus(response.registers[0])
-    
+
     def rotate(
         self,
-        direction: RotationDirection,
         deg: int = 0,
         force: int = 30,
         speed: int = 100,
         check_gripper: bool = True,
     ) -> RotationStatus:
         # Calculate the required rotation based on the target absolute angle
-        target_angle = deg 
+        target_angle = deg
 
-        if target_angle>85 or target_angle<-270:
+        if target_angle > 85 or target_angle < -270:
             raise Exception("deg must be between -270< deg < 85")
-        
+
         # Calculate the difference between current and target angle
         angle_difference = target_angle - self.current_angle
 
@@ -235,7 +238,7 @@ class GripperController:
 
             # Update the current angle
             self.current_angle = target_angle
-            #print(f"Rotated to absolute angle {self.current_angle} degrees.")
+            # print(f"Rotated to absolute angle {self.current_angle} degrees.")
 
             return self.read_rotation_status()
         except Exception as e:
@@ -287,7 +290,7 @@ if __name__ == "__main__":
     gripper = GripperController(
         ## Update the port based on your setup ("/dev/tty.usbserial-BG005IB3")
         port="COM9"
-    )  
+    )
 
     try:
         # Initialize the gripper
@@ -296,9 +299,7 @@ if __name__ == "__main__":
         gripper.open_to(position=925)
         # time.sleep(5)
         # gripper.grasp()
-        gripper.rotate(
-            RotationDirection.CLOCKWISE, 180, force=100, check_gripper=False
-        )
+        gripper.rotate(RotationDirection.CLOCKWISE, 180, force=100, check_gripper=False)
         gripper.open_to(position=925)
     except ModbusException as e:
         print(f"An error occurred: {e}")

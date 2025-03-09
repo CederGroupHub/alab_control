@@ -1,25 +1,40 @@
-from alab_control.dh_robotic_gripper.dh_robotic_gripper import (
-    GripperController,
-)
-from xmlrpc.server import SimpleXMLRPCServer
+import time
 
-gripper = GripperController(
-    port="/dev/tty.usbserial-BG005IB3"
-)  # Update the port based on your setu
+from alab_control.linear_rail_gpss.linear_rail_gpss import LinearRailGPSS
+from alab_control.robot_arm_ur5e import URRobotDashboard
+
+robot_arm = URRobotDashboard("192.168.1.23")
+linear_rail = LinearRailGPSS("/dev/tty.usbmodemTMCSTEP1")
 
 
-# make an RPC server here
-server = SimpleXMLRPCServer(("", 8000), allow_none=True)
-server.register_introspection_functions()
+def test_moving_vials():
+    linear_rail.move_right()
+    robot_arm.run_program("pick_trans_rack_vial.urp")
+    robot_arm.run_program("place_trans_rack_vial.urp")
 
-server.register_instance(gripper)
-server.serve_forever()
-gripper.open_to()
-gripper.initialize()
-gripper.save_configuration()
-gripper.open_to(position=925)
-time.sleep(5)
-gripper.grasp()
-gripper.rotate(
-    RotationDirection.CLOCKWISE, 1080, force=100, check_gripper=False, speed=10
-)
+
+def capping():
+    linear_rail.move_right()
+    robot_arm.run_program("pick_trans_rack_cap_A.urp")
+    robot_arm.run_program("place_cap_B.urp")
+    robot_arm.run_program("pick_trans_rack_vial.urp")
+    robot_arm.run_program("decapping.urp")
+    robot_arm.run_program("place_cap_A.urp")
+    robot_arm.run_program("pick_cap_B.urp")
+    robot_arm.run_program("capping.urp")
+    linear_rail.move_right()
+    robot_arm.run_program("place_trans_rack_vial.urp")
+    robot_arm.run_program("pick_cap_A.urp")
+    robot_arm.run_program("place_trans_rack_cap_A.urp")
+
+
+if __name__ == "__main__":
+    # test_moving_vials()
+    cnt = 0
+    while True:
+        cnt += 1
+        print(f"Loop {cnt}", end=" ")
+        start = time.time()
+        capping()
+        end = time.time()
+        print(f"Time: {end - start}")

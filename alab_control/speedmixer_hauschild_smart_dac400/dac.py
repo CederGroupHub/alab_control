@@ -205,5 +205,17 @@ class HauschildDAC400:
 
 
 if __name__ == "__main__":
-    dac = HauschildDAC400(com_port="/dev/tty.usbserial-B001P9R5")
+    dac = HauschildDAC400(com_port="/dev/tty.usbserial-B0029CTO")
     dac.homing()
+    # dac.dac.init_drive()
+    # # time.sleep(10)
+    # # #
+    # while 1:
+    #     print(dac.dac.is_ready())
+    #     if dac.dac.is_ready():
+    #         break
+    # dac.dac.set_speed(400)
+    # dac.dac.start()
+    # time.sleep(5)
+    # dac.stop()
+    # # print(dac.dac.is_ready())

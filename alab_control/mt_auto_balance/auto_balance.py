@@ -1,7 +1,7 @@
 import abc
 import time
 from pathlib import Path
-from typing import Literal, Type, TypeVar
+from typing import List, Literal, Type, TypeVar
 
 import zeep
 
@@ -301,7 +301,9 @@ class NotificationClient(BaseClient):
 class DraftShieldsClient(BaseClient):
     name = "DraftShieldsService"
 
-    def get_door_position(self, doors: list = ["LeftOuter", "RightOuter"]) -> str:
+    def get_door_position(
+        self, doors: list = ("LeftOuter", "RightOuter")
+    ) -> List[dict]:
         """
         Example:
         [{
@@ -387,17 +389,46 @@ class MTAutoBalance:
     def get_session(self) -> Session:
         return Session(host=self.host, password=self.password)
 
-    def open_door(self, door: Literal["left", "right"]):
+    def open_door(self, door: Literal["LeftOuter", "RightOuter"]):
         with self.get_session() as session:
             draft_shields_client = session.create_client(DraftShieldsClient)
             draft_shields_client.set_door_position(door=door, position=100)
-            time.sleep(1)
 
-    def close_door(self, door: Literal["left", "right"]):
+            # check if the door is opened
+            position = 0
+            start_time = time.time()
+            while position < 98 and time.time() - start_time < 5:
+                time.sleep(0.1)
+                position = draft_shields_client.get_door_position(doors=[f"{door}"])[0][
+                    "OpeningWidth"
+                ]
+            else:
+                if position < 98:
+                    raise MTAutoBalanceError(
+                        f"Failed to open the door within 5 seconds. "
+                        f"The door position is {position}."
+                    )
+
+    def close_door(self, door: Literal["LeftOuter", "RightOuter"]):
         with self.get_session() as session:
             draft_shields_client = session.create_client(DraftShieldsClient)
             draft_shields_client.set_door_position(door=door, position=0)
             time.sleep(1)
+
+            # check if the door is closed
+            position = 100
+            start_time = time.time()
+            while position > 2 and time.time() - start_time < 5:
+                time.sleep(0.1)
+                position = draft_shields_client.get_door_position(doors=[f"{door}"])[0][
+                    "OpeningWidth"
+                ]
+            else:
+                if position > 2:
+                    raise MTAutoBalanceError(
+                        f"Failed to close the door within 5 seconds. "
+                        f"The door position is {position}."
+                    )
 
     def get_weight(
         self, weight_capture_mode: Literal["Stable", "Immediate"] = "Stable"
@@ -424,7 +455,11 @@ class MTAutoBalance:
                     method["Name"]
                     for method in methods
                     if method["MethodType"] == "AutomatedDosing"
-                ][0]
+                ]
+                if any(m["Name"] == "Dosing UNSTABLE" for m in methods):
+                    method = "Dosing UNSTABLE"
+                else:
+                    method = method[0]
             except IndexError:
                 return {
                     "error": "No AutomatedDosing method found",
@@ -519,6 +554,7 @@ class MTAutoBalance:
 
                     if notification["DosingError"]:
                         return {
+                            # e.g. SubstanceFlowTooLow
                             "error": notification["DosingError"],
                             "result": notification["DosingResult"]["WeightSample"],
                             "success": False,
@@ -526,13 +562,13 @@ class MTAutoBalance:
                     else:
                         return {
                             "error": None,
-                            "result": notification["WeightSample"],
+                            "result": notification["DosingResult"]["WeightSample"],
                             "success": True,
                         }
 
 
 if __name__ == "__main__":
-    mt_balance = MTAutoBalance(host="http://192.168.1.10:81", password="mt")
+    mt_balance = MTAutoBalance(host="http://192.168.1.13:81", password="mt")
     print(
         mt_balance.automatic_dosing(
             target_value_g=1, lower_tolerance_percent=0.1, upper_tolerance_percent=0.1
