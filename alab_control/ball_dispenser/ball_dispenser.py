@@ -60,7 +60,7 @@ class BallDispenser(BaseArduinoDevice):
         """
         if not 0 <= n <= 100:
             raise ValueError("n must be between 0 and 100")
-        self.send_request(self.ENDPOINTS["change_number"], data={"n": n}, method="GET")
+        self.send_request(self.ENDPOINTS["change_number"]+ f"n={n}", method="GET")
 
     def get_state(self) -> BallDispenserState:
         """
