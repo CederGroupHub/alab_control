@@ -8,8 +8,8 @@ from alab_control.mt_auto_balance.auto_balance import MTAutoBalance
 from alab_control.robot_arm_ur5e import URRobotDashboard
 
 # Create a dosing head rack object
-rack = DosingHeadRack("/dev/tty.usbmodemTMCSTEP1")
-linear_rail = LinearRailGPSS("/dev/tty.usbmodem6")
+rack = DosingHeadRack("COM4")
+linear_rail = LinearRailGPSS("COM10")
 robot_arm = URRobotDashboard("192.168.1.23")
 balance = MTAutoBalance("http://192.168.1.13:81")
 
