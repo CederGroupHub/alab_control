@@ -34,15 +34,16 @@ global trans_q_{{ loop.index }} = {{ qnear }}
 joint_positions = get_actual_joint_positions()
 expected_joint_positions = start_q
 is_at_start_position = True
-is_at_start_position = is_at_start_position and norm(joint_positions[0] - expected_joint_positions[0]) < 0.01
-is_at_start_position = is_at_start_position and norm(joint_positions[1] - expected_joint_positions[1]) < 0.01
-is_at_start_position = is_at_start_position and norm(joint_positions[2] - expected_joint_positions[2]) < 0.01
-is_at_start_position = is_at_start_position and norm(joint_positions[3] - expected_joint_positions[3]) < 0.01
-is_at_start_position = is_at_start_position and norm(joint_positions[4] - expected_joint_positions[4]) < 0.01
-is_at_start_position = is_at_start_position and norm(joint_positions[5] - expected_joint_positions[5]) < 0.01
+is_at_start_position = is_at_start_position and norm(joint_positions[0] - expected_joint_positions[0]) < 0.008
+is_at_start_position = is_at_start_position and norm(joint_positions[1] - expected_joint_positions[1]) < 0.008
+is_at_start_position = is_at_start_position and norm(joint_positions[2] - expected_joint_positions[2]) < 0.008
+is_at_start_position = is_at_start_position and norm(joint_positions[3] - expected_joint_positions[3]) < 0.008
+is_at_start_position = is_at_start_position and norm(joint_positions[4] - expected_joint_positions[4]) < 0.008
+is_at_start_position = is_at_start_position and norm(joint_positions[5] - expected_joint_positions[5]) < 0.008
 
 if (not is_at_start_position):
-  popup("Not in the specified start position, stopped.", "Error", False, True, True)
+  popup("Not in the specified start position, stopped.")
+  halt
 end
 
 $ 1 "BeforeStart"

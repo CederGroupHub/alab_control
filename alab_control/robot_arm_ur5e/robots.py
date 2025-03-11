@@ -3,8 +3,8 @@ import socket
 from pathlib import Path
 from typing import Callable, List, Dict, Literal, Optional, Union
 
-import numpy as np
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
+import numpy as np
 
 from alab_control.robot_arm_ur5e import URRobotDashboard, URRobotSecondary
 from alab_control.robot_arm_ur5e.ur_robot_ssh import URRobotSSH
