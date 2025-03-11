@@ -17,27 +17,27 @@ SLOTS = ["A", "B", "C", "D"]
 
 
 def pick_dosing_head(slot: str):
-    robot_arm.run_program(f"pick_dose_head_{slot}.urp")
+    robot_arm.run_program(f"pick_dose_head_{slot}.auto.urp")
 
 
 def place_dosing_head(slot: str):
-    robot_arm.run_program(f"place_dose_head_{slot}.urp")
+    robot_arm.run_program(f"place_dose_head_{slot}.auto.urp")
 
 
 def load_crucible_to_balance():
     linear_rail.move_right()
-    robot_arm.run_program("pick_trans_rack_cru.urp")
+    robot_arm.run_program("pick_trans_rack_cru.auto.urp")
     balance.open_door("LeftOuter")
-    robot_arm.run_program("place_cru_balance.urp")
+    robot_arm.run_program("place_cru_balance.auto.urp")
     balance.close_door("LeftOuter")
 
 
 def unload_crucible_to_balance():
     balance.open_door("LeftOuter")
-    robot_arm.run_program("pick_cru_balance.urp")
+    robot_arm.run_program("pick_cru_balance.auto.urp")
     balance.close_door("LeftOuter")
     linear_rail.move_right()
-    robot_arm.run_program("place_trans_rack_cru.urp")
+    robot_arm.run_program("place_trans_rack_cru.auto.urp")
 
 
 def load_dosing_head_to_balance(pos):
@@ -68,17 +68,17 @@ def dosing(prev_pos):
 
 def capping():
     linear_rail.move_right()
-    robot_arm.run_program("pick_trans_rack_cap_A.urp")
-    robot_arm.run_program("place_cap_B.urp")
-    robot_arm.run_program("pick_trans_rack_vial.urp")
-    robot_arm.run_program("decapping.urp")
-    robot_arm.run_program("place_cap_A.urp")
-    robot_arm.run_program("pick_cap_B.urp")
-    robot_arm.run_program("capping.urp")
+    robot_arm.run_program("pick_trans_rack_cap_A.auto.urp")
+    robot_arm.run_program("place_cap_B.auto.urp")
+    robot_arm.run_program("pick_trans_rack_vial.auto.urp")
+    robot_arm.run_program("decapping.auto.urp")
+    robot_arm.run_program("place_cap_A.auto.urp")
+    robot_arm.run_program("pick_cap_B.auto.urp")
+    robot_arm.run_program("capping.auto.urp")
     linear_rail.move_right()
-    robot_arm.run_program("place_trans_rack_vial.urp")
-    robot_arm.run_program("pick_cap_A.urp")
-    robot_arm.run_program("place_trans_rack_cap_A.urp")
+    robot_arm.run_program("place_trans_rack_vial.auto.urp")
+    robot_arm.run_program("pick_cap_A.auto.urp")
+    robot_arm.run_program("place_trans_rack_cap_A.auto.urp")
 
 
 if __name__ == "__main__":
