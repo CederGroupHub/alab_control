@@ -67,6 +67,7 @@ def dosing(prev_pos):
 
 
 def capping():
+    linear_rail.move_left()
     linear_rail.move_right()
     robot_arm.run_program("auto_program/pick_trans_rack_cap_A.auto.urp")
     robot_arm.run_program("auto_program/place_cap_B.auto.urp")
@@ -75,10 +76,57 @@ def capping():
     robot_arm.run_program("auto_program/place_cap_A.auto.urp")
     robot_arm.run_program("auto_program/pick_cap_B.auto.urp")
     robot_arm.run_program("auto_program/capping.auto.urp")
+    linear_rail.move_left()
     linear_rail.move_right()
     robot_arm.run_program("auto_program/place_trans_rack_vial.auto.urp")
     robot_arm.run_program("auto_program/pick_cap_A.auto.urp")
     robot_arm.run_program("auto_program/place_trans_rack_cap_A.auto.urp")
+
+
+def open_rack(level):
+    robot_arm.run_program(
+        f"auto_program/open_consumable_rack/open_level_{level}.auto.urp"
+    )
+
+
+def close_rack(level):
+    robot_arm.run_program(
+        f"auto_program/close_consumable_rack/close_level_{level}.auto.urp"
+    )
+
+
+def pick_consumable(level, row, consum):
+    robot_arm.run_program(
+        f"auto_program/pick_consumable/pick_level_{level}_row_{row}_{consum}.auto.urp"
+    )
+
+
+def place_consumable(level, row, consum):
+    robot_arm.run_program(
+        f"auto_program/place_consumable/place_level_{level}_row_{row}_{consum}.auto.urp"
+    )
+
+
+def pick_transfer_rack(consum):
+    robot_arm.run_program(
+        f"auto_program/pick_trans_rack/pick_trans_rack_{consum}.auto.urp"
+    )
+
+
+def place_transfer_rack(consum):
+    robot_arm.run_program(
+        f"auto_program/place_trans_rack/place_trans_rack_{consum}.auto.urp"
+    )
+
+
+def take_one_set(level, row):
+    open_rack(level)
+    for consum in ["cap_A", "cap_B", "crucible", "vial"]:
+        pick_consumable(level, row, consum)
+        place_transfer_rack(consum)
+        pick_transfer_rack(consum)
+        place_consumable(level, (row + 1) % 5, consum)
+    close_rack(level)
 
 
 if __name__ == "__main__":

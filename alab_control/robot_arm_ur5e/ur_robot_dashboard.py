@@ -6,7 +6,7 @@ Universal Robot e-Series
 import logging
 import socket
 import time
-from enum import unique, Enum, auto
+from enum import auto, Enum, unique
 from threading import Lock
 from typing import Optional
 
@@ -21,6 +21,7 @@ class ProgramStatus(Enum):
     """
     Status of program
     """
+
     STOPPED = auto()
     PLAYING = auto()
     PAUSED = auto()
@@ -147,11 +148,15 @@ class URRobotDashboard:
                 pass  # the program may end very quickly
             if block:
                 try:
-                    self.wait_for_finish(timeout=600)  # set a maximum timeout of 10 minutes
+                    self.wait_for_finish(
+                        timeout=600
+                    )  # set a maximum timeout of 10 minutes
                 except URRobotPopupError:
                     raise
                 except Exception as e:
-                    raise URRobotError(f"Error when waiting for program to finish: {name}. Protective/Emergency stop might have occured. If so, please jog the robot arm safely to reset and try again. {e.args[0]}") from e
+                    raise URRobotError(
+                        f"Error when waiting for program to finish: {name}. Protective/Emergency stop might have occured. If so, please jog the robot arm safely to reset and try again. {e.args[0]}"
+                    ) from e
 
     def is_running(self) -> bool:
         """
@@ -163,21 +168,35 @@ class URRobotDashboard:
         elif "false" in response:
             return False
         else:
-            raise URRobotError("Unexpected response for is_running query: {}".format(response))
+            raise URRobotError(
+                "Unexpected response for is_running query: {}".format(response)
+            )
 
     def wait_for_start(self, timeout: Optional[float] = None):
         """
         Block the process until starting
         """
         if self.get_robot_mode() not in (RobotMode.RUNNING, RobotMode.IDLE):
-            raise URRobotError("Robot is not in running mode, but in {}.".format(self.get_robot_mode().name))
+            raise URRobotError(
+                "Robot is not in running mode, but in {}.".format(
+                    self.get_robot_mode().name
+                )
+            )
         if self.get_safety_status() != SafeStatus.NORMAL:
-            raise URRobotError("Robot is not in normal mode, but in {}.".format(self.get_safety_status().name))
+            raise URRobotError(
+                "Robot is not in normal mode, but in {}.".format(
+                    self.get_safety_status().name
+                )
+            )
 
         start_time = time.time()
         while not self.is_running():
             if timeout and time.time() - start_time > timeout:
-                raise TimeoutError("Timeout when waiting for program start, the limit is {} s. ".format(timeout))
+                raise TimeoutError(
+                    "Timeout when waiting for program start, the limit is {} s. ".format(
+                        timeout
+                    )
+                )
 
     def wait_for_finish(self, timeout: Optional[float] = None):
         """
@@ -186,15 +205,29 @@ class URRobotDashboard:
         start_time = time.time()
         while self.is_running():
             if timeout and time.time() - start_time > timeout:
-                raise TimeoutError("Timeout when waiting for program finish, the limit is {} s".format(timeout))
+                raise TimeoutError(
+                    "Timeout when waiting for program finish, the limit is {} s".format(
+                        timeout
+                    )
+                )
             if self._primary.popup_message is not None:
-                raise URRobotPopupError(f"A popup is shown on robot arm: "
-                                        f"{self._primary.popup_title} - {self._primary.popup_message}")
+                raise URRobotPopupError(
+                    f"A popup is shown on robot arm: "
+                    f"{self._primary.popup_title} - {self._primary.popup_message}"
+                )
 
         if self.get_robot_mode() not in (RobotMode.RUNNING, RobotMode.IDLE):
-            raise URRobotError("Robot is not in running mode, but in {}.".format(self.get_robot_mode().name))
+            raise URRobotError(
+                "Robot is not in running mode, but in {}.".format(
+                    self.get_robot_mode().name
+                )
+            )
         if self.get_safety_status() != SafeStatus.NORMAL:
-            raise URRobotError("Robot is not in normal mode, but in {}.".format(self.get_safety_status().name))
+            raise URRobotError(
+                "Robot is not in normal mode, but in {}.".format(
+                    self.get_safety_status().name
+                )
+            )
 
     def load(self, name: str):
         """
@@ -212,9 +245,11 @@ class URRobotDashboard:
             self._raise_for_unexpected_prefix(response, "Loading program")
         except URRobotError as e:
             if response.endswith(".urp"):
-                e.args = (e.args[0] + " Your file seems not to be a valid "
-                                      "program name, did you define it in "
-                                      "the predefined program dict?",)
+                e.args = (
+                    e.args[0] + " Your file seems not to be a valid "
+                    "program name, did you define it in "
+                    "the predefined program dict?",
+                )
             raise
 
     def play(self):
@@ -228,9 +263,11 @@ class URRobotDashboard:
             self._raise_for_unexpected_prefix(response, "Starting program")
         except URRobotError as e:
             # add more hints for debug
-            e.args = (e.args[0] + " Did you remember to load program or did "
-                                  "you stop the program by accident or is the robot"
-                                  "arm in the right start position?",)
+            e.args = (
+                e.args[0] + " Did you remember to load program or did "
+                "you stop the program by accident or is the robot"
+                "arm in the right start position?",
+            )
             raise
 
     def stop(self):
@@ -264,7 +301,9 @@ class URRobotDashboard:
         an URRobotError
         """
         if self.get_program_status() != ProgramStatus.PAUSED:
-            raise URRobotError("continue_play can only be used to recover a paused program")
+            raise URRobotError(
+                "continue_play can only be used to recover a paused program"
+            )
         self.play()
 
     def get_robot_mode(self) -> RobotMode:
@@ -277,7 +316,9 @@ class URRobotDashboard:
         try:
             return RobotMode[robot_mode_string]
         except KeyError as e:
-            raise URRobotError("Unexpected response for robot mode: {}.".format(robot_mode_string)) from e
+            raise URRobotError(
+                "Unexpected response for robot mode: {}.".format(robot_mode_string)
+            ) from e
 
     def get_program_status(self) -> ProgramStatus:
         """
@@ -291,7 +332,9 @@ class URRobotDashboard:
         try:
             return ProgramStatus[state_string]
         except KeyError as e:
-            raise URRobotError("Get unexpected program status query result: {}".format(response)) from e
+            raise URRobotError(
+                "Get unexpected program status query result: {}".format(response)
+            ) from e
 
     @property
     def loaded_program(self) -> Optional[str]:
@@ -303,7 +346,9 @@ class URRobotDashboard:
             return None
         elif response.endswith(".urp") or response.endswith(".urscript"):
             return response
-        raise URRobotError("Unexpected result for loaded_program query: {}".format(response))
+        raise URRobotError(
+            "Unexpected result for loaded_program query: {}".format(response)
+        )
 
     def is_remote_mode(self) -> bool:
         """
@@ -315,7 +360,9 @@ class URRobotDashboard:
         elif response == "false":
             return False
         else:
-            raise URRobotError("Unexpected result for is_remote_mode query: {}".format(response))
+            raise URRobotError(
+                "Unexpected result for is_remote_mode query: {}".format(response)
+            )
 
     def clear_popup(self):
         """
@@ -338,7 +385,20 @@ class URRobotDashboard:
         try:
             return SafeStatus[response.split(": ")[1].strip("\n")]
         except KeyError:
-            raise URRobotError("Unexpected response for safety status query: {}".format(response))
+            raise URRobotError(
+                "Unexpected response for safety status query: {}".format(response)
+            )
+
+    def get_variable(self, name: str):
+        """
+        Get the value of a variable in the robot arm
+
+        Args:
+            name: the name of the variable
+        """
+        response = self.send_cmd("getVariable {}".format(name))
+        print(response)
+        return response.split(": ")[1].strip("\n")
 
     @staticmethod
     def _raise_for_unexpected_prefix(response: str, prefix: str):

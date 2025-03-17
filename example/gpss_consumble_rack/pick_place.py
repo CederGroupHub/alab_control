@@ -34,13 +34,13 @@ def place_consumable(level, row, consum):
 
 
 if __name__ == "__main__":
-    for level in range(1, 7):
+    for level in range(3, 7):
         open_rack(level)
         print(f"Level {level}")
         for row in range(5):
             for consum in ["vial", "crucible", "cap_A", "cap_B"]:
                 print(f"Level {level} Row {row} Consumable {consum}")
-                pick_consumable(level, row, consum)
-                place_consumable(level, row, consum)
-                # touch_consumable(level, row, consum)
+                # pick_consumable(level, row, consum)
+                # place_consumable(level, row, consum)
+                touch_consumable(level, row, consum)
         close_rack(level)

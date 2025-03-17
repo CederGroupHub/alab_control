@@ -35,7 +35,14 @@ class URRobotSSH:
             with sftp.open((Path(base) / file_name).as_posix(), "w") as f:
                 f.write(program_string)
 
-    def compress_write_program(self, file_name: str, program_string: str, base: str = "/programs"):
+    def read_urp_program(self, file_name: str, base: str = "/programs"):
+        with self._ssh.open_sftp() as sftp:
+            with sftp.open((Path(base) / file_name).as_posix(), "r") as f:
+                compressed_program = f.read()
+                program_file = gzip.decompress(compressed_program).decode("utf-8")
+        return program_file
+
+    def write_urp_program(self, file_name: str, program_string: str, base: str = "/programs"):
         with self._ssh.open_sftp() as sftp:
             compressed_program = gzip.compress(program_string.encode("utf-8"))
             with sftp.open((Path(base) / file_name).as_posix(), "wb") as f:
@@ -44,6 +51,19 @@ class URRobotSSH:
     def upload_file(self, local_file_path: str, remote_file_path: str):
         with self._ssh.open_sftp() as sftp:
             sftp.put(local_file_path, remote_file_path)
+
+    def mkdir(self, folder_path: str, exist_ok: bool = True):
+        with self._ssh.open_sftp() as sftp:
+            try:
+                sftp.stat(folder_path)
+                exists = True
+            except FileNotFoundError:
+                exists = False
+            if not exists:
+                sftp.mkdir(folder_path)
+            else:
+                if not exist_ok:
+                    raise FileExistsError(f"Folder {folder_path} already exists")
 
     def remove_file(self, file_path: str):
         with self._ssh.open_sftp() as sftp:
