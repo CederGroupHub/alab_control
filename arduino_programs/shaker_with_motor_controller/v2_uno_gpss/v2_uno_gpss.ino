@@ -11,14 +11,11 @@ using namespace ace_routine;
 // Communication configuration
 #include <EtherCard.h>
 #include <ArduinoJson.h>
-#define serialwaitingtime 5 //time in seconds to wait for the serial connection to be stablished, or it will be canceled
-static byte mymac[] = { 0x74, 0x69, 0x30, 0x2F, 0x22, 0x31 }; // MAC address of the device
+static byte mymac[] = { 0x74, 0x69, 0x30, 0x2F, 0x22, 0x33 }; // MAC address of the device
 static byte Ethernet::buffer[400]; // Buffer for Ethernet
 BufferFiller bfill; // Buffer for the response
 // Array of string to list the possible commands
 const char* commands[] = { 
-  "start shaker",
-  "stop shaker",
   "open gripper",
   "close gripper",
   "reset system"
@@ -26,7 +23,7 @@ const char* commands[] = {
 
 // Gripper
 #include <Servo.h>
-#define analogIn 18 //Force sensing resistor
+#define analogIn A0 //Force sensing resistor
 #define output5 9 //PWM for actuator
 Servo actuator; //create a servo object for the actuators
 bool gripper_detect = false; //flag to detect if the object is in the gripper
@@ -58,34 +55,6 @@ void readForceSensor() {
   if (force_reading < 100) {
     gripper_detect = true;
     Serial.println("detected something");
-  }
-}
-
-// Shaker
-#define output1 19 //Start
-#define output2 20 //Stop
-unsigned long shakerTime, shakerTimePrev; //for periodic state checking of the clicker
-const long shakerDuration = 5000; //time in milliseconds to check the clicker state
-enum ShakerState {
-  STARTING,
-  STOPPING,
-  ON,
-  OFF
-};
-ShakerState shakerState = OFF;
-String shakerStateToString(ShakerState state);
-String shakerStateToString(ShakerState state) {
-  switch (state) {
-    case STARTING:
-      return "STARTING";
-    case STOPPING:
-      return "STOPPING";
-    case ON:
-      return "ON";
-    case OFF:
-      return "OFF";
-    default:
-      return "UNKNOWN"; // Handle unexpected states
   }
 }
 
@@ -131,7 +100,6 @@ static void sendHTTPJSONReply(int httpStatusCode, const char* communicationStatu
   response["reason"] = reason;
   response["system_status"] = systemStateToString(systemState);
   response["gripper_status"] = gripperStateToString(gripperState);
-  response["shaker_status"] = shakerStateToString(shakerState);
   response["force_reading"] = String(force_reading);
 
   if (httpStatusCode == 200){ 
@@ -152,64 +120,6 @@ static void sendHTTPJSONReply(int httpStatusCode, const char* communicationStatu
 void resetSystemState() {
   systemState = IDLE;
   command = "none";
-}
-
-void shakerStart() {
-  Serial.println(F("Clicker starts the shaker"));
-  systemState = RUNNING;
-  shakerTime = millis();
-  shakerTimePrev = shakerTime;
-  command = commands[0];
-}
-
-static void shakerStart(const char* data, BufferFiller& buf) {
-  shakerStart();
-  sendHTTPJSONReply(200, "SUCCESS", "Communication with the device is successful.", buf);
-}
-
-void shakerStop() {
-  Serial.println(F("Machine stops"));
-  systemState = RUNNING;
-  shakerTime = millis();
-  shakerTimePrev = shakerTime;
-  command = commands[1];
-}
-
-static void shakerStop(const char* data, BufferFiller& buf) {
-  shakerStop();
-  sendHTTPJSONReply(200, "SUCCESS", "Communication with the device is successful.", buf);
-}
-
-COROUTINE(shaker) {
-  COROUTINE_LOOP() {
-    COROUTINE_DELAY(30);
-    if (systemState == RUNNING && command == commands[0]) {
-      shakerTime = millis();
-      digitalWrite(output1, HIGH);
-      shakerState=STARTING;
-      if ((shakerTime - shakerTimePrev) > shakerDuration) {
-        shakerTimePrev = shakerTime;
-        digitalWrite(output1, LOW);
-        resetSystemState();
-        shakerState=ON;
-      }
-    }
-    else if (systemState == RUNNING && command == commands[1]) {
-      shakerTime = millis();
-      digitalWrite(output2, HIGH);
-      shakerState=STOPPING;
-      if ((shakerTime - shakerTimePrev) > shakerDuration) {
-        shakerTimePrev = shakerTime;
-        digitalWrite(output2, LOW);
-        resetSystemState();
-        shakerState=OFF;
-      }
-    }
-    else{
-      digitalWrite(output1, LOW);
-      digitalWrite(output2, LOW);
-    }
-  }
 }
 
 COROUTINE(gripper) {
@@ -282,10 +192,8 @@ COROUTINE(reset) {
     COROUTINE_DELAY(30);
     if (systemState==RUNNING && command==commands[-1]) {
       resetTime = millis();
-      digitalWrite(output2, HIGH);
       if ((resetTime - resetTimePrev) > resetDuration) {
         resetTimePrev = resetTime;
-        digitalWrite(output2, LOW);
         gripperState = OPEN;
         mag = INITIAL_MAG;
         actuator.writeMicroseconds(mag);
@@ -320,13 +228,7 @@ COROUTINE(handleRemoteRequest) {
       char* data = (char *) Ethernet::buffer + pos;
 
       // receive buf hasn't been clobbered by reply yet
-      if (strncmp("GET /start", data, 10) == 0) {
-        shakerStart(data, bfill);
-      }
-      else if (strncmp("GET /stop", data, 9) == 0) {
-        shakerStop(data, bfill);
-      }
-      else if (strncmp("GET /state", data, 10) == 0) {
+      if (strncmp("GET /state", data, 10) == 0) {
         getState(data, bfill);
       }
       else if (strncmp("GET /gripper-open", data, 17) == 0) {
@@ -349,28 +251,16 @@ COROUTINE(handleRemoteRequest) {
 void setup()
 {
   Serial.begin(9600);
-  //  while (!Serial) ;
-
-  Serial.println(F("Micro turned on."));
-
   if (ether.begin(sizeof Ethernet::buffer, mymac) == 0)
     Serial.println(F("Failed to access Ethernet controller"));
-
   ether.dhcpSetup();
   actuator.attach(output5); // attach the actuator to Arduino pin output5 (PWM)
   pinMode(analogIn, INPUT_PULLUP);
-  pinMode(output1, OUTPUT);
-  pinMode(output2, OUTPUT);
-  digitalWrite(output1, LOW);
-  digitalWrite(output2, LOW);
-  shakerStop();
   actuator.writeMicroseconds(mag);
   gripperState = OPEN;
   Serial.println(F("shaker and gripper started."));
   gripperTime = millis();
   gripperTimePrev = millis();
-  shakerTime = millis();
-  shakerTimePrev = millis();
   resetTime = millis();
   resetTimePrev = millis();
   readForceSensor();
@@ -380,6 +270,5 @@ void loop()
 {
   handleRemoteRequest.runCoroutine();
   gripper.runCoroutine();
-  shaker.runCoroutine();
   reset.runCoroutine();
 }

@@ -1,0 +1,1 @@
+from .shaker_with_motor_controller import ShakerWMC, ShakerWMCState

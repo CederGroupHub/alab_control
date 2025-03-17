@@ -18,7 +18,6 @@ int serialwaitingtime = 6;
 byte mac[] = { 0x00, 0x52, 0x16, 0x64, 0xC0, 0x11 };
 //00:52:16:64:C0:39
 
-IPAddress serverIP(192, 168, 0, 42);
 int serverPort = 8888;
 
 // Initialize the Ethernet server library
@@ -345,7 +344,12 @@ void setup()
   serialwait = 0;
   Serial.println(("Serial started. Now starting ethernet"));
   // start the Ethernet connection and the server:
-  Ethernet.begin(mac, serverIP);
+  if (Ethernet.begin(mac) == 0) {
+    Serial.println("Failed to configure Ethernet using DHCP");
+    while (true) {
+      delay(1000);
+    }
+  }
   server.begin();
   Serial.print(("Ethernet/server started started at "));
   Serial.print(Ethernet.localIP());

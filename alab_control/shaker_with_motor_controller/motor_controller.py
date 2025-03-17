@@ -107,7 +107,7 @@ def main():
     try:
         while True:
             # Apply PID control to adjust motor speed
-            # motor_controller.pid_control()
+            motor_controller.pid_control()
             time.sleep(0.1)  # Adjust the control loop speed (sampling rate)
 
     except (Exception, KeyboardInterrupt):
@@ -117,4 +117,4 @@ def main():
     motor_controller.stop()
     motor_controller.close()
 
-main()
+# main()

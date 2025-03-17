@@ -54,7 +54,7 @@ int ballNumber = 1;
 int restBallNumber = 0;
 bool detected = false;
 
-static byte Ethernet::buffer[200];                      
+static byte Ethernet::buffer[400];                      
 BufferFiller bfill;
 
 static int getIntArg(const char* data, const char* key, int value =-1) {
@@ -397,7 +397,7 @@ void setup () {
   if (ether.begin(sizeof Ethernet::buffer, mymac, SS) == 0){
     Serial.println(F("Failed to access Ethernet controller"));
   }
-  ether.staticSetup(myip);
+  ether.dhcpSetup();
 
   attachInterrupt(digitalPinToInterrupt(IRPin1), addSphereCount, RISING);
 //  attachInterrupt(digitalPinToInterrupt(IRPin2), addSphereCount, RISING);

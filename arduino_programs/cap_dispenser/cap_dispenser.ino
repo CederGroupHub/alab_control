@@ -44,7 +44,7 @@ static byte mymac[] = { 0x74,0x22,0x69,0x2D,0x30,0x32 };
 static byte myip[] = { 192,168,0,31};
 State state = STOP;
 
-static byte Ethernet::buffer[200];                      
+static byte Ethernet::buffer[400];                      
 BufferFiller bfill;
 
 int capNumber=0;
@@ -266,7 +266,7 @@ void setup () {
   if (ether.begin(sizeof Ethernet::buffer, mymac, SS) == 0){
     Serial.println(F("Failed to access Ethernet controller"));
   }
-  ether.staticSetup(myip);
+  ether.dhcpSetup();
   linac1.attach(linacPin1);
   linac1.writeMicroseconds(linac1close);
   linac2.attach(linacPin2);
