@@ -1,5 +1,6 @@
 import re
 import socket
+import time
 
 
 class OhausScale:
@@ -30,8 +31,12 @@ class OhausScale:
                 break
             except socket.timeout:
                 retry += 1
+                time.sleep(0.5)
+            except OSError:
+                retry += 1
+                time.sleep(0.5)
         if mass_string is None:
-            return None
+            raise TimeoutError("Failed to get mass from scale.")
         else:
             return int(re.search(r"\d+", mass_string).group())
 
