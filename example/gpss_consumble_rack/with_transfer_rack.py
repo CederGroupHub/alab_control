@@ -1,6 +1,10 @@
+from random import shuffle
+import random
 from alab_control.robot_arm_ur5e import URRobotDashboard
+from alab_control.linear_rail_gpss.linear_rail_gpss import LinearRailGPSS
 
 robot_arm = URRobotDashboard("192.168.1.24")
+linear_rail = LinearRailGPSS("COM9")
 
 
 def open_rack(level):
@@ -28,30 +32,32 @@ def place_consumable(level, row, consum):
 
 
 def pick_transfer_rack(consum):
+    linear_rail.move_left()
     robot_arm.run_program(
         f"auto_program/pick_trans_rack/pick_trans_rack_{consum}.auto.urp"
     )
 
 
 def place_transfer_rack(consum):
+    linear_rail.move_left()
     robot_arm.run_program(
         f"auto_program/place_trans_rack/place_trans_rack_{consum}.auto.urp"
     )
 
 
 if __name__ == "__main__":
-    open_rack(4)
-    close_rack(4)
-    # make sure the linear rail is at the left position
-    for level in range(5, 7):
+    counter = 0
+    while True:
+        counter += 1
+        level = random.randint(1, 7)
         open_rack(level)
-        print(f"Level {level}")
-        for row in range(5):
+        print(f"Level {level} - Counter {counter}")
+        for row in range(1, 6):
             for consum in ["cap_A", "cap_B", "crucible", "vial"]:
                 print(f"Level {level} Row {row} Consumable {consum}")
                 pick_consumable(level, row, consum)
                 place_transfer_rack(consum)
                 pick_transfer_rack(consum)
-                place_consumable(level, (row + 1) % 5, consum)
+                place_consumable(level, (row) % 5 + 1, consum)
                 # touch_consumable(level, row, consum)
         close_rack(level)

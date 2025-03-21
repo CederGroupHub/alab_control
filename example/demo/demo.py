@@ -1,6 +1,7 @@
 import random
 import re
 import time
+from alab_control import robot_arm_ur5e
 
 from alab_control.labman_dosing_head_rack.labman_dosing_head_rack import DosingHeadRack
 from alab_control.linear_rail_gpss.linear_rail_gpss import LinearRailGPSS
@@ -9,11 +10,12 @@ from alab_control.robot_arm_ur5e import URRobotDashboard
 
 # Create a dosing head rack object
 rack = DosingHeadRack("COM4")
-linear_rail = LinearRailGPSS("COM10")
+linear_rail = LinearRailGPSS("COM9")
 robot_arm = URRobotDashboard("192.168.1.23")
 balance = MTAutoBalance("http://192.168.1.13:81")
 
 SLOTS = ["A", "B", "C", "D"]
+RACKS = ["A", "B", "C", "D"]
 
 
 def pick_dosing_head(slot: str):
@@ -59,7 +61,7 @@ def unload_dosing_head_to_balance(pos):
 def dosing(prev_pos):
     load_crucible_to_balance()
     load_dosing_head_to_balance(prev_pos)
-    balance.automatic_dosing(0.0, 10, 10)
+    result = balance.automatic_dosing(0.0, 20, 20)
     position = f"{random.choice(list(range(1, 15)))}{random.choice(SLOTS)}"
     unload_dosing_head_to_balance(position)
     unload_crucible_to_balance()
@@ -129,11 +131,19 @@ def take_one_set(level, row):
     close_rack(level)
 
 
+def move_xrd_holder(pos, next_pos):
+    robot_arm.run_program(f"auto_program/pick_xrd_holder_rack/pick_xrd_holder_rack_{pos}.auto.urp")
+    robot_arm.run_program("auto_program/place_xrd_holder_dispenser.auto.urp")
+    robot_arm.run_program("auto_program/pick_xrd_holder_dispenser.auto.urp")
+    robot_arm.run_program(f"auto_program/place_xrd_holder_rack/place_xrd_holder_rack_{next_pos}.auto.urp")
+
+
 if __name__ == "__main__":
-    rack.reference_search()
+    # rack.reference_search()
 
     cnt = 0
     dosing_head_position = "1D"
+    xrd_holder_position = "A1"
     while True:
         cnt += 1
         print(f"Loop {cnt}", end=" : ")
@@ -147,3 +157,10 @@ if __name__ == "__main__":
         capping()
         end = time.time()
         print(f"Capping time: {end - start}")
+
+        start = time.time()
+        next_position = f"{random.choice(RACKS)}{random.randint(1, 4)}"
+        move_xrd_holder(xrd_holder_position, next_position)
+        xrd_holder_position = next_position
+        end = time.time()
+        print(f"XRD moving time: {end - start}")

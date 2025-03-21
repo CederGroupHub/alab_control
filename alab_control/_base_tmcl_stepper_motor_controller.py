@@ -211,7 +211,7 @@ class TMCLStepperMotorController:
         """
         # print(f"Sending command {command} with value {value}")
         with Serial(self.port, 9600, timeout=1) as ser:
-            struct = pack(">BBBBI", 1, command.value, type_number, motor_number, value)
+            struct = pack(">BBBBi", 1, command.value, type_number, motor_number, value)
             checksum = sum(struct) % 256
             struct = struct + pack("B", checksum)
             ser.write(struct)
@@ -244,7 +244,7 @@ class TMCLStepperMotorController:
                 command_number,
                 value,
                 checksum,
-            ) = unpack(">BBBBIB", receive_frame)
+            ) = unpack(">BBBBiB", receive_frame)
             if checksum != sum(receive_frame[:-1]) % 256:
                 raise ChecksumError(
                     "Different checksum detected in the received frame."
