@@ -281,9 +281,15 @@ class SpeedSensor:
         The minimum speed that the sensor can measure.
     maximum_measurable_speed : float
         The maximum speed that the sensor can measure.
+    running : bool
+        Indicates whether the sensor is currently running.
 
     Methods
     -------
+    start():
+        Initializes the sensor.
+    stop():
+        Stops the sensor.
     read_PV():
         Returns the process variable (PV) value, which is the speed.
     read_control_PV():
@@ -326,12 +332,29 @@ class SpeedSensor:
         """
         self.buffer_size = buffer_size
         self.ring_buffer = collections.deque(maxlen=buffer_size)
-        self.encoder = Encoder()
-        self.encoder.setOnPositionChangeHandler(self._onPositionChange)
-        self.encoder.setDataInterval(sampling_interval)
         self.current_speed = 0.0
+        self.sampling_interval = sampling_interval
         self.minimum_measurable_speed = minimum_measurable_speed
         self.maximum_measurable_speed = maximum_measurable_speed
+        self.encoder = Encoder()
+        self.encoder.setOnPositionChangeHandler(self._onPositionChange)
+        self.running = False
+
+    def start(self) -> None:
+        """
+        Starts the sensor.
+        """
+        self.encoder.setEnabled(True)
+        self.encoder.openWaitForAttachment(5000)
+        self.encoder.setDataInterval(self.sampling_interval)
+        self.running = True
+
+    def stop(self) -> None:
+        """
+        Stops the sensor.
+        """
+        self.encoder.setEnabled(False)
+        self.running = False
 
     def read_PV(self) -> float:
         """
