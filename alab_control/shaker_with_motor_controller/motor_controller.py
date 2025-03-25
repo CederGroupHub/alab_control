@@ -139,45 +139,246 @@ class PIDController:
         """
         self.integral_clamping_enabled = True
 
+class Motor:
+    """
+    A class to represent a motor, which controls a DC motor 
+    and interacts with an encoder for speed control.
+
+    This class manages the DC motor and encoder, allowing 
+    for setting the motor speed, stopping the motor, and 
+    closing the devices. It includes scaling methods to map the motor speed to a control range.
+
+    Attributes
+    ----------
+    dcMotor : DCMotor
+        An instance of the DCMotor class representing the 
+        DC motor.
+    minimum_output : float
+        The minimum control speed.
+    maximum_output : float
+        The maximum control speed.
+    running : bool
+        Indicates whether the motor is currently 
+        running.
+
+    Methods
+    -------
+    start():
+        Initializes the motor.
+    stop():
+        Stops the motor.
+    set_minimum_output(minimum_output):
+        Sets the minimum control speed.
+    set_maximum_output(maximum_output):
+        Sets the maximum control speed.
+    set_control_output(output):
+        Sets the output of the motor in the range 
+        [0, 1], scaling it to the actual output range.
+    scale_to_control(output):
+        Scales a given output of the motor to the 
+        control output range [0, 1].
+    scale_to_actual(control_output):
+        Scales a given control output in the range [0, 1] 
+        to the actual duty cycle/s speed range.
+    """
+    def __init__(self, 
+                 minimum_control_speed: float = 0, 
+                 maximum_control_speed: float = 1):
+        """
+        Initializes the Motor with DC motor and encoder 
+        devices.
+        """
+        self.minimum_control_speed = minimum_control_speed
+        self.maximum_control_speed = maximum_control_speed
+        self.running = False
+
+    def set_speed(self, speed: float) -> None:
+        """
+        Sets the target speed of the motor.
+
+        Parameters
+        ----------
+        speed : float
+            The target speed, clipped to the range [0, 1].
+        """
+        clipped_speed = max(min(speed, 1), 0)
+        self.dcMotor.setTargetVelocity(clipped_speed)
+
+    def start(self) -> None:
+        self.dcMotor = DCMotor()
+        self.dcMotor.openWaitForAttachment(5000)
+        self.dcMotor.setAcceleration(3)
+
+    def stop(self) -> None:
+        """
+        Stops the motor.
+        """
+        self.set_speed(0)
+        self.dcMotor.close()       
+
+    def scale_to_control(self, speed: float) -> float:
+        """
+        Scales the given speed to the control range [0, 1].
+        """
+        scaled_speed = (speed - self.minimum_control_speed) / (self.maximum_control_speed - self.minimum_control_speed)
+        if scaled_speed < 0.0:
+            return 0.0
+        elif scaled_speed > 1.0:
+            return 1.0
+        else:
+            return scaled_speed
+
+    def scale_to_actual(self, control_speed: float) -> float:
+        """
+        Scales the control speed to the actual speed range.
+        """
+        return control_speed * (self.maximum_control_speed - self.minimum_control_speed) + self.minimum_control_speed
+    
+    def set_control_output(self, output: float) -> None:
+        """
+        Sets the output of the motor in the range [0, 1], 
+        scaling it to the actual output range.
+        """
+        actual_speed = self.scale_to_actual(output)
+        self.set_speed(actual_speed)
+
 class SpeedSensor:
-    def __init__(self, buffer_size=10,sampling_interval=50):
+    """
+    A class to represent a speed sensor, which calculates
+    the speed based on encoder position changes.
+
+    The speed sensor uses an encoder to track position 
+    changes and calculates the speed by dividing the 
+    position change by the time change. It maintains a 
+    ring buffer to store recent speed measurements, 
+    allowing for a smoothed speed reading. It includes scaling methods to map the speed to a control range.
+
+    Attributes
+    ----------
+    buffer_size : int
+        The size of the ring buffer used to store recent 
+        speed measurements.
+    ring_buffer : collections.deque
+        A deque (double-ended queue) used as a ring buffer 
+        to store recent speed measurements.
+    encoder : Encoder
+        An instance of the Encoder class used to track 
+        position changes.
+    current_speed : float
+        The current calculated speed.
+    minimum_measurable_speed : float
+        The minimum speed that the sensor can measure.
+    maximum_measurable_speed : float
+        The maximum speed that the sensor can measure.
+
+    Methods
+    -------
+    onPositionChange(encoder, positionChange, timeChange, indexTriggered):
+        Callback function to handle position changes and 
+        calculate the current speed.
+    get_speed():
+        Returns the average speed based on the values in 
+        the ring buffer.
+    set_minimum_measurable_speed(minimum_measurable_speed):
+        Sets the minimum measurable speed of the sensor.
+    set_maximum_measurable_speed(maximum_measurable_speed):
+        Sets the maximum measurable speed of the sensor.
+    scale_to_control(speed):
+        Scales the given speed to the control range [0, 1].
+    scale_to_actual(control_speed):
+        Scales the control speed to the actual speed range.
+    get_speed_unit():
+        Returns the unit of the speed.
+    """
+    def __init__(self, buffer_size: int = 10, sampling_interval: int = 50,
+                 minimum_measurable_speed: float = 0.0, maximum_measurable_speed: float = 100.0):
+        """
+        Initializes the SpeedSensor with the given buffer 
+        size, sampling interval, and speed range.
+
+        Parameters
+        ----------
+        buffer_size : int, optional
+            The size of the ring buffer used to store recent 
+            speed measurements (default is 10).
+        sampling_interval : int, optional
+            The interval in milliseconds at which the encoder 
+            data is sampled (default is 50).
+        minimum_measurable_speed : float, optional
+            The minimum speed that the sensor can measure (default is -100).
+        maximum_measurable_speed : float, optional
+            The maximum speed that the sensor can measure (default is 100).
+        """
         self.buffer_size = buffer_size
         self.ring_buffer = collections.deque(maxlen=buffer_size)
         self.encoder = Encoder()
         self.encoder.setOnPositionChangeHandler(self.onPositionChange)
         self.encoder.setDataInterval(sampling_interval)
+        self.current_speed = 0.0
+        self.minimum_measurable_speed = minimum_measurable_speed
+        self.maximum_measurable_speed = maximum_measurable_speed
 
-    def onPositionChange(self, encoder, positionChange, timeChange, indexTriggered):
-            """Callback function to handle position changes."""
-            # Calculate current speed from position change (position change over time)
-            # print(positionChange, timeChange)
-            # print(f"Current Speed: {self.current_speed}, Target Speed: {self.target_speed}, Motor Output: {self.motor_speed}")
-            self.current_speed = positionChange / timeChange * 1000 if timeChange != 0 else 0
-            self.ring_buffer.append(self.current_speed)
+    def onPositionChange(self, encoder, positionChange: float, timeChange: float, indexTriggered: bool) -> None:
+        """
+        Callback function to handle position changes and 
+        calculate the current speed.
 
-    def get_speed(self):
+        Parameters
+        ----------
+        encoder : Encoder
+            The encoder instance that triggered the event.
+        positionChange : float
+            The change in position.
+        timeChange : float
+            The change in time in milliseconds.
+        indexTriggered : bool
+            Indicates whether an index was triggered.
+        """
+        self.current_speed = positionChange / timeChange * 1000 if timeChange != 0 else 0
+        self.ring_buffer.append(self.current_speed)
+
+    def get_speed(self) -> float:
+        """
+        Returns the average speed based on the values in 
+        the ring buffer.
+        """
+        if not self.ring_buffer:
+            return 0.0
         return sum(self.ring_buffer) / len(self.ring_buffer)
 
-class Motor:
-    def __init__(self):
-        # Initialize devices
-        self.dcMotor = DCMotor()
-        self.dcMotor.openWaitForAttachment(5000)
-        self.dcMotor.setAcceleration(3)
-        self.encoder.openWaitForAttachment(5000)
-        self.set_data_interval()
+    def set_minimum_measurable_speed(self, minimum_measurable_speed: float) -> None:
+        """
+        Sets the minimum measurable speed of the sensor.
+        """
+        self.minimum_measurable_speed = minimum_measurable_speed
 
-    def set_speed(self, speed: float):
-        """Sets the target speed."""
-        # Clip speed to be within -1 to 1
-        clipped_speed = max(min(speed, 1), -1)
-        self.dcMotor.setTargetVelocity(clipped_speed)
-        
-    def stop(self):
-        """Stops the motor."""
-        self.set_speed(0)
+    def set_maximum_measurable_speed(self, maximum_measurable_speed: float) -> None:
+        """
+        Sets the maximum measurable speed of the sensor.
+        """
+        self.maximum_measurable_speed = maximum_measurable_speed
 
-    def close(self):
-        """Closes the devices."""
-        self.stop()
-        self.dcMotor.close()
+    def scale_to_control(self, speed: float) -> float:
+        """
+        Scales the given speed to the control range [0, 1].
+        """
+        scaled_speed = (speed - self.minimum_measurable_speed) / (self.maximum_measurable_speed - self.minimum_measurable_speed)
+        if scaled_speed < 0.0:
+            return 0.0
+        elif scaled_speed > 1.0:
+            return 1.0
+        else:
+            return scaled_speed
+
+    def scale_to_actual(self, control_speed: float) -> float:
+        """
+        Scales the control speed to the actual speed range.
+        """
+        return control_speed * (self.maximum_measurable_speed - self.minimum_measurable_speed) + self.minimum_measurable_speed
+
+    def get_speed_unit(self) -> str:
+        """
+        Returns the unit of the speed.
+        """
+        return "units/ms" #Or whatever unit is appropriate.
+
