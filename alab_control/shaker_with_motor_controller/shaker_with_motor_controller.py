@@ -40,8 +40,6 @@ class ShakerWMC(BaseArduinoDevice):
     ENDPOINTS = {
         "close gripper": "/gripper-close",
         "open gripper": "/gripper-open",
-        "start": "/start",
-        "stop": "/stop",
         "state": "/state",
         "reset": "/reset",
     }
@@ -147,5 +145,6 @@ class ShakerWMC(BaseArduinoDevice):
         """
         Reset the shaker machine
         """
+        self.motor_controller.stop()
         self.send_request(self.ENDPOINTS["reset"], timeout=10, max_retries=3)
         time.sleep(8)
