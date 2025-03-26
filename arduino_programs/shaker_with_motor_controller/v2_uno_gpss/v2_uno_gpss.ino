@@ -127,7 +127,7 @@ COROUTINE(gripper) {
     COROUTINE_DELAY(30);
     readForceSensor();
     COROUTINE_DELAY(30);
-    if (systemState == RUNNING && command == commands[2]) {
+    if (systemState == RUNNING && command == commands[0]) {
       Serial.println(F("opening gripper."));
       mag = 1600;
       actuator.writeMicroseconds(mag);
@@ -137,7 +137,7 @@ COROUTINE(gripper) {
       gripperState = OPEN;
       resetSystemState();
     }
-    else if (systemState == RUNNING && command == commands[3]) {
+    else if (systemState == RUNNING && command == commands[1]) {
       gripperTime = millis();
       if ((gripperTime - gripperTimePrev) > gripperCheckDuration) {
         gripperTimePrev = gripperTime;
@@ -166,7 +166,7 @@ void gripperOpen() {
   systemState = RUNNING;
   gripperTime = millis();
   gripperTimePrev = gripperTime;
-  command = commands[2];
+  command = commands[0];
 }
 
 static void gripperOpen(const char* data, BufferFiller& buf) {
@@ -179,7 +179,7 @@ void gripperClose() {
   systemState = RUNNING;
   gripperTime = millis();
   gripperTimePrev = gripperTime;
-  command = commands[3];
+  command = commands[1];
 }
 
 static void gripperClose(const char* data, BufferFiller& buf) {

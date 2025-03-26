@@ -31,15 +31,15 @@ def unload_crucible_to_capper():
 
 
 def capping(pos):
+    capper.open()
     load_crucible_to_capper()
-    capper.close()
     robot_arm.run_program(f"auto_program/pick_hole_plug/pick_hole_plug_{pos}.auto.urp")
     robot_arm.run_program("auto_program/capping.auto.urp")
-    capper.open()
     unload_crucible_to_capper()
 
 
 def decapping(pos):
+    capper.open()
     load_crucible_to_capper()
     capper.close()
     robot_arm.run_program("auto_program/decapping.auto.urp")
@@ -51,13 +51,18 @@ def decapping(pos):
 
 
 if __name__ == "__main__":
+    # capper.open()
+    # exit()
     counter = 0
+    SLOTS = ["A", "B", "C", "D"]
     while True:
-        for p in ["A", "B"]:
+        for i in range(len(SLOTS)):
+            p = SLOTS[i]
+            p_n = SLOTS[i % len(SLOTS)]
             counter += 1
             start = time.time()
             print(f"Loop {counter}", end=" : ")
             capping(p)
-            decapping("A" if p == "B" else "B")
+            decapping(p_n)
             end = time.time()
             print(f"Time: {end - start} s")
