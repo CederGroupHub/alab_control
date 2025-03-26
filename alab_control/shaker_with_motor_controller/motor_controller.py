@@ -1562,3 +1562,58 @@ class MotorController:
             "actual_Temperature": y,
             "control_Temperature": y_control
         }
+
+class DiscreteSpeedProfileGenerator:
+    """
+    A class to generate a discrete speed profile.
+    """
+    def __init__(self, 
+                 acceleration: float = 1.0,
+                 speed_list: List[float] = [25.0],
+                 duration_list: List[float] = [10.0],
+                 dt: float = 0.25):
+        self.acceleration = acceleration
+        self.speed_list = speed_list
+        self.duration_list = duration_list
+        self.dt=dt
+        self.time_points = []
+        self.speed_values = []
+    
+    def generate_profile(self):
+        # ramp up from 0 to the first speed in the list with the given acceleration
+        # then keep the speed constant for the duration in the duration list
+        # then ramp down to 0 with the given acceleration or go to the next speed in the list
+        self.time_points = [0]
+        self.speed_values = [0]
+
+        for i in range(len(self.speed_list)):
+            target_speed = self.speed_list[i]
+            duration = self.duration_list[i]
+            # Ramp up
+            ramp_duration = (target_speed - self.speed_values[-1]) / self.acceleration
+            t = list(np.arange(0, ramp_duration, self.dt))
+            new_time_points = [self.time_points[-1] + time for time in t]
+            new_speed_values = [self.speed_values[-1] + self.acceleration * time for time in t]
+            self.time_points.extend(new_time_points)
+            self.speed_values.extend(new_speed_values)
+            # Constant speed
+            t = list(np.arange(0, duration, self.dt))
+            new_time_points = [self.time_points[-1] + time for time in t]
+            new_speed_values = [target_speed for time in t]
+            self.time_points.extend(new_time_points)
+            self.speed_values.extend(new_speed_values)
+        # Ramp down
+        ramp_duration = self.speed_values[-1] / self.acceleration
+        t = list(np.arange(0, ramp_duration, self.dt))
+        new_time_points = [self.time_points[-1] + time for time in t]
+        new_speed_values = [self.speed_values[-1] - self.acceleration * time for time in t]
+        self.time_points.extend(new_time_points)
+        self.speed_values.extend(new_speed_values)
+
+    def get_profile(self) -> tuple[List[float], List[float]]:
+        return self.time_points, self.speed_values
+    
+    def to_discrite_speed_profile(self) -> DiscreteSpeedProfile:
+        return DiscreteSpeedProfile(self.time_points, self.speed_values)
+            
+            
