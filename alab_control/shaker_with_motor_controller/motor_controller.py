@@ -1591,20 +1591,20 @@ class DiscreteSpeedProfileGenerator:
             duration = self.duration_list[i]
             # Ramp up
             ramp_duration = (target_speed - self.speed_values[-1]) / self.acceleration
-            t = list(np.arange(0, ramp_duration, self.dt))
+            t = list(np.arange(self.dt, ramp_duration+self.dt, self.dt))
             new_time_points = [self.time_points[-1] + time for time in t]
             new_speed_values = [self.speed_values[-1] + self.acceleration * time for time in t]
             self.time_points.extend(new_time_points)
             self.speed_values.extend(new_speed_values)
             # Constant speed
-            t = list(np.arange(0, duration, self.dt))
+            t = list(np.arange(self.dt, duration+self.dt, self.dt))
             new_time_points = [self.time_points[-1] + time for time in t]
             new_speed_values = [target_speed for time in t]
             self.time_points.extend(new_time_points)
             self.speed_values.extend(new_speed_values)
         # Ramp down
         ramp_duration = self.speed_values[-1] / self.acceleration
-        t = list(np.arange(0, ramp_duration, self.dt))
+        t = list(np.arange(self.dt, ramp_duration+self.dt, self.dt))
         new_time_points = [self.time_points[-1] + time for time in t]
         new_speed_values = [self.speed_values[-1] - self.acceleration * time for time in t]
         self.time_points.extend(new_time_points)
