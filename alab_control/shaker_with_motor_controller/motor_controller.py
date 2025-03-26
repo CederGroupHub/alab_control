@@ -225,9 +225,10 @@ class Motor:
         """
         Stops the motor.
         """
-        self.set_speed(0)
-        self.dcMotor.close()
-        self.running = False    
+        if self.running:
+            self.set_speed(0)
+            self.dcMotor.close()
+            self.running = False    
 
     def scale_to_control(self, speed: float) -> float:
         """

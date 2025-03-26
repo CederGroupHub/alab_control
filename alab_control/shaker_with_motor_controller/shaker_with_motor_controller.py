@@ -115,10 +115,7 @@ class ShakerWMC(BaseArduinoDevice):
         thread = threading.Thread(target=self.motor_controller.run_profile)
         thread.start()
         try:
-            start_time = time.time()
             while thread.is_alive():
-                if time.time() - start_time > 10:
-                    raise ShakerWMCError("Shaking operation timed out after 10 seconds.")
                 state = self.get_state()
                 if GripperWMCState(state["gripper_status"]) == GripperWMCState.CLOSE:
                     if int(state["force_reading"]) > 200:
@@ -126,10 +123,14 @@ class ShakerWMC(BaseArduinoDevice):
                 if SystemState(state["system_status"]) == SystemState.ERROR:
                     raise ShakerWMCError("Shaker machine is in error state.")
                 time.sleep(1)
+        except:
+            self.motor_controller.stop()
+            raise
         finally:
             self.motor_controller.stop()
+            thread.join()
 
-    def close_gripper_and_shake(self, duration_sec: int):
+    def close_gripper_and_shake(self, duration_sec: int, frequency: int = FREQUENCY):
         """
         Grip the container, shake it and then release it.
 
@@ -138,7 +139,7 @@ class ShakerWMC(BaseArduinoDevice):
         """
         self.close_gripper()
         time.sleep(3)
-        self.shaking(duration_sec=duration_sec)
+        self.shaking(duration_sec=duration_sec, frequency=frequency)
         time.sleep(3)
         self.open_gripper()
 
