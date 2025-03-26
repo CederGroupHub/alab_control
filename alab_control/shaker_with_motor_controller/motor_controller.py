@@ -1639,7 +1639,7 @@ class DiscreteSpeedProfileGenerator:
     def get_profile(self) -> tuple[List[float], List[float]]:
         return self.time_points, self.speed_values
     
-    def to_discrite_speed_profile(self) -> DiscreteSpeedProfile:
+    def to_discrete_speed_profile(self) -> DiscreteSpeedProfile:
         return DiscreteSpeedProfile(self.time_points, self.speed_values)
             
 def main():
