@@ -225,10 +225,16 @@ class Motor:
         """
         Stops the motor.
         """
-        if self.running:
+        try:
             self.set_speed(0)
             self.dcMotor.close()
             self.running = False    
+        except:
+            self.dcMotor = DCMotor()
+            self.dcMotor.openWaitForAttachment(1000)
+            self.dcMotor.setTargetVelocity(0)
+            self.dcMotor.close()
+            self.running = False
 
     def scale_to_control(self, speed: float) -> float:
         """
@@ -1590,7 +1596,7 @@ class DiscreteSpeedProfileGenerator:
                  acceleration: float = 30.0,
                  speed_list: List[float] = [30.0],
                  duration_list: List[float] = [30.0],
-                 dt: float = 0.25):
+                 dt: float = 0.01):
         self.acceleration = acceleration
         self.speed_list = speed_list
         self.duration_list = duration_list

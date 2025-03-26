@@ -4,6 +4,9 @@ from enum import Enum
 from alab_control._base_arduino_device import BaseArduinoDevice
 from alab_control.shaker_with_motor_controller.motor_controller import *
 import threading
+import signal
+
+signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 kp = 0.6
 ki = 2.112
@@ -48,6 +51,18 @@ class ShakerWMC(BaseArduinoDevice):
         super().__init__(ip_address, port)
         self.motor_controller = MotorController(dt=0.1)
         self.motor_controller.set_controller(kp, ki, kd, integral_contribution_limit)
+        self.stop_event = threading.Event()  # Stop event for clean shutdown
+        signal.signal(signal.SIGINT, self.signal_handler)
+
+    def signal_handler(self, sig, frame):
+        print(f"CTRL+C detected! Stopping motor... (Signal: {sig}, Frame: {frame})")
+        self.stop_event.set()  # Tell the thread to stop
+        try:
+            self.motor_controller.stop()
+        except Exception as e:
+            print(f"Error stopping motor: {e}")
+        finally:
+            exit(1)
 
     def get_state(self):
         """
@@ -105,6 +120,7 @@ class ShakerWMC(BaseArduinoDevice):
             duration_sec: duration of shaking in seconds.
             frequency: frequency of the shaker in Hz.
         """
+        self.stop_event.clear()
         generator=DiscreteSpeedProfileGenerator(acceleration=30.0,speed_list=[frequency],duration_list=[duration_sec],dt=0.01)
         generator.generate_profile()
         time_points=generator.time_points
@@ -114,6 +130,8 @@ class ShakerWMC(BaseArduinoDevice):
         thread.start()
         try:
             while thread.is_alive():
+                if self.stop_event.is_set():  # Stop motor if event is set
+                    raise KeyboardInterrupt
                 state = self.get_state()
                 if GripperWMCState(state["gripper_status"]) == GripperWMCState.CLOSE:
                     if int(state["force_reading"]) > 200:
@@ -121,9 +139,10 @@ class ShakerWMC(BaseArduinoDevice):
                 if SystemState(state["system_status"]) == SystemState.ERROR:
                     raise ShakerWMCError("Shaker machine is in error state.")
                 time.sleep(1)
-        except:
+        except (ShakerWMCError, Exception, KeyboardInterrupt) as e:
             self.motor_controller.stop()
-            raise
+            thread.join()
+            raise e
         finally:
             self.motor_controller.stop()
             thread.join()
@@ -148,3 +167,12 @@ class ShakerWMC(BaseArduinoDevice):
         self.motor_controller.stop()
         self.send_request(self.ENDPOINTS["reset"], timeout=10, max_retries=3)
         time.sleep(8)
+
+    def stop(self):
+        """
+        Stop the shaker machine
+        """
+        self.motor_controller.stop()
+
+    def __del__(self):
+        self.stop()
