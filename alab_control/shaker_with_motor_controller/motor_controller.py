@@ -1455,9 +1455,12 @@ class MotorController:
         """
         self.actuator = Motor()
         self.sensor = SpeedSensor()
-        self.pid_tuner = PIDTuner(dt=dt)
         self.speed_profile = None
         self.plant = DiscretePlant(self.actuator, self.sensor, dt=dt)
+        self.pid_tuner = PIDTuner(plant=self.plant,dt=dt,
+                                  Kp_test_setting={"initial_Kp": 7,"Kp_increment": 3,"max_Kp": 30},
+                                  ss_test_setting={'steady_state_wait_duration': 5, 'maximum_time': 100, 'error_limit': 0.1, 'cooldown_time': 2.0},
+                                  osc_test_setting={'initial_time': 10, 'time_increment': 10, 'maximum_time': 50, 'cooldown_time': 2.0, "minimum_oscillation_height": 0.2})
         self.dt = dt
         self.latest_run_results = None
 
@@ -1568,7 +1571,7 @@ class DiscreteSpeedProfileGenerator:
     A class to generate a discrete speed profile.
     """
     def __init__(self, 
-                 acceleration: float = 1.0,
+                 acceleration: float = 25.0,
                  speed_list: List[float] = [25.0],
                  duration_list: List[float] = [10.0],
                  dt: float = 0.25):
