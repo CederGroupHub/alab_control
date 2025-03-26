@@ -1,4 +1,6 @@
 import datetime
+import pickle
+from turtle import pd
 from typing import List, Tuple
 from Phidget22.Phidget import PhidgetException
 from Phidget22.Devices.DCMotor import DCMotor
@@ -191,7 +193,7 @@ class Motor:
     """
     def __init__(self, 
                  minimum_control_speed: float = 0, 
-                 maximum_control_speed: float = 0.3):
+                 maximum_control_speed: float = 0.4):
         """
         Initializes the Motor with DC motor and encoder 
         devices.
@@ -876,7 +878,7 @@ class PIDTuner:
     def __init__(self, 
                  plant: DiscretePlant,
                  dt: float = 0.5,
-                 Kp_test_setting: dict[str, float] = {"initial_Kp": 12,"Kp_increment": 3,"max_Kp": 40},
+                 Kp_test_setting: dict[str, float] = {"initial_Kp": 3.0,"Kp_increment": 1.0,"max_Kp": 10.0},
                  ss_test_setting: dict[str, float] = {'steady_state_wait_duration': 5, 'maximum_time': 100, 'error_limit': 0.01, 'cooldown_time': 20},
                  osc_test_setting: dict[str, float]= {'initial_time': 20, 'time_increment': 20, 'maximum_time': 50, 'cooldown_time': 20, "minimum_oscillation_height": 0.01}):
         """
@@ -968,11 +970,6 @@ class PIDTuner:
         cooldown_time = self.ss_test_setting['cooldown_time']
         print(f"Maximum time for the test: {maximum_time} seconds")
         print("Date and time: ", datetime.datetime.now())
-        # check if plant has been tuned for minimum and maximum output
-        if not self.plant.minimum_output_tuned:
-            raise ValueError("Minimum output of the plant must be tuned first. Run tune_minimum_output_and_PV method.")
-        if not self.plant.maximum_output_tuned:
-            raise ValueError("Maximum output of the plant must be tuned first. Run tune_maximum_output_and_PV method.")
         t_steady, y_steady, t, y, no_PV = self.plant.get_time_to_steady_state(1, steady_state_wait_duration=steady_state_wait_duration, error_limit=error_limit, max_time=maximum_time, cooldown_time=cooldown_time)
         if no_PV:
             raise ValueError("System is not getting any PV change from 0. Check the system.")
@@ -1442,7 +1439,7 @@ class MotorController:
         the setpoint profile and returns the time points 
         and motor positions.
     """
-    def __init__(self, dt: float = 0.25):
+    def __init__(self, dt: float = 0.1):
         """
         Initializes the MotorController with the motor, 
         controller, setpoint profile, and time step.
@@ -1456,11 +1453,11 @@ class MotorController:
         self.actuator = Motor()
         self.sensor = SpeedSensor()
         self.speed_profile = None
-        self.plant = DiscretePlant(self.actuator, self.sensor, dt=dt)
+        self.plant = DiscretePlant(sensor=self.sensor,actuator=self.actuator, dt=dt)
         self.pid_tuner = PIDTuner(plant=self.plant,dt=dt,
-                                  Kp_test_setting={"initial_Kp": 7,"Kp_increment": 3,"max_Kp": 30},
+                                  Kp_test_setting={"initial_Kp": 3.0,"Kp_increment": 1.0 ,"max_Kp": 10.0},
                                   ss_test_setting={'steady_state_wait_duration': 5, 'maximum_time': 100, 'error_limit': 0.1, 'cooldown_time': 2.0},
-                                  osc_test_setting={'initial_time': 10, 'time_increment': 10, 'maximum_time': 50, 'cooldown_time': 2.0, "minimum_oscillation_height": 0.2})
+                                  osc_test_setting={'initial_time': 10, 'time_increment': 10, 'maximum_time': 50, 'cooldown_time': 2.0, "minimum_oscillation_height": 0.05})
         self.dt = dt
         self.latest_run_results = None
 
@@ -1571,9 +1568,9 @@ class DiscreteSpeedProfileGenerator:
     A class to generate a discrete speed profile.
     """
     def __init__(self, 
-                 acceleration: float = 25.0,
-                 speed_list: List[float] = [25.0],
-                 duration_list: List[float] = [10.0],
+                 acceleration: float = 30.0,
+                 speed_list: List[float] = [30.0],
+                 duration_list: List[float] = [30.0],
                  dt: float = 0.25):
         self.acceleration = acceleration
         self.speed_list = speed_list
@@ -1620,10 +1617,10 @@ class DiscreteSpeedProfileGenerator:
         return DiscreteSpeedProfile(self.time_points, self.speed_values)
             
 def main():
-    generator=DiscreteSpeedProfileGenerator(acceleration=1.0, 
+    generator=DiscreteSpeedProfileGenerator(acceleration=50.0, 
                                             speed_list=[25.0], 
-                                            duration_list=[10.0], 
-                                            dt=0.25)
+                                            duration_list=[30.0], 
+                                            dt=0.01)
     generator.generate_profile()
     time_points, speed_values = generator.get_profile()
     profile = DiscreteSpeedProfile(time_points, speed_values)
@@ -1643,6 +1640,23 @@ def main():
     plt.ylabel('Speed (Hz)')
     plt.title('Motor Speed Control')
     plt.legend()
+    # save the kp, ki, kd values into a pickle dict
+    pid_controller = controller.get_pid_controller()
+    kp=pid_controller.kp
+    ki=pid_controller.ki
+    kd=pid_controller.kd
+    pid_dict = {"kp": kp, "ki": ki, "kd": kd}
+    with open('pid_values.pkl', 'wb') as f:
+        pickle.dump(pid_dict, f)
+    # print the kp, ki, kd values
+    print(f"Kp: {kp}, Ki: {ki}, Kd: {kd}")
+    # save most recent results into a csv file and figure
+    import pandas as pd
+    df = pd.DataFrame(results)
+    df.to_csv('results.csv', index=False)
+    plt.savefig('results.png')
+    plt.show()
+    
      
 # Example usage (for testing purposes)
 if __name__ == "__main__":
