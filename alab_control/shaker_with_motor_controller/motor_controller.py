@@ -1616,9 +1616,7 @@ class DiscreteSpeedProfileGenerator:
     def to_discrite_speed_profile(self) -> DiscreteSpeedProfile:
         return DiscreteSpeedProfile(self.time_points, self.speed_values)
             
-            
-# Example usage (for testing purposes)
-if __name__ == "__main__":
+def main():
     generator=DiscreteSpeedProfileGenerator(acceleration=1.0, 
                                             speed_list=[25.0], 
                                             duration_list=[10.0], 
@@ -1642,4 +1640,7 @@ if __name__ == "__main__":
     plt.ylabel('Speed (Hz)')
     plt.title('Motor Speed Control')
     plt.legend()
-    
+     
+# Example usage (for testing purposes)
+if __name__ == "__main__":
+    main()
