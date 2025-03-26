@@ -1455,7 +1455,6 @@ class MotorController:
         """
         self.actuator = Motor()
         self.sensor = SpeedSensor()
-        self.controller = PIDController(dt=dt)
         self.pid_tuner = PIDTuner(dt=dt)
         self.speed_profile = None
         self.plant = DiscretePlant(self.actuator, self.sensor, dt=dt)
@@ -1493,7 +1492,6 @@ class MotorController:
         Tune the PID controller for the motor.
         """
         self.pid_tuner.tune()
-        self.controller = self.pid_tuner.get_controller()
 
     def get_pid_controller(self) -> PIDController:
         """
