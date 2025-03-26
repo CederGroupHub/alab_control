@@ -215,16 +215,19 @@ class Motor:
         self.dcMotor.setTargetVelocity(clipped_speed)
 
     def start(self) -> None:
-        self.dcMotor = DCMotor()
-        self.dcMotor.openWaitForAttachment(5000)
-        self.dcMotor.setAcceleration(3)
+        if not self.running:
+            self.dcMotor = DCMotor()
+            self.dcMotor.openWaitForAttachment(5000)
+            self.dcMotor.setAcceleration(3)
+            self.running = True
 
     def stop(self) -> None:
         """
         Stops the motor.
         """
         self.set_speed(0)
-        self.dcMotor.close()       
+        self.dcMotor.close()
+        self.running = False    
 
     def scale_to_control(self, speed: float) -> float:
         """
@@ -1461,6 +1464,9 @@ class MotorController:
         self.dt = dt
         self.latest_run_results = None
 
+    def set_controller(self, kp, ki, kd, integral_contribution_limit=1.0):
+        self.pid_tuner.controller = PIDController(kp, ki, kd, self.dt, integral_contribution_limit)
+
     def set_speed_profile(self, 
                           time_points: List[float], 
                           speed_values: List[float]) -> None:
@@ -1500,68 +1506,80 @@ class MotorController:
         return self.pid_tuner.controller
 
     def run_profile(self, steady_state_wait_duration: float = 3, error_limit: float = 0.01) -> None:
-        if not self.speed_profile:
-            raise ValueError("Temperature profile is not set.")
-        if not self.pid_tuner.controller:
-            raise ValueError("PID controller is not tuned.")
-        self.pid_tuner.controller.reset()
-        self.plant.start()
-        self.plant.set_control_output(0)
-        # t: numpy array of time points between 0 and interpolated time for creating a smooth profile, spaced by dt
-        t = np.arange(self.speed_profile.interpolated_time[0], self.speed_profile.interpolated_time[-1]+self.dt, self.dt)
-        y = [] # actual speed values
-        y_control = [] # actual speed values scaled to control values
-        previous_time = time.time()
-        steady_state = False
+        try:
+            if not self.speed_profile:
+                raise ValueError("Temperature profile is not set.")
+            if not self.pid_tuner.controller:
+                raise ValueError("PID controller is not tuned.")
+            self.pid_tuner.controller.reset()
+            self.plant.start()
+            self.plant.set_control_output(0)
+            # t: numpy array of time points between 0 and interpolated time for creating a smooth profile, spaced by dt
+            t = np.arange(self.speed_profile.interpolated_time[0], self.speed_profile.interpolated_time[-1]+self.dt, self.dt)
+            y = [] # actual speed values
+            y_control = [] # actual speed values scaled to control values
+            previous_time = time.time()
+            steady_state = False
 
-        for i in range(len(t)): # for each time point in the profile
-            time_stepped = False
-            while not time_stepped:
-                # if reached the next time step in real life, set the SV to the value in the profile associated with the time point
-                # and update the control output and record the actual speed
+            for i in range(len(t)): # for each time point in the profile
+                time_stepped = False
+                while not time_stepped:
+                    # if reached the next time step in real life, set the SV to the value in the profile associated with the time point
+                    # and update the control output and record the actual speed
 
-                if time.time() - previous_time >= self.dt: 
-                    time_stepped = True
-                    previous_time = time.time()
-                    setpoint = self.speed_profile.get_speed(t[i])
-                    control_setpoint = self.sensor.scale_to_control(setpoint)
-                    control_PV = self.plant.get_control_PV()
-                    self.plant.set_control_output(
-                        self.pid_tuner.controller.update(control_PV, control_setpoint)
-                    )
-                    actual_speed = self.plant.sensor.read_PV()
-                    y.append(actual_speed)
-                    y_control.append(control_PV)
-                    # check all values of temperature for the last steady_state_wait seconds
-                    if not steady_state and len(y_control) > int(steady_state_wait_duration // self.dt):
-                        y_diff = max(y_control[-int(steady_state_wait_duration // self.dt):]) - min(y_control[-int(steady_state_wait_duration // self.dt):])
-                        if abs(y_diff) < error_limit:
-                            steady_state = True
-                            self.get_pid_controller().disable_integral_clamping()
-                    # check if steady state has been broken, if so, re-enable integral clamping with a higher limit
-                    if steady_state:
-                        if len(y) > int(steady_state_wait_duration // self.dt):
+                    if time.time() - previous_time >= self.dt: 
+                        time_stepped = True
+                        previous_time = time.time()
+                        setpoint = self.speed_profile.get_speed(t[i])
+                        control_setpoint = self.sensor.scale_to_control(setpoint)
+                        control_PV = self.plant.get_control_PV()
+                        self.plant.set_control_output(
+                            self.pid_tuner.controller.update(control_PV, control_setpoint)
+                        )
+                        actual_speed = self.plant.sensor.read_PV()
+                        y.append(actual_speed)
+                        y_control.append(control_PV)
+                        # check all values of temperature for the last steady_state_wait seconds
+                        if not steady_state and len(y_control) > int(steady_state_wait_duration // self.dt):
                             y_diff = max(y_control[-int(steady_state_wait_duration // self.dt):]) - min(y_control[-int(steady_state_wait_duration // self.dt):])
-                            if abs(y_diff) > error_limit:
-                                steady_state = False
-                                previous_limit = self.get_pid_controller().integral_contribution_limit
-                                steady_state_PV = y_control[-int(steady_state_wait_duration // self.dt):][-1]
-                                # get ratio between the steady state PV and the setpoint
-                                ratio = previous_limit / steady_state_PV
-                                # calculate error in steady state vs setpoint
-                                error = setpoint - steady_state_PV
-                                # set the new integral contribution limit to the previous limit + the error * the ratio
-                                self.get_pid_controller().set_integral_contribution_limit(previous_limit + error * ratio)
-                                self.get_pid_controller().enable_integral_clamping()
-                else: # wait until the next time step
-                    time.sleep(self.dt/10000)
+                            if abs(y_diff) < error_limit:
+                                steady_state = True
+                                self.get_pid_controller().disable_integral_clamping()
+                        # check if steady state has been broken, if so, re-enable integral clamping with a higher limit
+                        if steady_state:
+                            if len(y) > int(steady_state_wait_duration // self.dt):
+                                y_diff = max(y_control[-int(steady_state_wait_duration // self.dt):]) - min(y_control[-int(steady_state_wait_duration // self.dt):])
+                                if abs(y_diff) > error_limit:
+                                    steady_state = False
+                                    previous_limit = self.get_pid_controller().integral_contribution_limit
+                                    steady_state_PV = y_control[-int(steady_state_wait_duration // self.dt):][-1]
+                                    # get ratio between the steady state PV and the setpoint
+                                    ratio = previous_limit / steady_state_PV
+                                    # calculate error in steady state vs setpoint
+                                    error = setpoint - steady_state_PV
+                                    # set the new integral contribution limit to the previous limit + the error * the ratio
+                                    self.get_pid_controller().set_integral_contribution_limit(previous_limit + error * ratio)
+                                    self.get_pid_controller().enable_integral_clamping()
+                    else: # wait until the next time step
+                        time.sleep(self.dt/10000)
+            self.plant.stop_actuator()
+            self.plant.stop_sensor()
+            self.latest_run_results = {
+                "time": t,
+                "actual_speed": y,
+                "control_speed": y_control
+            }
+        except:
+            self.plant.stop_actuator()
+            self.plant.stop_sensor()
+            raise
+        finally:
+            self.plant.stop_actuator()
+            self.plant.stop_sensor()
+
+    def stop(self):
         self.plant.stop_actuator()
         self.plant.stop_sensor()
-        self.latest_run_results = {
-            "time": t,
-            "actual_speed": y,
-            "control_speed": y_control
-        }
 
 class DiscreteSpeedProfileGenerator:
     """
@@ -1578,6 +1596,7 @@ class DiscreteSpeedProfileGenerator:
         self.dt=dt
         self.time_points = []
         self.speed_values = []
+        self.generate_profile()
     
     def generate_profile(self):
         # ramp up from 0 to the first speed in the list with the given acceleration

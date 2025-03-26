@@ -2,8 +2,13 @@ import time
 from enum import Enum
 
 from alab_control._base_arduino_device import BaseArduinoDevice
-# Import motor controller classes
+from alab_control.shaker_with_motor_controller.motor_controller import *
+import threading
 
+kp = 0.6
+ki = 2.112
+kd = 0.003409090909090909
+integral_contribution_limit = 1.0
 
 class ShakerWMCState(Enum):
     STARTING = "STARTING"
@@ -30,7 +35,7 @@ class ShakerWMC(BaseArduinoDevice):
     Shaker machine for ball milling
     """
 
-    FREQUENCY = 25 # the frequency of the shaker, user should set it in the ball milling machine manually for now.
+    FREQUENCY = 25 # the frequency of the shaker
 
     ENDPOINTS = {
         "close gripper": "/gripper-close",
@@ -40,6 +45,11 @@ class ShakerWMC(BaseArduinoDevice):
         "state": "/state",
         "reset": "/reset",
     }
+
+    def __init__(self, ip_address: str, port: int = 80):
+        super().__init__(ip_address, port)
+        self.motor_controller = MotorController(dt=0.1)
+        self.motor_controller.set_controller(kp, ki, kd, integral_contribution_limit)
 
     def get_state(self):
         """
@@ -55,25 +65,6 @@ class ShakerWMC(BaseArduinoDevice):
         """
         state = self.get_state()
         if GripperWMCState(state["gripper_status"]) == GripperWMCState.CLOSE:
-            return True
-        return False
-
-    def is_shaker_on(self) -> bool:
-        """
-        Check if the shaker machine is on
-        """
-        state = self.get_state()
-        if ShakerWMCState(state["shaker_status"]) == ShakerWMCState.ON:
-            return True
-        return False
-
-    def is_running(self) -> bool:
-        """
-        Check if the shaker machine is running
-        """
-        state = self.get_state()  # refresh the state
-        if SystemState(state["system_status"]) == SystemState.RUNNING or \
-        ShakerWMCState(state["shaker_status"]) == ShakerWMCState.ON:
             return True
         return False
 
@@ -107,40 +98,36 @@ class ShakerWMC(BaseArduinoDevice):
         if int(state["force_reading"]) < 200:
             raise ShakerWMCError("Gripper is not fully open or something is attached to the upper part.")
 
-    def shaking(self, duration_sec: float):
+    def shaking(self, duration_sec: float, frequency: int = FREQUENCY):
         """
-        Start the shaker machine for a given duration (seconds).
-        This will initiate the stop command first to ensure the shaker is not running and to de-saturate the clicker.
+        Start the shaker machine for a given duration (seconds) and frequency.
+        If the gripper is closed, it will check if the gripper is holding the container.
 
         Args:
-            duration_sec: duration of shaking in seconds
-            gripper_closed: flag whether the gripper is expected to be closed gripping something or not.
-                it is used to check if the gripper is gripping something while shaking.
+            duration_sec: duration of shaking in seconds.
+            frequency: frequency of the shaker in Hz.
         """
-        self.stop()
-        time.sleep(6)
-        start_time = time.time()
-        print(f"{self.get_current_time()} Starting the shaker machine for {duration_sec} seconds")
+        generator=DiscreteSpeedProfileGenerator(acceleration=30.0,speed_list=[frequency],duration_list=[duration_sec],dt=0.01)
+        generator.generate_profile()
+        time_points=generator.time_points
+        speed_values=generator.speed_values
+        self.motor_controller.set_speed_profile(time_points, speed_values)
+        thread = threading.Thread(target=self.motor_controller.run_profile)
+        thread.start()
         try:
-            while time.time() - start_time < duration_sec:
-                state=self.get_state()
-                if ShakerWMCState(state["shaker_status"]) != ShakerWMCState.STARTING:
-                    if GripperWMCState(self.get_state()["gripper_status"]) == GripperWMCState.CLOSE:
-                        if int(state["force_reading"]) > 200:
-                            self.stop()
-                            raise ShakerWMCError("Gripper is not closed or has lost grip.")
-                    if SystemState(state["system_status"]) == SystemState.ERROR:
-                        self.stop()
-                        raise ShakerWMCError("Shaker machine is in error state.")
-                    self.start()
-                time.sleep(6)
-        finally:
-            while ShakerWMCState(state["shaker_status"]) == ShakerWMCState.STARTING:
-                state=self.get_state()
+            start_time = time.time()
+            while thread.is_alive():
+                if time.time() - start_time > 10:
+                    raise ShakerWMCError("Shaking operation timed out after 10 seconds.")
+                state = self.get_state()
+                if GripperWMCState(state["gripper_status"]) == GripperWMCState.CLOSE:
+                    if int(state["force_reading"]) > 200:
+                        raise ShakerWMCError("Gripper is not closed or has lost grip.")
                 if SystemState(state["system_status"]) == SystemState.ERROR:
                     raise ShakerWMCError("Shaker machine is in error state.")
                 time.sleep(1)
-            self.stop()
+        finally:
+            self.motor_controller.stop()
 
     def close_gripper_and_shake(self, duration_sec: int):
         """
@@ -154,18 +141,6 @@ class ShakerWMC(BaseArduinoDevice):
         self.shaking(duration_sec=duration_sec)
         time.sleep(3)
         self.open_gripper()
-
-    def start(self):
-        """
-        Send a start command to the shaker machine
-        """
-        self.send_request(self.ENDPOINTS["start"], timeout=10, max_retries=3)
-
-    def stop(self):
-        """
-        Send a stop command to the shaker machine
-        """
-        self.send_request(self.ENDPOINTS["stop"], timeout=10, max_retries=3)
 
     def reset(self):
         """
