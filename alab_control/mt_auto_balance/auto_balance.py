@@ -295,6 +295,8 @@ class NotificationClient(BaseClient):
         except MTAutoBalanceError:
             if "GetNotifications has timed out." in response["ErrorMessage"]:
                 return []
+
+        print(response["Notifications"]["_value_1"])
         return response["Notifications"]["_value_1"]
 
 
@@ -443,6 +445,35 @@ class MTAutoBalance:
         lower_tolerance_percent: float,
         upper_tolerance_percent: float,
     ):
+        """
+        All the possible errors:
+
+            Enumeration DosingLiftBlocked
+            Enumeration DosingLiftOverload
+            Enumeration NoVialDetected
+            Enumeration DosingPositionNotReachable
+            Enumeration StaticDetectionFailed
+            Enumeration TareNegativeGrossWeight
+            Enumeration TareUnderload
+            Enumeration TareOverload
+            Enumeration TareAborted
+            Enumeration TargetWeightPlusTareWeightExceedBalanceCapacity
+            Enumeration RfidTagError
+            Enumeration HeadCouplingOperationError
+            Enumeration PowderTooHard
+            Enumeration SubstanceFlowTooLow
+            Enumeration DosingUnderload
+            Enumeration DosingOverload
+            Enumeration DosingError
+            Enumeration CaptureWeightNotStable
+            Enumeration CaptureWeightOverload
+            Enumeration CaptureWeightUnderload
+            Enumeration CaptureWeightAlibiError
+            Enumeration CaptureWeightAlibiBusy
+            Enumeration CaptureWeightFailed
+            Enumeration PumpError
+            Enumeration PersistingFailed
+        """
         with self.get_session() as session:
             dosing_automation_client = session.create_client(DosingAutomationClient)
             notification_client = session.create_client(NotificationClient)
@@ -511,9 +542,24 @@ class MTAutoBalance:
 
             time.sleep(1)
 
+            job_start_time = time.time()
+            job_finish_time = None
+
             while True:
                 notifications = notification_client.get_notifications()
-                if any(
+                if job_finish_time is None and time.time() - job_start_time > 600:
+                    return {
+                        "error": "The dosing job has not finished within 10 minutes.",
+                        "result": None,
+                        "success": False,
+                    }
+                elif job_finish_time is not None and time.time() - job_finish_time > 60:
+                    return {
+                        "error": "Failed to move dosing head back to home within one minute.",
+                        "result": result["result"],
+                        "success": False,
+                    }
+                elif any(
                     next(iter(notification))
                     == "DosingAutomationActionAsyncNotification"
                     for notification in notifications
@@ -551,26 +597,34 @@ class MTAutoBalance:
                         if next(iter(notification))
                         == "DosingAutomationJobFinishedAsyncNotification"
                     ][0]["DosingAutomationJobFinishedAsyncNotification"]
+                    job_finish_time = time.time()
 
                     if notification["DosingError"]:
-                        return {
+                        result = {
                             # e.g. SubstanceFlowTooLow
                             "error": notification["DosingError"],
                             "result": notification["DosingResult"]["WeightSample"],
                             "success": False,
                         }
                     else:
-                        return {
+                        result = {
                             "error": None,
                             "result": notification["DosingResult"]["WeightSample"],
                             "success": True,
                         }
+                elif any(
+                    next(iter(notification))
+                    == "DosingAutomationFinishedAsyncNotification"
+                    for notification in notifications
+                ):
+                    # indicating the dosing head has been moved back to home
+                    return result
 
 
 if __name__ == "__main__":
     mt_balance = MTAutoBalance(host="http://192.168.1.13:81", password="mt")
     print(
         mt_balance.automatic_dosing(
-            target_value_g=1, lower_tolerance_percent=0.1, upper_tolerance_percent=0.1
+            target_value_g=0.5, lower_tolerance_percent=0.1, upper_tolerance_percent=0.1
         )
     )
