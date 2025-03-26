@@ -1,3 +1,4 @@
+import datetime
 from typing import List, Tuple
 from Phidget22.Phidget import PhidgetException
 from Phidget22.Devices.DCMotor import DCMotor
@@ -7,6 +8,8 @@ import time
 import threading
 import collections
 import numpy as np
+from matplotlib import pyplot as plt
+from scipy.signal import find_peaks
 
 class PIDController:
     """
@@ -344,7 +347,6 @@ class SpeedSensor:
         """
         Starts the sensor.
         """
-        self.encoder.setEnabled(True)
         self.encoder.openWaitForAttachment(5000)
         self.encoder.setDataInterval(self.sampling_interval)
         self.running = True
@@ -353,7 +355,6 @@ class SpeedSensor:
         """
         Stops the sensor.
         """
-        self.encoder.setEnabled(False)
         self.running = False
 
     def read_PV(self) -> float:
@@ -630,7 +631,6 @@ class DiscretePlant:
         """
         self.sensor.stop()
 
-    #TODO: check if this is working as expected with the PV_maximum_safety_limit
     def set_control_output(self, output: float) -> None:
         """
         Sets the control output of the plant.
@@ -641,13 +641,6 @@ class DiscretePlant:
         """
         # Clip the output to the range [0, 1]
         output = max(0, min(output, 1))
-
-        # Hard safety from the temperature feedback loop. 
-        # If the temperature from the sensor gets too hot, the actuator should be turned off.
-        # Error should be raised and plant should be stopped.
-        if self.get_control_PV() > self.PV_maximum_safety_limit:
-            self.stop()
-            raise ValueError("Temperature is too high. Plant is stopped.")
         self.actuator.set_control_output(output)
 
     def get_control_PV(self) -> float:
@@ -655,7 +648,30 @@ class DiscretePlant:
         Returns the scaled (control) PV of the plant.
         """
         return self.sensor.read_control_PV()
-
+            
+    def set_characteristics(self, 
+                            order: str = "Second", 
+                            *args, 
+                            **kwargs) -> None:
+        """
+        Sets the characteristics of the plant.
+        Currently only supports first and second-order systems.
+        """
+        if order == "First":
+            K, tau = args
+            self.plant_tf = ctrl.TransferFunction([K], [tau, 1])
+        elif order == "Second":
+            K, zeta, wn = args
+            self.plant_tf = ctrl.TransferFunction([K * wn**2], [1, 2 * zeta * wn, wn**2])
+        else:
+            raise ValueError("Unsupported order. Only first-order systems are supported.")
+    
+    def get_tf(self) -> ctrl.TransferFunction:
+        """
+        Returns the transfer function of the plant.
+        """
+        return self.plant_tf
+    
     def get_time_to_steady_state(self, 
                                  output: float, 
                                  steady_state_wait_duration: float = 5,
@@ -742,152 +758,618 @@ class DiscretePlant:
         time.sleep(cooldown_time)
         return t_steady, y_steady, t, y, no_PV
     
-    def tune_minimum_output_and_PV(self, 
-                                   start_at: float = 0.2, 
-                                   step_size: float = 0.1, 
-                                   lower_threshold: float = 0.0025, 
-                                   upper_threshold: float = 0.005,
-                                   steady_state_wait_duration: float = 5, 
-                                   error_limit: float = 0.01, 
-                                   max_time: float = 40, 
-                                   cooldown_time: float = 10, 
-                                   max_total_time: float = 600) -> None:
-        """
-        Tunes the minimum output of the actuator where the 
-        PV starts to increase.
-        """
-        if not self.minimum_output_tuned:
-            start_time = time.time()
-            # Iterate from start_at to 1
-            steady_state_control_PV = 0
-            minimum_output_found = False
-            for output in np.arange(start_at, 1, step_size):
-                t_steady, steady_state_control_PV, __, ___, ____ = self.get_time_to_steady_state(output, steady_state_wait_duration=steady_state_wait_duration, error_limit=error_limit, max_time=max_time, cooldown_time=cooldown_time)
-                if steady_state_control_PV > upper_threshold:
-                    minimum_output_found = True
-                    break
-
-            if not minimum_output_found:
-                raise ValueError("Minimum output not found. System cannot reach the threshold.")
-            
-            # Perform binary search to find the minimum output
-            while (steady_state_control_PV > upper_threshold or steady_state_control_PV < lower_threshold) and time.time() - start_time < max_total_time:
-                if steady_state_control_PV > upper_threshold:
-                    output -= step_size
-                else:
-                    output += step_size
-                step_size /= 2
-                t_steady, steady_state_control_PV, __, ___, ____ = self.get_time_to_steady_state(output, steady_state_wait_duration=steady_state_wait_duration, error_limit=error_limit, max_time=max_time, cooldown_time=cooldown_time)
-            
-            # Update the minimum output of the actuator and the minimum PV of the sensor
-            self.actuator.set_minimum_output(self.actuator.scale_to_actual(output))
-            self.sensor.set_minimum_measurable_temperature(self.sensor.scale_to_actual(steady_state_control_PV))
-            self.minimum_output_rise_time = t_steady
-            self.minimum_output_tuned = True
-
-    def tune_maximum_output_and_PV(self, 
-                                   start_at: float = 0.2, 
-                                   step_size: float = 0.1, 
-                                   steady_state_wait_duration: float = 5 ,
-                                   error_limit: float = 0.032, 
-                                   max_time: float = 40, 
-                                   cooldown_time: float = 10, 
-                                   max_total_time: float = 600, 
-                                   safety_margin: float = 0.082) -> None:
-        """
-        Automatically finds the maximum output of the plant 
-        where the PV reaches the maximum safety limit. The 
-        maximum output will be set to the output where the 
-        PV reaches the maximum safety limit.
-        """
-        #TODO: FIX THIS, estimator and safety margin combination did not work smh
-        if not self.maximum_output_tuned:
-            def monitor_time():
-                start_time = time.time()
-                while (time.time() - start_time < max_total_time) and not self.maximum_output_tuned:
-                    time.sleep(1)
-                self.stop()
-                if not self.maximum_output_tuned:
-                    raise TimeoutError("Maximum total time exceeded and maximum output is not tuned yet. Stopping the process.")
-
-            monitor_thread = threading.Thread(target=monitor_time)
-            monitor_thread.start()
-
-            try:
-                maximum_from_three_outputs = start_at + 2 * step_size
-                if maximum_from_three_outputs > 1.0:
-                    raise ValueError("The first three outputs will exceed 1.0. Try reducing the step_size or start_at.")
-                outputs = []
-                steady_state_control_PVs = []
-                temperature_model_converged = False
-                for output in np.arange(start_at, 1, step_size):
-                    outputs.append(output)
-                    _, steady_state_control_PV, __, ___, ____ = self.get_time_to_steady_state(output, steady_state_wait_duration=steady_state_wait_duration, error_limit=error_limit, max_time=max_time, cooldown_time=cooldown_time)
-                    steady_state_control_PVs.append(steady_state_control_PV)
-                    if len(outputs) > 2:
-                        if abs(steady_state_control_PVs[-1] - predicted_next_steady_state_control_PV) < error_limit:
-                            temperature_model_converged = True
-                            self.control_PV_interpolator = interp1d(outputs, steady_state_control_PVs, kind="linear", fill_value="extrapolate")
-                            break
-                    if len(outputs) > 1:
-                        self.control_PV_interpolator = interp1d(outputs, steady_state_control_PVs, kind="linear", fill_value="extrapolate")
-                        next_output = output + step_size
-                        predicted_next_steady_state_control_PV = self.control_PV_interpolator(next_output)
-                        if predicted_next_steady_state_control_PV > self.PV_maximum_safety_limit:
-                            break
-                if not temperature_model_converged:
-                    raise ValueError("Temperature model did not converge. Error limit is too small.")
-                predicted_steady_state_control_PV_at_1 = self.control_PV_interpolator(1)
-                if predicted_steady_state_control_PV_at_1 > self.PV_maximum_safety_limit:
-                    new_step_size = 0.25
-                    next_output = 0.5
-                    predicted_steady_state_control_PV_at_1 = self.control_PV_interpolator(next_output)
-                    # Perform binary search to find the maximum output where the PV reaches the maximum safety limit - safety_margin
-                    while predicted_steady_state_control_PV_at_1 > self.PV_maximum_safety_limit - safety_margin + error_limit or \
-                            predicted_steady_state_control_PV_at_1 < self.PV_maximum_safety_limit - safety_margin - error_limit:
-                        if predicted_steady_state_control_PV_at_1 > self.PV_maximum_safety_limit - safety_margin + error_limit:
-                            next_output = next_output - new_step_size
-                        else:
-                            next_output = next_output + new_step_size
-                        new_step_size /= 2
-                        predicted_steady_state_control_PV_at_1 = self.control_PV_interpolator(next_output)
-                    self.actuator.set_maximum_output(self.actuator.scale_to_actual(next_output))
-                output_unit=self.actuator.get_output_unit()
-                print(f"Maximum output is tuned to {self.actuator.maximum_output} {output_unit}.")
-                self.maximum_output_tuned = True
-            except Exception as e:
-                print(e)
-                raise e
-            finally:
-                self.stop()
-                monitor_thread.join()
-            
-    def set_characteristics(self, 
-                            order: str = "Second", 
-                            *args, 
-                            **kwargs) -> None:
-        """
-        Sets the characteristics of the plant.
-        Currently only supports first and second-order systems.
-        """
-        if order == "First":
-            K, tau = args
-            self.plant_tf = ctrl.TransferFunction([K], [tau, 1])
-        elif order == "Second":
-            K, zeta, wn = args
-            self.plant_tf = ctrl.TransferFunction([K * wn**2], [1, 2 * zeta * wn, wn**2])
-        else:
-            raise ValueError("Unsupported order. Only first-order systems are supported.")
+class PIDTuner:
+    """
+    This class is designed to tune PID controllers for 
+    first-order systems, such as a Joule Heater with a 
+    small sample mass. 
     
-    def get_tf(self) -> ctrl.TransferFunction:
-        """
-        Returns the transfer function of the plant.
-        """
-        return self.plant_tf
+    This class does not consider sensor transfer functions 
+    and assumes that the sensor is ideal (H(s) = 1), i.e. 
+    no measurement error or noise, infinite bandwidth, 
+    linearity, and no drift.
+    
+    This class only considers specific forms of controller 
+    and plant transfer functions. Specifically, this class
+    only consider controller transfer functions of the 
+    form: C(s) = Kp + Ki/s + Kd*s (transfer function of the
+    PID controller) and plant transfer functions of the 
+    form: P(s) = K/(tau*s + 1) (first-order system with 
+    time constatn tau and gain K).
 
-    def get_minimum_output_rise_time(self) -> float:
+    Attributes
+    ----------
+        dt (float): The time step for the discrete system.
+        plant (DiscretePlant): The plant model to be 
+            controlled.
+        Kp_test_setting (dict[str, float]): Settings for 
+            testing the proportional gain (Kp). Key value
+            pairs include:
+            - 'initial_Kp' (float): Initial proportional 
+               gain.
+            - 'Kp_increment' (float): Increment for 
+               proportional gain during testing.
+            - 'max_Kp' (float): Maximum proportional gain 
+               for testing.
+        ss_test_setting (dict[str, float]): Settings for 
+            steady-state test. Key value pairs include:
+            - 'maximum_time' (float): Maximum time for the 
+               test.
+            - 'error_limit' (float): Error limit for steady-
+               state detection.
+            - 'cooldown_time' (float): Cooldown time 
+               between tests.
+        osc_test_setting (dict[str, float]): Settings for 
+            oscillation test. Key value pairs include:
+            - 'initial_time' (float): Initial time for the 
+               oscillation test.
+            - 'time_increment' (float): Time increment for 
+               the oscillation test.
+            - 'maximum_time' (float): Maximum time for the 
+               oscillation test.
+            - 'cooldown_time' (float): Cooldown time 
+               between tests.
+            - 'minimum_oscillation_height' (float): Minimum 
+               height of oscillations to be considered 
+               sustained.
+        Ku (float or None): Ultimate gain for the PID 
+            controller.
+        Pu (float or None): Oscillation period for the PID 
+            controller.
+        open_loop_tf (ctrl.TransferFunction or None): Open-
+            loop transfer function of the system.
+        closed_loop_tf (ctrl.TransferFunction or None): 
+            Closed-loop transfer function of the system.
+        controller (PIDController or None): The PID 
+            controller being tuned.
+
+    Methods:
+    ----------
+        compute_open_loop_tf() -> None:
+            Computes the open-loop transfer function of the 
+            plant with the PID controller.
+        
+        compute_closed_loop_tf() -> None:
+            Computes the closed-loop transfer function of 
+            the plant with the PID controller.
+        
+        find_system_parameters() -> None:
+            Finds the system gain (K) and time constant 
+            (tau) from the step response.
+        
+        determine_ultimate_gain_and_period() -> tuple[float, float]:
+            Automatically finds the ultimate gain (Ku) and 
+            oscillation period (Pu).
+        
+        check_poles() -> None:
+            Computes and prints the poles of the closed-
+            loop transfer function.
+        
+        find_ultimate_gain() -> tuple[float, float]:
+            Automatically finds the ultimate gain (Ku) and 
+            oscillation period (Pu).
+
+        compute_pid_parameters(tuning_type: str = "Classic") -> None:
+            Computes PID parameters using Ziegler-Nichols 
+            tuning rules.
+
+        stability_analysis() -> None:
+            Performs stability analysis of the system 
+            transfer function.
+
+        def compute_tf() -> None:
+            Computes the open-loop and closed-loop transfer 
+            functions of the plant with the PID controller.
+
+        tune() -> None:
+            Finds the system parameters, ultimate gain, 
+            computes PID parameters, computes transfer 
+            functions and performs stability analysis.
+
+        step_response(duration: float) -> tuple[np.ndarray, np.ndarray]:
+            Returns the step response of the plant with the 
+            tuned PID controller.
+
+        get_controller() -> PIDController:
+            Returns the tuned PID controller.
         """
-        Returns the rise time of the plant to reach the 
-        minimum output.
+    def __init__(self, 
+                 plant: DiscretePlant,
+                 dt: float = 0.5,
+                 Kp_test_setting: dict[str, float] = {"initial_Kp": 12,"Kp_increment": 3,"max_Kp": 40},
+                 ss_test_setting: dict[str, float] = {'steady_state_wait_duration': 5, 'maximum_time': 100, 'error_limit': 0.01, 'cooldown_time': 20},
+                 osc_test_setting: dict[str, float]= {'initial_time': 20, 'time_increment': 20, 'maximum_time': 50, 'cooldown_time': 20, "minimum_oscillation_height": 0.01}):
         """
-        return self.minimum_output_rise_time
+        Initializes the PIDTuner with the given plant, time 
+        step, and test settings.
+
+        Parameters
+        ----------
+        plant : DiscretePlant
+            The plant model to be controlled.
+        dt : float, optional
+            The time step for the discrete system. Default 
+            is 0.5.
+        Kp_test_setting : dict[str, float], optional
+            Settings for testing the proportional gain 
+            (Kp). Default is {"initial_Kp": 7, "Kp_increment": 3, "max_Kp": 30}.
+            Key value pairs include:
+            - 'initial_Kp' (float): Initial proportional
+               gain.
+            - 'Kp_increment' (float): Increment for 
+               proportional gain during testing.
+            - 'max_Kp' (float): Maximum proportional gain 
+               for testing.
+        ss_test_setting : dict[str, float], optional
+            Settings for steady-state test. Default is 
+            {'maximum_time': 100, 'error_limit': 0.01, 'cooldown_time': 20}.
+            Key value pairs include:
+            - 'maximum_time' (float): Maximum time for the 
+               test.
+            - 'error_limit' (float): Error limit for 
+               steady-state detection.
+            - 'cooldown_time' (float): Cooldown time 
+               between tests.
+        osc_test_setting : dict[str, float], optional
+            Settings for oscillation test. Default is 
+            {'initial_time': 20, 'time_increment': 20, 'maximum_time': 100, 'cooldown_time': 20, "minimum_oscillation_height": 0.025}.
+            Key value pairs include:
+            - 'initial_time' (float): Initial time for the 
+               oscillation test.
+            - 'time_increment' (float): Time increment for 
+               the oscillation test.
+            - 'maximum_time' (float): Maximum time for the 
+               oscillation test.
+            - 'cooldown_time' (float): Cooldown time 
+               between tests.
+            - 'minimum_oscillation_height' (float): Minimum 
+               height of oscillations to be considered 
+               sustained.
+
+        Raises
+        ------
+        ValueError
+            If the plant does not have a step_response 
+            method.
+        """
+        self.dt = dt
+        self.plant = plant
+        # check if the process has a step_response method
+        if not hasattr(self.plant, 'step_response'):
+            raise ValueError("Process must have a step_response method.")
+        self.Kp_test_setting = Kp_test_setting
+        self.ss_test_setting = ss_test_setting
+        self.osc_test_setting = osc_test_setting
+        self.Ku = None
+        self.Pu = None
+        self.open_loop_tf = None
+        self.closed_loop_tf = None
+        self.controller = None
+
+    def find_system_parameters(self) -> None:
+        """
+        Finds the system parameters (gain, time constant, 
+        and damping ratio) from the step response. Supports 
+        both first-order and second-order systems.
+
+        Raises:
+            ValueError: If the minimum or maximum output of 
+                        the plant has not been tuned.
+            ValueError: If the system is not getting any PV
+                        change from 0.
+
+        Returns:
+            None
+        """
+        print("Finding system parameters using grid search...")
+        steady_state_wait_duration = self.ss_test_setting['steady_state_wait_duration']
+        maximum_time = self.ss_test_setting['maximum_time']
+        error_limit = self.ss_test_setting['error_limit']
+        cooldown_time = self.ss_test_setting['cooldown_time']
+        print(f"Maximum time for the test: {maximum_time} seconds")
+        print("Date and time: ", datetime.datetime.now())
+        # check if plant has been tuned for minimum and maximum output
+        if not self.plant.minimum_output_tuned:
+            raise ValueError("Minimum output of the plant must be tuned first. Run tune_minimum_output_and_PV method.")
+        if not self.plant.maximum_output_tuned:
+            raise ValueError("Maximum output of the plant must be tuned first. Run tune_maximum_output_and_PV method.")
+        t_steady, y_steady, t, y, no_PV = self.plant.get_time_to_steady_state(1, steady_state_wait_duration=steady_state_wait_duration, error_limit=error_limit, max_time=maximum_time, cooldown_time=cooldown_time)
+        if no_PV:
+            raise ValueError("System is not getting any PV change from 0. Check the system.")
+        
+        K = y[-1]  # Gain is the final value of the step response
+        threshold = 0.632 * K  # 63.2% of the final value for first-order systems
+        tau = None
+        zeta = None
+        wn = None
+
+        # Check if the system is first-order or second-order
+        overshoot = (max(y) - K) / K if K > 0 else 0
+        if overshoot < 0.05:  # Consider it a first-order system if overshoot is negligible
+            for i in range(len(y)):
+                if y[i] >= threshold:
+                    tau = t[i]
+                    break
+            self.plant.set_characteristics("First", K, tau)
+        else:  # Second-order system
+            # Calculate damping ratio (zeta) and natural frequency (wn) from overshoot and rise time
+            zeta = -np.log(overshoot) / np.sqrt(np.pi**2 + (np.log(overshoot))**2)
+            rise_time_index = next(i for i in range(len(y)) if y[i] >= K * 0.9)  # 90% of final value
+            rise_time = t[rise_time_index]
+            wn = np.pi / (rise_time * np.sqrt(1 - zeta**2))
+            self.plant.set_characteristics("Second", K, zeta, wn)
+
+    def find_ultimate_gain(self) -> tuple[float, float]:
+        """
+        Automatically finds the ultimate gain (Ku) and 
+        oscillation period (Pu).
+        
+        This method uses a grid search approach to 
+        determine the ultimate gain and period by 
+        iteratively adjusting the proportional gain (Kp) 
+        and observing the system's response.
+
+        Raises:
+            AssertionError: If the time step (dt) of the 
+                            plant and the controller do not 
+                            match.
+            ValueError: If the ultimate gain (Ku) and 
+                        period (Pu) could not be determined.
+
+        Returns:
+            tuple: A tuple containing the ultimate gain 
+            (Ku) and oscillation period (Pu).
+        """
+        assert self.dt==self.plant.dt, "The plant and the controller must have the same time step."
+        print("Finding ultimate gain and period using grid search...")
+        maximum_time = 0
+        test_time = self.osc_test_setting['initial_time']
+        for _ in range(int(self.osc_test_setting['initial_time']), int(self.osc_test_setting['maximum_time']), int(self.osc_test_setting['time_increment'])):
+            maximum_time += test_time
+            test_time = test_time + self.osc_test_setting['time_increment'] * len(np.arange(self.Kp_test_setting['initial_Kp'], self.Kp_test_setting['max_Kp'], self.Kp_test_setting['Kp_increment']))
+        print(f"Maximum time for the test: {maximum_time} seconds")
+        print("Date and time: ", datetime.datetime.now())
+        sustained_oscillation_detected = False
+        for duration in range(int(self.osc_test_setting['initial_time']), int(self.osc_test_setting['maximum_time']) + 1, int(self.osc_test_setting['time_increment'])):
+            for Kp in np.arange(self.Kp_test_setting['initial_Kp'], self.Kp_test_setting['max_Kp'], self.Kp_test_setting['Kp_increment']):
+                self.p_controller = PIDController(Kp, 0, 0, self.dt)
+                self.plant.start()
+                self.plant.set_control_output(0)
+                t = np.linspace(0, duration, int(duration / self.dt))
+                y = []
+                previous_time = time.time()
+                for _ in range(len(t)):
+                    time_stepped = False
+                    while not time_stepped:
+                        if time.time() - previous_time >= self.dt:
+                            time_stepped = True
+                            previous_time = time.time()
+                            self.plant.set_control_output(
+                                self.p_controller.update(self.plant.get_control_PV(), 0.5)
+                            )  # set the setpoint to 0.5
+                            y.append(self.plant.get_control_PV())
+                        else:
+                            time.sleep(self.dt / 10000)
+                self.plant.stop()
+                y = np.array(y)
+                # Find peaks and valleys
+                peaks, _ = find_peaks(y)
+                valleys, _ = find_peaks(-y)
+                # From peaks and valleys, calculate the average of the peak and valley values
+                peak_valley_avg = None
+                if len(peaks) > 5 and len(valleys) > 5:
+                    for i in range(min(len(peaks), len(valleys))):
+                        if peak_valley_avg is None:
+                            peak_valley_avg = (y[peaks[i]] + y[valleys[i]]) / 2
+                        else:
+                            peak_valley_avg = (peak_valley_avg + ((y[peaks[i]] + y[valleys[i]]) / 2)) / 2
+                # From the average peak and valley values, calculate the amplitude of the oscillation
+                if peak_valley_avg:
+                    oscillation_amplitudes = [abs(peak_valley_avg - y[peak]) for peak in peaks]
+                    # If sustained oscillations detected, calculate Ku and Pu
+                    if all(amp > self.osc_test_setting["minimum_oscillation_height"] for amp in oscillation_amplitudes):
+                        self.Pu = np.mean(np.diff(t[peaks]))  # Average period
+                        self.Ku = Kp
+                        sustained_oscillation_detected = True
+                        break
+                time.sleep(self.osc_test_setting['cooldown_time'])  # Cooldown time between tests
+            if sustained_oscillation_detected:
+                break
+        if not self.Ku:
+            raise ValueError("Ultimate gain (Ku) and period (Pu) could not be determined.")
+        return self.Ku, self.Pu
+
+    def compute_pid_parameters(self, tuning_type: str = "Custom") -> None:
+        """
+        Computes PID parameters using Ziegler-Nichols 
+        tuning rules.
+        """
+        if self.Ku and self.Pu:
+            if tuning_type=="Classic":
+                self.Kp = 0.6 * self.Ku
+                Ti = self.Pu / 2
+                Td = self.Pu / 8
+            elif tuning_type=="Some_overshoot":
+                self.Kp = self.Ku / 3
+                Ti = self.Pu / 2
+                Td = self.Pu / 3
+            elif tuning_type=="No_overshoot":
+                self.Kp = self.Ku * 0.2
+                Ti = self.Pu / 2
+                Td = self.Pu / 3
+            elif tuning_type=="PI":
+                self.Kp = self.Ku * 0.45
+                Ti = self.Pu / 1.2
+                Td = 0
+            elif tuning_type=="Custom":
+                self.Kp = self.Ku * 0.2
+                Ti = self.Pu / 2
+                Td = self.Pu / 100
+            else:
+                raise ValueError("tuning_type must be one of 'Classic', 'Some_overshoot', 'No_overshoot','PI'")
+            self.Ki = self.Kp / Ti
+            self.Kd = self.Kp * Td
+        else:
+            raise ValueError("Ultimate gain (Ku) and period (Pu) must be determined first.")
+        if self.controller:
+            integral_contribution_limit = self.controller.integral_contribution_limit
+            self.controller = PIDController(self.Kp, self.Ki, self.Kd, self.dt, integral_contribution_limit)
+        else:
+            self.controller = PIDController(self.Kp, self.Ki, self.Kd, self.dt) # use default integral_contribution_limit if PIDController is not initialized yet
+        
+    def _poles_check(self, closed_loop_system: ctrl.TransferFunction) -> None:
+        """
+        Check if the system is unstable by checking if any 
+        pole is in the right-half plane.
+        """
+        poles = ctrl.poles(closed_loop_system)
+        unstable_poles = [p for p in poles if np.real(p) > 0]
+        # plot poles
+        plt.figure()
+        plt.scatter(np.real(poles), np.imag(poles), color='red', marker='x')
+        plt.axhline(0, color='black', lw=0.5)
+        plt.axvline(0, color='black', lw=0.5)
+        plt.xlabel('Real')
+        plt.ylabel('Imaginary')
+        plt.title('Poles of the Closed Loop System')
+        plt.show()
+        if unstable_poles:
+            print("⚠️ WARNING: System is UNSTABLE (Right-half plane poles detected).")
+        else:
+            print("✅ Poles check: OK. System is STABLE. No right-half plane poles detected.")
+
+    def _nyquist_plot_check(self, open_loop_system: ctrl.TransferFunction) -> None:
+        """
+        Performs Nyquist plot analysis and checks for stability.
+        How many right half plane zeros are there in the C*G transfer function? Which will be poles in the closed loop system.
+        """
+        response = ctrl.nyquist_response(open_loop_system)
+        count = response.count
+        cplt = response.plot()
+        if count > 0:
+            print("⚠️ WARNING: System is UNSTABLE (Nyquist plot CW encirclements of -1 detected).")
+        else:
+            print("✅ Nyquist plot check: OK. System is STABLE. No CW encirclements of -1 detected.")
+
+    def _bode_plot_check(self, open_loop_system):
+        """Performs Bode plot analysis and checks for stability margins."""
+        plt.figure()
+        ctrl.bode(open_loop_system, dB=True)
+        plt.show()
+        gm, pm, sm, wpc, wgc, wms = ctrl.stability_margins(open_loop_system)
+        # Stability Warnings Based on Margins
+        if gm < 6:
+            print(f"⚠️ WARNING: Low Gain Margin (<6 dB =~ 4 in linear). System is prone to instability. Gain Margin: {gm:.2f}.")
+        else:
+            print(f"✅ Gain Margin Check: OK (Greater than 6 dB =~ 4 in linear). Gain Margin: {gm:.2f}.")
+
+        if pm < 45:
+            print(f"⚠️ WARNING: Low Phase Margin (<45°). System is prone to oscillations. Phase Margin: {pm:.2f}°.")
+        else:
+            print(f"✅ Phase Margin Check: OK (Greater than 45°). Phase Margin: {pm:.2f}°.")
+        
+        delay_margin = (pm/wgc) * (np.pi/180) # Phase margin in seconds
+        if delay_margin < 2*self.dt:
+            print(f"⚠️ WARNING: Phase delay margin is less than twice of the sampling/control time. System can become unstable. Delay Margin: {delay_margin:.2f} seconds.")
+        else:
+            print(f"✅ Phase Delay Margin Check: OK (Greater than the sampling/control time). Delay Margin: {delay_margin:.2f} seconds.")
+
+    def stability_analysis(self) -> None:
+        """
+        Performs stability analysis on the system transfer 
+        function and prints warnings based on results.
+        """
+        if not self.open_loop_tf:
+            raise ValueError("Open-loop transfer function is not computed.")
+        if not self.closed_loop_tf:
+            raise ValueError("Closed-loop transfer function is not computed.")
+        open_loop_tf = self.open_loop_tf
+        closed_loop_tf = self.closed_loop_tf
+        self._poles_check(closed_loop_tf)
+        self._nyquist_plot_check(open_loop_tf)
+        self._bode_plot_check(open_loop_tf)
+
+    # From gain and tau (system characteristics) and Kp, Ki, Kd (controller parameters)
+    # we can calculate the open-loop transfer function of the system
+    def compute_tf(self) -> None:
+        """
+        Computes the open-loop and closed-loop transfer 
+        functions of the plant with the PID controller.
+        """
+        controller_tf = self.controller.get_tf()
+        plant_tf = self.plant.get_tf()
+        self.open_loop_tf = controller_tf * plant_tf
+        self.closed_loop_tf = 1 / (1 + self.open_loop_tf)
+
+    # tune the PID controller and do stability analysis
+    def tune(self) -> None:
+        """
+        Finds the system parameters, ultimate gain, 
+        computes PID parameters, computes transfer 
+        functions and performs stability analysis.
+        """
+        self.find_system_parameters()
+        self.find_ultimate_gain()
+        self.compute_pid_parameters()
+        self.compute_tf()
+        self.stability_analysis()
+
+    # Try a step response with the tuned PID controller
+    def step_response(self, duration) -> tuple[np.ndarray, np.ndarray]:
+        """
+        Returns the step response of the plant with the 
+        tuned PID controller.
+        """
+        # check if controller is computed
+        if not self.controller:
+            raise ValueError("Controller is not computed.")
+        # reset the PID controller
+        self.controller.reset()
+        self.plant.start()
+        self.plant.set_control_output(0)
+        t = np.linspace(0, duration, int(duration / self.dt))
+        y = []
+        previous_time = time.time()
+        for _ in range(len(t)):
+            time_stepped = False
+            while not time_stepped:
+                if time.time() - previous_time >= self.dt:
+                    time_stepped = True
+                    previous_time = time.time()
+                    self.plant.set_control_output(
+                        self.controller.update(self.plant.get_control_PV(), 0.5)
+                    )  # set the setpoint to 0.5
+                    y.append(self.plant.get_control_PV())
+                else:
+                    time.sleep(self.dt / 10000)
+        self.plant.stop()
+        return t, y
+    
+    def get_controller(self) -> PIDController:
+        """
+        Returns the tuned PID controller.
+        """
+        return self.controller
+
+class DiscreteSetpointProfile:
+    """
+    Superclass for discrete setpoint profiles.
+
+    Attributes
+    ----------
+    time_points : List | np.ndarray
+        The time points at which setpoint values are 
+        defined.
+    setpoint_values : List | np.ndarray
+        The setpoint values corresponding to the time 
+        points.
+    interpolated_time : numpy.ndarray
+        The interpolated time points used for creating a 
+        smooth profile.
+    interpolated_setpoints : numpy.ndarray
+        The interpolated setpoint values corresponding to 
+        the interpolated time points.
+
+    Methods
+    -------
+    get_setpoint(time: float) -> float
+        Returns the setpoint at a given time.
+    plot_profile() -> None
+        Plots the setpoint profile.
+    get_interpolated_profile() -> tuple[numpy.ndarray, numpy.ndarray]
+        Returns the interpolated time points and setpoints.
+    get_original_profile() -> tuple[List | np.ndarray, List | np.ndarray]
+        Returns the original time points and setpoints.
+    """
+    def __init__(self, time_points: List | np.ndarray, setpoint_values: List | np.ndarray):
+        """
+        Initializes the DiscreteSetpointProfile with time points and setpoint values.
+
+        Parameters
+        ----------
+        time_points : List | np.ndarray
+            The time points at which setpoint values are defined.
+        setpoint_values : List | np.ndarray
+            The setpoint values corresponding to the time points.
+
+        Raises
+        ------
+        ValueError
+            If `time_points` and `setpoint_values` do not have the same length.
+            If `time_points` are not in increasing order.
+        """
+        self.time_points = time_points
+        self.setpoint_values = setpoint_values
+        # check that time_points and setpoint_values have the same length
+        if len(time_points) != len(setpoint_values):
+            raise ValueError("time_points and setpoint_values must have the same length.")
+        # check that time_points are in increasing order
+        if not all(time_points[i] <= time_points[i+1] for i in range(len(time_points)-1)):
+            for i in range(len(time_points)-1):
+                if time_points[i] >= time_points[i+1]:
+                    print(f"Time point {i+1} is less than or equal to time point {i}.")
+            raise ValueError("time_points must be in increasing order.")
+        self.interpolated_time = np.arange(time_points[0], time_points[-1]+np.min(np.diff(time_points)), np.min(np.diff(time_points)))
+        self.interpolated_setpoints = np.interp(self.interpolated_time, time_points, setpoint_values)
+
+    def get_setpoint(self, time: float) -> float:
+        """
+        Returns the setpoint at a given time in seconds.
+
+        Parameters
+        ----------
+        time : float
+            The time at which the setpoint is requested.
+
+        Returns
+        -------
+        float
+            The setpoint value at the given time. If the 
+            time is less than the first time point, the 
+            first setpoint is returned. If the time is 
+            greater than the last time point, the last 
+            setpoint is returned. Otherwise, the setpoint 
+            is interpolated based on the given time.
+        """
+        if time < self.interpolated_time[0]:
+            return self.setpoint_values[0]
+        elif time > self.interpolated_time[-1]:
+            return self.setpoint_values[-1]
+        return np.interp(time, self.interpolated_time, self.interpolated_setpoints)
+    
+    def plot_profile(self) -> None:
+        """
+        Plots the setpoint profile.
+
+        This method creates a plot of the setpoint profile, 
+        showing both the original setpoint values at the 
+        specified time points and the interpolated setpoint 
+        values over time. The original setpoints are 
+        displayed as red scatter points, and the 
+        interpolated setpoints are displayed as a 
+        continuous line.
+
+        The plot includes labeled axes, a title, a legend,
+        and a grid for better readability.
+        """
+        plt.figure(figsize=(10, 5))
+        plt.plot(self.interpolated_time, self.interpolated_setpoints, label='Interpolated Setpoints')
+        plt.scatter(self.time_points, self.setpoint_values, color='red', zorder=5, label='Original Setpoints')
+        plt.xlabel('Time (s)')
+        plt.ylabel('Setpoint')
+        plt.title('Discrete Setpoint Profile')
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+    def get_interpolated_profile(self) -> tuple[List | np.ndarray, List | np.ndarray]:
+        """
+        Returns the interpolated time points and setpoints.
+        """
+        return self.interpolated_time, self.interpolated_setpoints
+    
+    def get_original_profile(self) -> tuple[List | np.ndarray, List | np.ndarray]:
+        """
+        Returns the original time points and setpoints.
+        """
+        return self.time_points, self.setpoint_values
