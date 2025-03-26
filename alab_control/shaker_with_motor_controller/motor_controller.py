@@ -1559,8 +1559,8 @@ class MotorController:
         self.plant.stop_sensor()
         self.latest_run_results = {
             "time": t,
-            "actual_Temperature": y,
-            "control_Temperature": y_control
+            "actual_speed": y,
+            "control_speed": y_control
         }
 
 class DiscreteSpeedProfileGenerator:
@@ -1617,3 +1617,29 @@ class DiscreteSpeedProfileGenerator:
         return DiscreteSpeedProfile(self.time_points, self.speed_values)
             
             
+# Example usage (for testing purposes)
+if __name__ == "__main__":
+    generator=DiscreteSpeedProfileGenerator(acceleration=1.0, 
+                                            speed_list=[25.0], 
+                                            duration_list=[10.0], 
+                                            dt=0.25)
+    generator.generate_profile()
+    time_points, speed_values = generator.get_profile()
+    profile = DiscreteSpeedProfile(time_points, speed_values)
+    profile.plot_profile()
+    controller = MotorController()
+    controller.set_speed_profile(time_points, speed_values)
+    controller.tune()
+    controller.run_profile()
+    results = controller.latest_run_results
+    plt.figure()
+    # plot setpoint profile
+    plt.plot(time_points, speed_values, label='Setpoint Profile')
+    # plot actual and control speed
+    plt.plot(results["time"], results["actual_speed"], label='Actual Speed')
+    plt.plot(results["time"], results["control_speed"], label='Control Speed')
+    plt.xlabel('Time (s)')
+    plt.ylabel('Speed (Hz)')
+    plt.title('Motor Speed Control')
+    plt.legend()
+    
