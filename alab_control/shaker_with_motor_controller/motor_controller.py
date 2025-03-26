@@ -1373,3 +1373,194 @@ class DiscreteSetpointProfile:
         Returns the original time points and setpoints.
         """
         return self.time_points, self.setpoint_values
+    
+class DiscreteSpeedProfile(DiscreteSetpointProfile):
+
+    def __init__(self, time_points: List | np.array, speed_values: List | np.array):
+        """
+        Initializes the DiscreteSpeedProfile with time 
+        points and corresponding speed values.
+
+        Parameters
+        ----------
+        time_points : List or np.ndarray
+            The time points at which speed setpoints are 
+            defined.
+        speed_values : List or np.ndarray
+            The speed setpoint values corresponding to the 
+            time points.
+
+        Raises
+        ------
+        ValueError
+            If `time_points` and `speed_values` do not have 
+            the same length or if `time_points` are not in 
+            increasing order.
+        """
+        super().__init__(time_points, speed_values)
+
+    def get_speed(self, time: float) -> float:
+        """
+        Returns the speed at a given time in seconds.
+
+        Parameters
+        ----------
+        time : float
+            The time at which the speed is requested.
+
+        Returns
+        -------
+        float
+            The speed value at the given time. If the time 
+            is less than the first time point, the first 
+            speed is returned. If the time is greater than 
+            the last time point, the last speed is returned. 
+            Otherwise, the speed is interpolated based on 
+            the given time.
+        """
+        return self.get_setpoint(time)
+
+class MotorController:
+    """
+    A class to control a motor using a PID controller.
+
+    Attributes
+    ----------
+    motor : Motor
+        The motor to be controlled.
+    controller : PIDController
+        The PID controller to control the motor.
+    setpoint_profile : DiscreteSetpointProfile
+        The setpoint profile for the motor.
+    dt : float
+        The time step for the discrete system.
+
+    Methods
+    -------
+    control_motor(duration: float) -> tuple[np.ndarray, np.ndarray]
+        Controls the motor for a specified duration using 
+        the setpoint profile and returns the time points 
+        and motor positions.
+    """
+    def __init__(self, dt: float = 0.25):
+        """
+        Initializes the MotorController with the motor, 
+        controller, setpoint profile, and time step.
+
+        Parameters
+        ----------
+        dt : float, optional
+            The time step for the discrete system. Default 
+            is 0.25.
+        """
+        self.actuator = Motor()
+        self.sensor = SpeedSensor()
+        self.controller = PIDController(dt=dt)
+        self.pid_tuner = PIDTuner(dt=dt)
+        self.speed_profile = None
+        self.plant = DiscretePlant(self.actuator, self.sensor, dt=dt)
+        self.dt = dt
+        self.latest_run_results = None
+
+    def set_speed_profile(self, 
+                          time_points: List[float], 
+                          speed_values: List[float]) -> None:
+        """
+        Sets the speed profile of the motor.
+
+        Parameters
+        ----------
+        time_points : List[float]
+            The time points for the speed profile.
+        speed_values : List[float]
+            The speed values corresponding to the 
+            time points.
+
+        Raises
+        ------
+        ValueError
+            If the lengths of time_points and 
+            speed_values do not match.
+        TypeError
+            If time_points or speed_values are not 
+            Lists of floats.
+        """
+
+        self.speed_profile = DiscreteSpeedProfile(time_points, speed_values)
+
+    def tune(self) -> None:
+        """
+        Tune the PID controller for the motor.
+        """
+        self.pid_tuner.tune()
+        self.controller = self.pid_tuner.get_controller()
+
+    def get_pid_controller(self) -> PIDController:
+        """
+        Returns the PID controller of the furnace.
+        """
+        return self.pid_tuner.controller
+
+    def run_profile(self, steady_state_wait_duration: float = 3, error_limit: float = 0.01) -> None:
+        if not self.speed_profile:
+            raise ValueError("Temperature profile is not set.")
+        if not self.pid_tuner.controller:
+            raise ValueError("PID controller is not tuned.")
+        self.pid_tuner.controller.reset()
+        self.plant.start()
+        self.plant.set_control_output(0)
+        # t: numpy array of time points between 0 and interpolated time for creating a smooth profile, spaced by dt
+        t = np.arange(self.speed_profile.interpolated_time[0], self.speed_profile.interpolated_time[-1]+self.dt, self.dt)
+        y = [] # actual speed values
+        y_control = [] # actual speed values scaled to control values
+        previous_time = time.time()
+        steady_state = False
+
+        for i in range(len(t)): # for each time point in the profile
+            time_stepped = False
+            while not time_stepped:
+                # if reached the next time step in real life, set the SV to the value in the profile associated with the time point
+                # and update the control output and record the actual speed
+
+                if time.time() - previous_time >= self.dt: 
+                    time_stepped = True
+                    previous_time = time.time()
+                    setpoint = self.speed_profile.get_speed(t[i])
+                    control_setpoint = self.sensor.scale_to_control(setpoint)
+                    control_PV = self.plant.get_control_PV()
+                    self.plant.set_control_output(
+                        self.pid_tuner.controller.update(control_PV, control_setpoint)
+                    )
+                    actual_speed = self.plant.sensor.read_PV()
+                    y.append(actual_speed)
+                    y_control.append(control_PV)
+                    # check all values of temperature for the last steady_state_wait seconds
+                    if not steady_state and len(y_control) > int(steady_state_wait_duration // self.dt):
+                        y_diff = max(y_control[-int(steady_state_wait_duration // self.dt):]) - min(y_control[-int(steady_state_wait_duration // self.dt):])
+                        if abs(y_diff) < error_limit:
+                            steady_state = True
+                            self.get_pid_controller().disable_integral_clamping()
+                    # check if steady state has been broken, if so, re-enable integral clamping with a higher limit
+                    if steady_state:
+                        if len(y) > int(steady_state_wait_duration // self.dt):
+                            y_diff = max(y_control[-int(steady_state_wait_duration // self.dt):]) - min(y_control[-int(steady_state_wait_duration // self.dt):])
+                            if abs(y_diff) > error_limit:
+                                steady_state = False
+                                previous_limit = self.get_pid_controller().integral_contribution_limit
+                                steady_state_PV = y_control[-int(steady_state_wait_duration // self.dt):][-1]
+                                # get ratio between the steady state PV and the setpoint
+                                ratio = previous_limit / steady_state_PV
+                                # calculate error in steady state vs setpoint
+                                error = setpoint - steady_state_PV
+                                # set the new integral contribution limit to the previous limit + the error * the ratio
+                                self.get_pid_controller().set_integral_contribution_limit(previous_limit + error * ratio)
+                                self.get_pid_controller().enable_integral_clamping()
+                else: # wait until the next time step
+                    time.sleep(self.dt/10000)
+        self.plant.stop_actuator()
+        self.plant.stop_sensor()
+        self.latest_run_results = {
+            "time": t,
+            "actual_Temperature": y,
+            "control_Temperature": y_control
+        }
