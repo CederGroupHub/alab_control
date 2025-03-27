@@ -1,339 +1,363 @@
 #include <SPI.h>
 #include <Ethernet.h>
-#include<ArduinoJson.h>
 #include <arduino-timer.h>
 #include <AceRoutine.h>
 
 Timer<3> timer;
 
-String clientMsg = "";
-//String reason = "";
-String command = "";
-String reply="";
-int lsA=0;
-int lsB=0;
+// Minimize global string allocations
+char clientMsg[32] = {0}; // Fixed-size char array instead of String
+char reply[128] = {0};
+char internal_reply[128] = {0};
+char command[16] = {0};
 
-int serialwait = 0;
-int serialwaitingtime = 6;
-byte mac[] = { 0x00, 0x52, 0x16, 0x64, 0xC0, 0x39 };
-//00:52:16:64:C0:39
+// Use const for constant values to store in program memory
+const byte MAC[] PROGMEM = { 0x00, 0x52, 0x16, 0x64, 0xC0, 0x39 };
+const int SERVER_PORT = 8888;
 
-int serverPort = 8888;
-
-// Initialize the Ethernet server library
-// with the IP address and port you want to use
-EthernetServer server(serverPort);
-EthernetClient client;
-
-// Furnace closing time
-#define serialwaitingtime 5 //time in seconds to wait for the serial connection to be stablished, or it will be canceled.
-
-// Motor A ; Furnace A
-
-#define enA 2 //enable motor A
-#define in2 A0
-#define in1 5
-#define dlsA 3 //door limit switch for box furnace A
-
-// Motor B ; Furnace B
-
-#define enB 7 //enable motor B
-#define in4 8
-#define in3 9
-#define dlsB 6 //door limit switch for box furnace B
-
-//pins 4, 10, 11, 12, 13 are reserved for the ethernet shield
-
-unsigned long currentTime,previousTime,duration;
-const long maxOpeningADuration = 26500; // Calibrated 11/21/22
-const long maxOpeningBDuration = 27500; // Calibrated 11/21/22
-const long closingDurationA = 29000; // Calibrated 11/21/22
-const long closingDurationB = 30000; // Calibrated 11/21/22
-
-String FurnaceAState="Closed", FurnaceBState="Closed";
-String prevFurnaceAState="Closed", prevFurnaceBState="Closed";
-
-void endFurnaceRoutine() {
-  digitalWrite(in1, HIGH);
-  digitalWrite(in2, HIGH);
-  digitalWrite(enA, LOW);
-  digitalWrite(in4, HIGH);
-  digitalWrite(in3, HIGH);
-  digitalWrite(enB, LOW);
-}
-
-auto runningTimer=timer.in(1000,endFurnaceRoutine);
-
-enum State {
-  RUNNING,
+// Compact state tracking
+enum State : uint8_t {
   STOP,
+  RUNNING,
   ERR
 };
 
+// Motor and limit switch pin definitions
+#define EN_A 2
+#define IN1 5
+#define IN2 A0
+#define DLS_A 3
+
+#define EN_B 7
+#define IN3 9
+#define IN4 8
+#define DLS_B 6
+
+// Compact constants
+static const uint16_t MAX_OPEN_A_DURATION = 26500;
+static const uint16_t MAX_OPEN_B_DURATION = 27500;
+static const uint16_t CLOSE_DURATION_A = 29000;
+static const uint16_t CLOSE_DURATION_B = 30000;
+
+// Furnace state enum
+enum FurnaceState : uint8_t {
+  CLOSED,
+  OPEN,
+  UNKNOWN
+};
+
+// Global system state
 State state = STOP;
+FurnaceState FurnaceAState = CLOSED;
+FurnaceState FurnaceBState = CLOSED;
 
-String openFurnaceA(){
-  Serial.print("Opening furnace A...");
-  reply="Opening furnace A...";
-  digitalWrite(in1, LOW);
-  digitalWrite(in2, HIGH);
+// Timer management
+auto runningTimer = timer.in(1000, []() { return false; });
+
+// Ethernet server setup
+EthernetServer server(SERVER_PORT);
+EthernetClient client;
+
+// Utility function to end furnace routine
+void endFurnaceRoutine() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(EN_A, LOW);
+  digitalWrite(IN4, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(EN_B, LOW);
+}
+
+// Furnace A Open Functions
+String openFurnaceA() {
+  Serial.print(F("Opening furnace A..."));
+  strlcpy(reply, "Opening furnace A...", sizeof(reply));
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
   state = RUNNING;
-  digitalWrite(enA, HIGH);
-  runningTimer = timer.in(maxOpeningADuration,emergencyStopOpeningFurnaceA);
+  digitalWrite(EN_A, HIGH);
+  runningTimer = timer.in(MAX_OPEN_A_DURATION, emergencyStopOpeningFurnaceA);
   return reply;
 }
 
-void gracefulStopOpeningFurnaceA(){
+void gracefulStopOpeningFurnaceA() {
   timer.cancel(runningTimer);
   state = STOP;
-  FurnaceAState = "Open";
+  FurnaceAState = OPEN;
   endFurnaceRoutine();
-  Serial.println("Furnace A opened gracefully.");
+  Serial.println(F("Furnace A opened gracefully."));
 }
 
-void emergencyStopOpeningFurnaceA(){
+void emergencyStopOpeningFurnaceA() {
   state = ERR;
   timer.cancel(runningTimer);
-  FurnaceAState = "Open";
-//  reason = "BOX FURNACE A STOPPED DUE TO TIME PROTECTION!"; Memory Overrun, Cannot use!!
+  FurnaceAState = OPEN;
   endFurnaceRoutine();
-  //Auto closing furnace for safety
-  digitalWrite(in1, HIGH);
-  digitalWrite(in2, LOW);
-  digitalWrite(enA, HIGH);
-  runningTimer = timer.in(closingDurationA,EmergencyCloseFurnaceA);
+  
+  // Auto closing furnace for safety
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(EN_A, HIGH);
+  runningTimer = timer.in(CLOSE_DURATION_A, EmergencyCloseFurnaceA);
 }
 
-void EmergencyCloseFurnaceA(){
-  FurnaceAState="Unknown";
+void EmergencyCloseFurnaceA() {
+  FurnaceAState = UNKNOWN;
   timer.cancel(runningTimer);
   state = ERR;
   endFurnaceRoutine();
-  Serial.println("Furnace A emergency closed.");
+  Serial.println(F("Furnace A emergency closed."));
 }
 
-String closeFurnaceA(){
-  Serial.print("Closing furnace A...");
-  reply="Closing furnace A...";
+String closeFurnaceA() {
+  Serial.print(F("Closing furnace A..."));
+  strlcpy(reply, "Closing furnace A...", sizeof(reply));
   state = RUNNING;
-  digitalWrite(in1, HIGH);
-  digitalWrite(in2, LOW);
-  digitalWrite(enA, HIGH);
-  runningTimer = timer.in(closingDurationA,gracefulStopClosingFurnaceA);
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(EN_A, HIGH);
+  runningTimer = timer.in(CLOSE_DURATION_A, gracefulStopClosingFurnaceA);
   return reply;
 }
 
-void gracefulStopClosingFurnaceA(){
-  FurnaceAState="Closed";
+void gracefulStopClosingFurnaceA() {
+  FurnaceAState = CLOSED;
   timer.cancel(runningTimer);
   state = STOP;
   endFurnaceRoutine();
-  Serial.println("Furnace A closed gracefully.");
+  Serial.println(F("Furnace A closed gracefully."));
 }
 
-String openFurnaceB(){
-  Serial.print("Opening furnace B...");
-  reply="Opening furnace B...";
-  digitalWrite(in4, HIGH);
-  digitalWrite(in3, LOW);
-  digitalWrite(enB, HIGH);
+// Furnace B Open Functions (similar to Furnace A)
+String openFurnaceB() {
+  Serial.print(F("Opening furnace B..."));
+  strlcpy(reply, "Opening furnace B...", sizeof(reply));
+  digitalWrite(IN4, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(EN_B, HIGH);
   state = RUNNING;
-  runningTimer = timer.in(maxOpeningBDuration,emergencyStopOpeningFurnaceB);
+  runningTimer = timer.in(MAX_OPEN_B_DURATION, emergencyStopOpeningFurnaceB);
   return reply;
 }
 
-void gracefulStopOpeningFurnaceB(){
+void gracefulStopOpeningFurnaceB() {
   timer.cancel(runningTimer);
   state = STOP;
-  FurnaceBState = "Open";
+  FurnaceBState = OPEN;
   endFurnaceRoutine();
-  Serial.println("Furnace B opened gracefully.");
+  Serial.println(F("Furnace B opened gracefully."));
 }
 
-void emergencyStopOpeningFurnaceB(){
+void emergencyStopOpeningFurnaceB() {
   state = ERR;
   timer.cancel(runningTimer);
-  FurnaceBState = "Open";
-//  reason = "BOX FURNACE B STOPPED DUE TO TIME PROTECTION!";
+  FurnaceBState = OPEN;
   endFurnaceRoutine();
-  //Auto closing furnace for safety
-  digitalWrite(in4, LOW);
-  digitalWrite(in3, HIGH);
-  digitalWrite(enB, HIGH);
-  runningTimer = timer.in(closingDurationB,EmergencyCloseFurnaceB);
+  
+  // Auto closing furnace for safety
+  digitalWrite(IN4, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(EN_B, HIGH);
+  runningTimer = timer.in(CLOSE_DURATION_B, EmergencyCloseFurnaceB);
 }
 
-void EmergencyCloseFurnaceB(){
-  FurnaceBState="Unknown";
+void EmergencyCloseFurnaceB() {
+  FurnaceBState = UNKNOWN;
   timer.cancel(runningTimer);
   state = ERR;
   endFurnaceRoutine();
-  Serial.println("Furnace B emergency closed.");
+  Serial.println(F("Furnace B emergency closed."));
 }
 
-String closeFurnaceB(){
-  Serial.print("Closing furnace B...");
-  reply="Closing furnace B...";
+String closeFurnaceB() {
+  Serial.print(F("Closing furnace B..."));
+  strlcpy(reply, "Closing furnace B...", sizeof(reply));
   state = RUNNING;
-  digitalWrite(in4, LOW);
-  digitalWrite(in3, HIGH);
-  digitalWrite(enB, HIGH);
-  runningTimer = timer.in(closingDurationB,gracefulStopClosingFurnaceB);
+  digitalWrite(IN4, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(EN_B, HIGH);
+  runningTimer = timer.in(CLOSE_DURATION_B, gracefulStopClosingFurnaceB);
   return reply;
 }
 
-void gracefulStopClosingFurnaceB(){
-  FurnaceBState = "Closed";
+void gracefulStopClosingFurnaceB() {
+  FurnaceBState = CLOSED;
   timer.cancel(runningTimer);
   state = STOP;
   endFurnaceRoutine();
-  Serial.println("Furnace B closed gracefully.");
+  Serial.println(F("Furnace B closed gracefully."));
 }
 
-String checkStatus(){
-//  Serial.println(" I received the command Status");
-  reply="State: ";
+// Status Check Function
+String checkStatus() {
+  internal_reply[0] = '\0'; // Clear previous content
+  strlcpy(internal_reply, "State: ", sizeof(internal_reply));
+  
+  // Append state information
   if (state == ERR) {
-//    Serial.println(reason);
-    reply=reply+"ERROR; ";
+    strlcat(internal_reply, "ERROR; ", sizeof(internal_reply));
+  } else if (state == RUNNING) {
+    strlcat(internal_reply, "RUNNING; ", sizeof(internal_reply));
+  } else if (state == STOP) {
+    strlcat(internal_reply, "STOP; ", sizeof(internal_reply));
   }
-  else if(state == RUNNING){
-    reply=reply+"RUNNING; ";
-  }
-  else if(state == STOP){
-    reply=reply+"STOP; ";
-  }
-  reply=reply+"Furnace A: "+FurnaceAState+"; "+"Furnace B: "+FurnaceBState+";";
-  Serial.println(reply);
-  return reply;
+  
+  // Append furnace states
+  char tempStr[64];
+  snprintf(tempStr, sizeof(tempStr), "Furnace A: %s; Furnace B: %s;", 
+           FurnaceAState == CLOSED ? "Closed" : 
+           FurnaceAState == OPEN ? "Open" : "Unknown",
+           FurnaceBState == CLOSED ? "Closed" : 
+           FurnaceBState == OPEN ? "Open" : "Unknown");
+  strlcat(internal_reply, tempStr, sizeof(internal_reply));
+  
+  return internal_reply;
 }
 
+// Limit Switch Check Coroutine
 COROUTINE(checkLS_coroutine) {
   COROUTINE_LOOP() {
     COROUTINE_DELAY(30);
-    if(digitalRead(dlsA) == 1){
-      Serial.println("Furnace A is HIGH");
-      if(command=="Open A" and state!=ERR){
+    
+    if (digitalRead(DLS_A) == HIGH) {
+      Serial.println(F("Furnace A is HIGH"));
+      if (strcmp(command, "Open A") == 0 && state != ERR) {
         gracefulStopOpeningFurnaceA();
-        }
+      }
     }
-    if(digitalRead(dlsB) == 1){
-      Serial.println("Furnace B is HIGH");
-      if(command=="Open B" and state!=ERR){
+    
+    if (digitalRead(DLS_B) == HIGH) {
+      Serial.println(F("Furnace B is HIGH"));
+      if (strcmp(command, "Open B") == 0 && state != ERR) {
         gracefulStopOpeningFurnaceB();
       }
     }
   }
 }
 
+// Main Communication Coroutine
 COROUTINE(main_coroutine) {
   COROUTINE_LOOP() {
     COROUTINE_DELAY(30);
-    // listen for incoming clients
+    
+    // Listen for incoming clients
     EthernetClient client = server.available();
     if (client) {
-      Serial.println("Client connected.");
+      Serial.println(F("Client connected."));
+      
       while (client.connected()) {
         if (client.available()) {
-          char c = client.read();
-          clientMsg += c; //store the received chracters in a string
-          //if the character is an "end of line" the whole message is recieved
-          if (c == '\n') {
-            clientMsg.trim();
-            Serial.println("RECEIVED>>" + clientMsg); //print it to the serial
-            if (clientMsg == "Open A" and state!=ERR and state!=RUNNING) {
-              if (FurnaceAState == "Closed"){
-                reply=openFurnaceA();
-                command="Open A";
-                client.print(reply);
-              }
-              else if (FurnaceAState == "Open"){
-                reply=checkStatus();
-                client.print(reply);
-              }
-            }
-            else if (clientMsg == "Close A" and state!=ERR and state!=RUNNING) {
-              if (FurnaceAState == "Open"){
-                reply=closeFurnaceA();
-                command="Close A";
-                client.print(reply);
-              }
-              else if (FurnaceAState == "Closed"){
-                reply=checkStatus();
-                client.print(reply);
-              }
-            }
-            else if (clientMsg == "Open B" and state!=ERR and state!=RUNNING) {
-              if (FurnaceBState == "Closed"){
-                reply=openFurnaceB();
-                command="Open B";
-                client.print(reply);
-              }
-              else if (FurnaceBState == "Open"){
-                reply=checkStatus();
-                client.print(reply);
-              }
-            }
-            else if (clientMsg == "Close B" and state!=ERR and state!=RUNNING) {
-              if (FurnaceBState == "Open"){
-                reply=closeFurnaceB();
-                command="Close B";
-                client.print(reply);
-              }
-              else if (FurnaceBState == "Closed"){
-                reply=checkStatus();
-                client.print(reply);
-              }
-            }
-            else if ((clientMsg == "Open A" or clientMsg == "Open B" or clientMsg == "Close A" or clientMsg == "Close B") and (state==ERR or state==RUNNING)){
-              reply=checkStatus();
+          // Clear previous message
+          clientMsg[0] = '\0';
+          
+          // Read incoming message
+          int idx = 0;
+          while (client.available() && idx < sizeof(clientMsg) - 1) {
+            char c = client.read();
+            if (c == '\n') break;
+            clientMsg[idx++] = c;
+          }
+          clientMsg[idx] = '\0';
+          
+          Serial.print(F("RECEIVED>> ")); 
+          Serial.println(clientMsg);
+          
+          // Command processing
+          if (strcmp(clientMsg, "Open A") == 0 && state != ERR && state != RUNNING) {
+            if (FurnaceAState == CLOSED) {
+              strlcpy(reply, openFurnaceA().c_str(), sizeof(reply));
+              strlcpy(command, "Open A", sizeof(command));
+              client.print(reply);
+            } else if (FurnaceAState == OPEN) {
+              strlcpy(reply, checkStatus().c_str(), sizeof(reply));
               client.print(reply);
             }
-            else if (clientMsg == "Status") {
-              reply=checkStatus();
+          }
+          else if (strcmp(clientMsg, "Close A") == 0 && state != ERR && state != RUNNING) {
+            if (FurnaceAState == OPEN) {
+              strlcpy(reply, closeFurnaceA().c_str(), sizeof(reply));
+              strlcpy(command, "Close A", sizeof(command));
+              client.print(reply);
+            } else if (FurnaceAState == CLOSED) {
+              strlcpy(reply, checkStatus().c_str(), sizeof(reply));
               client.print(reply);
             }
-            else{
-              Serial.println("Wrong command");
-              client.print("Wrong command");
+          }
+          // Similar processing for Furnace B commands
+          else if (strcmp(clientMsg, "Open B") == 0 && state != ERR && state != RUNNING) {
+            if (FurnaceBState == CLOSED) {
+              strlcpy(reply, openFurnaceB().c_str(), sizeof(reply));
+              strlcpy(command, "Open B", sizeof(command));
+              client.print(reply);
+            } else if (FurnaceBState == OPEN) {
+              strlcpy(reply, checkStatus().c_str(), sizeof(reply));
+              client.print(reply);
             }
-            clientMsg = "";
-            reply="";
+          }
+          else if (strcmp(clientMsg, "Close B") == 0 && state != ERR && state != RUNNING) {
+            if (FurnaceBState == OPEN) {
+              strlcpy(reply, closeFurnaceB().c_str(), sizeof(reply));
+              strlcpy(command, "Close B", sizeof(command));
+              client.print(reply);
+            } else if (FurnaceBState == CLOSED) {
+              strlcpy(reply, checkStatus().c_str(), sizeof(reply));
+              client.print(reply);
+            }
+          }
+          else if ((strcmp(clientMsg, "Open A") == 0 || strcmp(clientMsg, "Open B") == 0 || 
+                    strcmp(clientMsg, "Close A") == 0 || strcmp(clientMsg, "Close B") == 0) && 
+                   (state == ERR || state == RUNNING)) {
+            strlcpy(reply, checkStatus().c_str(), sizeof(reply));
+            client.print(reply);
+          }
+          else if (strcmp(clientMsg, "Status") == 0) {
+            strlcpy(reply, checkStatus().c_str(), sizeof(reply));
+            client.print(reply);
+          }
+          else {
+            Serial.println(F("Wrong command"));
+            client.print(F("Wrong command"));
           }
         }
       }
-      // give the Client time to receive the data
+      
+      // Give the client time to receive data
       delay(10);
-      // close the connection:
+      
+      // Close the connection
       client.stop();
-      Serial.println(("Client disconnected."));
+      Serial.println(F("Client disconnected."));
     }
   }
 }
 
-void setup()
-{
+void setup() {
   timer.cancel(runningTimer);
-  Serial.end(); //restarting serial communication with every setup
+  Serial.end(); // Restart serial communication
   Serial.begin(9600);
-  pinMode(enA, OUTPUT);
-  pinMode(enB, OUTPUT);
-  pinMode(dlsA, INPUT_PULLUP);
-  pinMode(dlsB, INPUT_PULLUP);
-  pinMode(in1, OUTPUT);
-  pinMode(in2, OUTPUT);
-  pinMode(in4, OUTPUT);
-  pinMode(in3, OUTPUT);
-  digitalWrite(in1, HIGH);
-  digitalWrite(in2, HIGH);
-  digitalWrite(enA, LOW);
-  digitalWrite(in4, HIGH);
-  digitalWrite(in3, HIGH);
-  digitalWrite(enB, LOW);
-  //Initialize the LED as an output
-  //digitalWrite(LED_BUILTIN, LOW);
-  // turn the LED off by making the voltage LOW
-  // start the serial for debugging
+  
+  // Configure pins
+  pinMode(EN_A, OUTPUT);
+  pinMode(EN_B, OUTPUT);
+  pinMode(DLS_A, INPUT_PULLUP);
+  pinMode(DLS_B, INPUT_PULLUP);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  
+  // Initial motor state
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(EN_A, LOW);
+  digitalWrite(IN4, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(EN_B, LOW);
+  
+  // Serial initialization with timeout
+  uint8_t serialwait = 0;
+  const uint8_t serialwaitingtime = 6;
+  
   while (!Serial) {
     delay(1000);
     if (serialwait == serialwaitingtime) {
@@ -341,43 +365,50 @@ void setup()
     }
     serialwait++;
   }
-  serialwait = 0;
-  Serial.println(("Serial started. Now starting ethernet"));
-  // start the Ethernet connection and the server:
+  
+  Serial.println(F("Serial started. Now starting ethernet"));
+  
+  // Ethernet initialization
+  byte mac[6];
+  memcpy_P(mac, MAC, sizeof(mac));
+  
   if (Ethernet.begin(mac) == 0) {
-    Serial.println("Failed to configure Ethernet using DHCP");
+    Serial.println(F("Failed to configure Ethernet using DHCP"));
     while (true) {
       delay(1000);
     }
   }
+  
   server.begin();
-  Serial.print(("Ethernet/server started started at "));
+  Serial.print(F("Ethernet/server started at "));
   Serial.print(Ethernet.localIP());
-  Serial.print((" : "));
-  Serial.print(serverPort);
-  Serial.print((" and gateway "));
+  Serial.print(F(" : "));
+  Serial.print(SERVER_PORT);
+  Serial.print(F(" and gateway "));
   Serial.print(Ethernet.gatewayIP());
-  Serial.println((" ."));
-  // Check for Ethernet hardware present
+  Serial.println(F(" ."));
+  
+  // Check Ethernet hardware
   if (Ethernet.hardwareStatus() == EthernetNoHardware) {
-    Serial.println(("Ethernet shield was not found. The code does nothing from now on."));
+    Serial.println(F("Ethernet shield was not found."));
     while (true) {
-      delay(1000); // do nothing, no point running without Ethernet hardware
+      delay(1000);
     }
   }
+  
+  // Check Ethernet connection
   if (Ethernet.linkStatus() == LinkOFF) {
-    while ((Ethernet.linkStatus() == LinkOFF)) {
-      Serial.println(("Ethernet cable is not connected. Trying again in 2 seconds."));
+    while (Ethernet.linkStatus() == LinkOFF) {
+      Serial.println(F("Ethernet cable is not connected. Trying again in 2 seconds."));
       delay(2000);
     }
-    Serial.println(("Ethernet cable is now detected. Resuming the routine now..."));
+    Serial.println(F("Ethernet cable is now detected. Resuming the routine now..."));
   }
-  Serial.println(("Please write either Open A, Close A, Open B, Close B, or Status."));
-  Serial.println(("Write debug or deployment to set mode"));
+  
+  Serial.println(F("Please write either Open A, Close A, Open B, Close B, or Status."));
 }
 
-void loop()
-{
+void loop() {
   timer.tick();
   main_coroutine.runCoroutine();
   checkLS_coroutine.runCoroutine();
