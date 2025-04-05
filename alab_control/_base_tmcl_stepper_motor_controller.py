@@ -18,6 +18,7 @@ class Commands(IntEnum):
     SIO = 14
     GIO = 15
     WAIT = 27
+    FIRMWARE_VERSION = 136
 
 
 class AxisParameters(IntEnum):
@@ -259,6 +260,17 @@ class TMCLStepperMotorController:
                 "value": value,
                 "checksum": checksum,
             }
+
+    def get_firmware_version(self) -> int:
+        """
+        Get the firmware version of the motor.
+        Returns:
+            The firmware version as a int.
+        """
+        version = self.send_command(
+            Commands.FIRMWARE_VERSION, type_number=1, motor_number=0, value=0
+        )["value"]
+        return version
 
     def __del__(self):
         # stop the motor when the object is deleted

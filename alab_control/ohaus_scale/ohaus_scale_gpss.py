@@ -36,7 +36,8 @@ class OhausScale:
             return None
         else:
             return int(re.search(r"\d+", mass_string).group())
-        
+
+
 if __name__ == "__main__":
     scale = OhausScale("ohaus.gpss", timeout=0.1)
     print(scale.get_mass_in_mg())
