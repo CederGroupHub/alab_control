@@ -16,13 +16,14 @@ class RailInitializationStatus(Enum):
 class RailStatus(Enum):
     MOVING = 0
     ARRIVED = 1
-    BLOCKED = 2
 
 
 class LinearRailController:
     """
     DH Robotics MCE-4G with external encoder
     """
+
+    MAX_DISTANCE = 75  # mm
 
     def __init__(self, port, slave_address=1, baudrate=115200):
         # Setup Modbus RTU client
@@ -60,8 +61,11 @@ class LinearRailController:
             time.sleep(0.5)
         if wait:
             while self.read_motion_state() != RailStatus.ARRIVED:
-                if self.read_motion_state() == RailStatus.BLOCKED:
-                    raise RuntimeError("The rail is blocked")
+                if self.read_alarm_code() != 0:
+                    raise RuntimeError(
+                        f"Alarm detected during initialization. "
+                        f"The alarm code is {self.read_alarm_code()}"
+                    )
                 time.sleep(0.5)
 
     def get_control_words(self):
@@ -91,6 +95,9 @@ class LinearRailController:
         max_acceleration: float = 2000,
         wait: bool = True,
     ):
+        if position < 0 or position > self.MAX_DISTANCE:
+            raise ValueError(f"Position must be between 0 and {self.MAX_DISTANCE} mm.")
+
         response = self.client.write_register(
             0x1602, int(max_speed * 10), unit=self.slave_address
         )
@@ -111,8 +118,11 @@ class LinearRailController:
         time.sleep(0.5)
         if wait:
             while self.read_motion_state() != RailStatus.ARRIVED:
-                if self.read_motion_state() == RailStatus.BLOCKED:
-                    raise RuntimeError("The rail is blocked")
+                if self.read_alarm_code() != 0:
+                    raise RuntimeError(
+                        f"Alarm detected during motion. "
+                        f"The alarm code is {self.read_alarm_code()}"
+                    )
                 time.sleep(0.2)
         self.set_control_words(0x20)
 
@@ -136,7 +146,6 @@ class LinearRailController:
 
 # Example usage
 if __name__ == "__main__":
-    # Initialize the gripper on COM port, assuming port name is 'COM6' or '/dev/ttyUSB0', '/dev/tty.usbserial-BG004CS1'
     # Update the port based on your setup
     rail = LinearRailController(port="COM6")
     rail.initialize(wait=True)

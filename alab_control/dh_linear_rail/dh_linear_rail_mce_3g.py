@@ -127,20 +127,20 @@ class LinearRailController3G:
 
     def move_to(
         self,
-        position_mm: float,
+        position: float,
         force: int = 10,
-        speed: int = 50,
-        acceleration: int = 50,
+        max_speed: int = 50,
+        max_acceleration: int = 50,
         wait: bool = True,
     ):
         self.set_force(force)
-        self.set_speed(speed)
-        self.set_acceleration(acceleration)
-        self.set_position(position_mm)
+        self.set_speed(max_speed)
+        self.set_acceleration(max_acceleration)
+        self.set_position(position)
         time.sleep(0.5)
         if wait:
             while (
-                self.get_current_position() != round(position_mm, 2)
+                self.get_current_position() != round(position, 2)
                 or self.read_motion_state() != RailStatus3G.ARRIVED
             ):
                 if self.read_motion_state() == RailStatus3G.BLOCKED:
