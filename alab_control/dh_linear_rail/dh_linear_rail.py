@@ -16,9 +16,14 @@ class RailInitializationStatus(Enum):
 class RailStatus(Enum):
     MOVING = 0
     ARRIVED = 1
+    BLOCKED = 2
 
 
 class LinearRailController:
+    """
+    DH Robotics MCE-4G with external encoder
+    """
+
     def __init__(self, port, slave_address=1, baudrate=115200):
         # Setup Modbus RTU client
         self.client = ModbusClient(
@@ -50,11 +55,13 @@ class LinearRailController:
         time.sleep(0.2)
         start_time = time.time()
         while self.read_motion_state() != RailStatus.MOVING and (
-            time.time() - start_time < 5
+            time.time() - start_time < 2
         ):
             time.sleep(0.5)
         if wait:
             while self.read_motion_state() != RailStatus.ARRIVED:
+                if self.read_motion_state() == RailStatus.BLOCKED:
+                    raise RuntimeError("The rail is blocked")
                 time.sleep(0.5)
 
     def get_control_words(self):
@@ -104,6 +111,8 @@ class LinearRailController:
         time.sleep(0.5)
         if wait:
             while self.read_motion_state() != RailStatus.ARRIVED:
+                if self.read_motion_state() == RailStatus.BLOCKED:
+                    raise RuntimeError("The rail is blocked")
                 time.sleep(0.2)
         self.set_control_words(0x20)
 

@@ -75,6 +75,8 @@ class GripperController:
         if wait:
             start_wait = time.time()
             while self.check_initialization() != InitializationStatus.INITIALIZED:
+                if self.read_rotation_status() == RotationStatus.BLOCKED:
+                    raise ValueError("Gripper is blocked during initialization.")
                 if time.time() - start_wait > 10:  # set 10s for time out
                     raise TimeoutError("Gripper initialization timeout.")
                 time.sleep(0.5)
@@ -244,6 +246,9 @@ class GripperController:
                     raise ValueError(
                         f"Gripper status changed to {self.read_gripper_status()} during rotating"
                     )
+            else:
+                if self.read_rotation_status() == RotationStatus.BLOCKED:
+                    raise ValueError("Rotation is blocked.")
 
             return self.read_rotation_status()
         except Exception as e:
