@@ -1,10 +1,13 @@
+import signal
+import threading
 import time
 from enum import Enum
 
 from alab_control._base_arduino_device import BaseArduinoDevice
-from alab_control.shaker_with_motor_controller.motor_controller import *
-import threading
-import signal
+from alab_control.shaker_with_motor_controller.motor_controller import (
+    DiscreteSpeedProfileGenerator,
+    MotorController,
+)
 
 signal.signal(signal.SIGINT, signal.SIG_DFL)
 
@@ -13,32 +16,37 @@ ki = 2.112
 kd = 0.003409090909090909
 integral_contribution_limit = 1.0
 
+
 class ShakerWMCState(Enum):
     STARTING = "STARTING"
     STOPPING = "STOPPING"
     ON = "ON"
     OFF = "OFF"
 
+
 class SystemState(Enum):
     RUNNING = "RUNNING"
     IDLE = "IDLE"
     ERROR = "ERROR"
 
+
 class GripperWMCState(Enum):
     OPEN = "OPEN"
     CLOSE = "CLOSE"
+
 
 class ShakerWMCError(Exception):
     """
     Errors returned from shaker APIs
     """
 
+
 class ShakerWMC(BaseArduinoDevice):
     """
     Shaker machine for ball milling
     """
 
-    FREQUENCY = 25 # the frequency of the shaker
+    FREQUENCY = 25  # the frequency of the shaker
 
     ENDPOINTS = {
         "close gripper": "/gripper-close",
@@ -68,10 +76,12 @@ class ShakerWMC(BaseArduinoDevice):
         """
         Get current status of the shaker machine and the gripper
         """
-        response = self.send_request(self.ENDPOINTS["state"], suppress_error=True, timeout=10, max_retries=5)
+        response = self.send_request(
+            self.ENDPOINTS["state"], suppress_error=True, timeout=10, max_retries=5
+        )
         time.sleep(1)
         return response
-    
+
     def is_gripper_closed(self) -> bool:
         """
         Check if the gripper is closed
@@ -85,13 +95,20 @@ class ShakerWMC(BaseArduinoDevice):
         """
         Close the gripper to hold the container
         """
-        state=self.get_state()
+        state = self.get_state()
         print(f"{self.get_current_time()} Gripping the container")
-        self.send_request(self.ENDPOINTS["close gripper"], suppress_error=True, timeout=10, max_retries=3)
+        self.send_request(
+            self.ENDPOINTS["close gripper"],
+            suppress_error=True,
+            timeout=10,
+            max_retries=3,
+        )
         while not (GripperWMCState(state["gripper_status"]) == GripperWMCState.CLOSE):
             state = self.get_state()
             if SystemState(state["system_status"]) == SystemState.ERROR:
-                raise ShakerWMCError("Shaker machine is in error state. Failed to grip.")
+                raise ShakerWMCError(
+                    "Shaker machine is in error state. Failed to grip."
+                )
             time.sleep(1)
         if int(state["force_reading"]) > 200:
             raise ShakerWMCError("Gripper is not fully closed or has lost grip.")
@@ -100,16 +117,25 @@ class ShakerWMC(BaseArduinoDevice):
         """
         Open the gripper to release the container
         """
-        state=self.get_state()
+        state = self.get_state()
         print(f"{self.get_current_time()} Releasing the gripper")
-        self.send_request(self.ENDPOINTS["open gripper"], suppress_error=True, timeout=10, max_retries=3)
+        self.send_request(
+            self.ENDPOINTS["open gripper"],
+            suppress_error=True,
+            timeout=10,
+            max_retries=3,
+        )
         while not (GripperWMCState(state["gripper_status"]) == GripperWMCState.OPEN):
             state = self.get_state()
             if SystemState(state["system_status"]) == SystemState.ERROR:
-                raise ShakerWMCError("Shaker machine is in error state. Failed to release.")
+                raise ShakerWMCError(
+                    "Shaker machine is in error state. Failed to release."
+                )
             time.sleep(1)
         if int(state["force_reading"]) < 200:
-            raise ShakerWMCError("Gripper is not fully open or something is attached to the upper part.")
+            raise ShakerWMCError(
+                "Gripper is not fully open or something is attached to the upper part."
+            )
 
     def shaking(self, duration_sec: float, frequency: int = FREQUENCY):
         """
@@ -121,10 +147,15 @@ class ShakerWMC(BaseArduinoDevice):
             frequency: frequency of the shaker in Hz.
         """
         self.stop_event.clear()
-        generator=DiscreteSpeedProfileGenerator(acceleration=30.0,speed_list=[frequency],duration_list=[duration_sec],dt=0.01)
+        generator = DiscreteSpeedProfileGenerator(
+            acceleration=30.0,
+            speed_list=[frequency],
+            duration_list=[duration_sec],
+            dt=0.01,
+        )
         generator.generate_profile()
-        time_points=generator.time_points
-        speed_values=generator.speed_values
+        time_points = generator.time_points
+        speed_values = generator.speed_values
         self.motor_controller.set_speed_profile(time_points, speed_values)
         thread = threading.Thread(target=self.motor_controller.run_profile)
         thread.start()
@@ -153,6 +184,7 @@ class ShakerWMC(BaseArduinoDevice):
 
         Args:
             duration_sec: duration of shaking in seconds
+            frequency: frequency of the shaker in Hz.
         """
         self.close_gripper()
         time.sleep(3)

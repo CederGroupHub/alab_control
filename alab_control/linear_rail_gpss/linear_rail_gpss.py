@@ -92,7 +92,7 @@ class LinearRailGPSS(TMCLStepperMotorController):
 
 if __name__ == "__main__":
     linear_rail = LinearRailGPSS("/dev/tty.usbmodemTMCSTEP1")
-    linear_rail.move_right()
+    linear_rail.move_left()
     # for i in range(10):
     #     start_time = time.time()
     #     linear_rail.move_right()
