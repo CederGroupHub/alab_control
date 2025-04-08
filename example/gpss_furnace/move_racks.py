@@ -52,8 +52,9 @@ def place_furnace_handle():
 
 if __name__ == "__main__":
     prev_position = "loading"
-    for next_position in ["B", "in_fur_B", "A", "in_fur_A", "loading"]:
-        print(f"{prev_position} -> {next_position}", end=" ")
+    for i in range(10):
+        next_position = random.choice(POSSIBLE_POSITIONS)
+        print(f"Loop: {i}: {prev_position} -> {next_position}", end=" ")
         start_time = time.time()
         pick_furnace_handle()
         pick_furnace_rack(prev_position)
