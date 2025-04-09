@@ -80,7 +80,7 @@ def decapping(pos):
 if __name__ == "__main__":
     counter = 0
     SLOTS = ["A", "B", "C", "D"]
-    while True:
+    while counter < 100:
         for furnace_rack in range(1, 9):
             counter += 1
             slot_to_use = random.choice(SLOTS)
