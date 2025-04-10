@@ -294,8 +294,6 @@ class GripperController:
         self.stop_rotation()
         self.client.close()
 
-    __del__ = close
-
 
 # Example usage
 if __name__ == "__main__":
