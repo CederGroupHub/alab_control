@@ -208,5 +208,8 @@ class ShakerWMC(BaseArduinoDevice):
         """
         self.motor_controller.stop()
 
+    def is_running(self):
+        return self.get_state()["system_status"] == SystemState.RUNNING.value
+
     def __del__(self):
         self.stop()

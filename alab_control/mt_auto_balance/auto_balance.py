@@ -1,11 +1,13 @@
+from __future__ import annotations
+
 import abc
 import time
 from pathlib import Path
 from typing import List, Literal, Type, TypeVar
 
 import zeep
-
 from alab_control.mt_auto_balance.cryptography_helper import decrypt_session_id
+from pydantic import BaseModel
 
 all_services = [
     "SessionService",
@@ -26,6 +28,69 @@ all_services = [
 
 class MTAutoBalanceError(Exception):
     pass
+
+
+class WeightWithUnit(BaseModel):
+    """
+    Example weight with unit:
+
+    {
+        'Value': '0.00015',
+        'Unit': 'Gram',
+        'CustomUnitName': None
+    }
+    """
+
+    Value: str
+    Unit: str
+    CustomUnitName: str = None
+    PreTare: bool | None = None
+
+    def get_weight_gram(self):
+        """
+        Convert the weight to gram.
+        """
+        if self.Unit == "Gram":
+            return float(self.Value)
+        elif self.Unit == "Kilogram":
+            return float(self.Value) * 1000
+        elif self.Unit == "Milligram":
+            return float(self.Value) / 1000
+        else:
+            raise ValueError(f"Unknown unit: {self.Unit}")
+
+
+class BalanceWeightResult(BaseModel):
+    """
+    Example result of the balance weight:
+
+    {
+         'NetWeight': {
+             'Value': '0.00015',
+             'Unit': 'Gram',
+             'CustomUnitName': None
+         },
+         'GrossWeight': {
+             'Value': '0.00325',
+             'Unit': 'Gram',
+             'CustomUnitName': None
+         },
+         'TareWeight': {
+             'Value': '0.00310',
+             'Unit': 'Gram',
+             'CustomUnitName': None,
+             'PreTare': False
+         },
+         'Stable': True,
+         'Status': 'Ok'
+     }
+    """
+
+    NetWeight: WeightWithUnit
+    GrossWeight: WeightWithUnit
+    TareWeight: WeightWithUnit
+    Stable: bool
+    Status: str
 
 
 class BaseClient(abc.ABC):
@@ -73,7 +138,7 @@ class WeighingClient(BaseClient):
         weight_capture_mode: Literal[
             "Stable", "Immediate", "TimeInterval", "WeightChange"
         ] = "Stable",
-    ) -> dict:
+    ) -> BalanceWeightResult:
         """
         Get weight from the balance.
 
@@ -99,7 +164,7 @@ class WeighingClient(BaseClient):
             SessionId=session_id, WeighingCaptureMode=weight_capture_mode
         )
         self.check_response(response)
-        return response["WeightSample"]
+        return BalanceWeightResult(response["WeightSample"])
 
     def tare(self, tare_immediately: bool = False):
         session_id = self.session.session_id
@@ -296,7 +361,7 @@ class NotificationClient(BaseClient):
             if "GetNotifications has timed out." in response["ErrorMessage"]:
                 return []
 
-        print(response["Notifications"]["_value_1"])
+        # print(response["Notifications"]["_value_1"])
         return response["Notifications"]["_value_1"]
 
 
@@ -609,7 +674,11 @@ class MTAutoBalance:
                     else:
                         result = {
                             "error": None,
-                            "result": notification["DosingResult"]["WeightSample"],
+                            "result": BalanceWeightResult(
+                                notification["DosingResult"]["WeightSample"]
+                            )
+                            if notification["DosingResult"]["WeightSample"]
+                            else None,
                             "success": True,
                         }
                 elif any(

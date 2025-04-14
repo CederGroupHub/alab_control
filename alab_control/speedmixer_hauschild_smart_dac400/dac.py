@@ -147,6 +147,8 @@ class DACDriver:
 
     def is_running(self) -> bool:
         code, value = self.send_command("read", 19)
+        if error := self.get_error():
+            raise DACError("Detect error with code: {}".format(error))
         return value == 1
 
     def get_error(self):
@@ -163,27 +165,33 @@ class HauschildDAC400:
             self.dac.stop()
 
     def run_program(self, speed: int, time_sec: int):
-        self.dac.set_speed(speed)
-        self.dac.set_acc_ramp(10)
-        self.dac.set_dec_ramp(10)
-        self.dac.start()
-        time.sleep(0.5)
-
-        for _ in range(10):
-            if self.dac.is_running():
-                break
-            time.sleep(1)
-
-        start = time.time()
-        while self.dac.is_running():
-            time.sleep(0.1)
-            if time.time() - start > time_sec:
-                break
-        else:
-            raise DACError("The program did not finish properly.")
-        self.stop()
-        while self.dac.is_running():
+        try:
+            self.dac.set_speed(speed)
+            self.dac.set_acc_ramp(10)
+            self.dac.set_dec_ramp(10)
+            self.dac.start()
             time.sleep(0.5)
+
+            for _ in range(10):
+                if self.dac.is_running():
+                    break
+                time.sleep(1)
+
+            start = time.time()
+            while self.dac.is_running():
+                time.sleep(0.1)
+                if time.time() - start > time_sec:
+                    break
+            else:
+                raise DACError("The program did not finish properly.")
+            self.stop()
+            start = time.time()
+            while self.dac.is_running():
+                time.sleep(0.5)
+                if time.time() - start > 60:
+                    raise DACError("The program did not finish properly.")
+        finally:
+            self.stop()
 
     def homing(self):
         for _ in range(self.homing_retries):
@@ -202,6 +210,9 @@ class HauschildDAC400:
             raise DACError("Could not home the device.")
         # for some reason, the device is not ready the not is running detected
         time.sleep(5)
+
+    def is_running(self):
+        return self.dac.is_running()
 
 
 if __name__ == "__main__":

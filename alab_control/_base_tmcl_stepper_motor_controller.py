@@ -153,6 +153,9 @@ class TMCLStepperMotorController:
                     )
                 time.sleep(0.1)
 
+    def is_running(self):
+        return self.get_axis_parameter(AxisParameters.TARGET_POSITION_REACHED) == 0
+
     def stop(self):
         """
         Stop the dosing head.
@@ -274,4 +277,10 @@ class TMCLStepperMotorController:
 
     def __del__(self):
         # stop the motor when the object is deleted
+        self.stop()
+
+    def close(self):
+        """
+        Close the serial port.
+        """
         self.stop()

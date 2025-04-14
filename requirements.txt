@@ -27,3 +27,9 @@ pandas>=1.4.3
 pymatgen>=2023.8.10
 control>=0.9.4
 scipy>=1.9.2
+control
+zeep
+Phidget22
+matplotlib
+scipy
+numpy
