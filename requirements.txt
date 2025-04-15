@@ -33,3 +33,5 @@ Phidget22
 matplotlib
 scipy
 numpy
+
+pydantic>=1.10.2
