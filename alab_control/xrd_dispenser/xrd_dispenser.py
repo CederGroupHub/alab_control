@@ -16,6 +16,28 @@ from alab_control.ohaus_scale.ohaus_scale_gpss import OhausScale
 logger = logging.getLogger(__name__)
 
 
+class XRDDispenserResult(BaseModel):
+    initial_mass: float
+    final_mass: float
+    target_mass: float
+    mass_reached: bool
+    remain_mass: float
+
+    class Config:
+        json_encoders = {
+            float: lambda v: round(v, 2),
+        }
+        schema_extra = {
+            "example": {
+                "initial_mass": 0.0,
+                "final_mass": 0.0,
+                "target_mass": 100.0,
+                "mass_reached": True,
+                "remain_mass": 100.0,
+            }
+        }
+
+
 class XRDPrepController:
     def __init__(self, gripper_port, rail_port, balance_ip, shaker_ip):
         self.gripper = GripperController(port=gripper_port)
@@ -164,7 +186,7 @@ class XRDPrepController:
         max_time: float = 10,
         tolerance: int = 10,
         angle_offset: int = 10,
-    ):
+    ) -> XRDDispenserResult:
         """
         Move the vial onto the balance, dispense powder, and return the mass
 
@@ -227,13 +249,14 @@ class XRDPrepController:
         else:
             logger.info("Stop due to target mass reached.")
 
-        return {
+        result = {
             "initial_mass": initial_mass,
             "final_mass": final_mass,
             "target_mass": target_mass,
             "mass_reached": mass_reached,
             "remain_mass": final_mass - initial_mass,
         }
+        return XRDDispenserResult(**result)
 
 
 if __name__ == "__main__":
