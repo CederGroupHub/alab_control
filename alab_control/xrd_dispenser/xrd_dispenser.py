@@ -29,7 +29,7 @@ class XRDDispenserResult(BaseModel):
         json_encoders = {
             float: lambda v: round(v, 2),
         }
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "initial_mass": 0.0,
                 "final_mass": 0.0,

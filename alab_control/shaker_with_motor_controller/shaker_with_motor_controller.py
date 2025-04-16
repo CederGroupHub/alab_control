@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import signal
 import threading
 import time
 from enum import Enum
@@ -10,8 +9,6 @@ from alab_control.shaker_with_motor_controller.motor_controller import (
     DiscreteSpeedProfileGenerator,
     MotorController,
 )
-
-signal.signal(signal.SIGINT, signal.SIG_DFL)
 
 kp = 0.6
 ki = 2.112
@@ -62,17 +59,6 @@ class ShakerWMC(BaseArduinoDevice):
         self.motor_controller = MotorController(dt=0.1)
         self.motor_controller.set_controller(kp, ki, kd, integral_contribution_limit)
         self.stop_event = threading.Event()  # Stop event for clean shutdown
-        signal.signal(signal.SIGINT, self.signal_handler)
-
-    def signal_handler(self, sig, frame):
-        print(f"CTRL+C detected! Stopping motor... (Signal: {sig}, Frame: {frame})")
-        self.stop_event.set()  # Tell the thread to stop
-        try:
-            self.motor_controller.stop()
-        except Exception as e:
-            print(f"Error stopping motor: {e}")
-        finally:
-            exit(1)
 
     def get_state(self):
         """
@@ -206,10 +192,8 @@ class ShakerWMC(BaseArduinoDevice):
         """
         Stop the shaker machine
         """
+        self.stop_event.set()  # Tell the thread to stop
         self.motor_controller.stop()
 
     def is_running(self):
         return self.get_state()["system_status"] == SystemState.RUNNING.value
-
-    def __del__(self):
-        self.stop()

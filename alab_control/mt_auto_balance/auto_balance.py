@@ -164,7 +164,7 @@ class WeighingClient(BaseClient):
             SessionId=session_id, WeighingCaptureMode=weight_capture_mode
         )
         self.check_response(response)
-        return BalanceWeightResult(response["WeightSample"])
+        return BalanceWeightResult(**response["WeightSample"])
 
     def tare(self, tare_immediately: bool = False):
         session_id = self.session.session_id
@@ -675,7 +675,7 @@ class MTAutoBalance:
                         result = {
                             "error": None,
                             "result": BalanceWeightResult(
-                                notification["DosingResult"]["WeightSample"]
+                                **notification["DosingResult"]["WeightSample"]
                             )
                             if notification["DosingResult"]["WeightSample"]
                             else None,
