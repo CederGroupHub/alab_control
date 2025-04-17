@@ -74,7 +74,7 @@ class LinearRailController3G:
         if wait:
             start_wait = time.time()
             while self.check_initialization() != InitializationStatus3G.INITIALIZED:
-                if time.time() - start_wait > 10:  # set 10s for time out
+                if time.time() - start_wait > 60:  # set 10s for time out
                     raise TimeoutError("Rail initialization timeout.")
                 time.sleep(0.5)
 

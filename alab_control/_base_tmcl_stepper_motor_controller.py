@@ -283,7 +283,7 @@ class TMCLStepperMotorController:
 
         # find the ones made by TMCL by vid
         tmcl_devices_port = [
-            com_port.name for com_port in comports() if com_port.vid == cls._VID
+            com_port.device for com_port in comports() if com_port.vid == cls._VID
         ]
         for port in tmcl_devices_port:
             _tmcl_device = TMCLStepperMotorController(port=port, _initialize=False)
