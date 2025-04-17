@@ -56,10 +56,12 @@ class CommandError(Exception):
 
 class TMCLStepperMotorController:
     _has_external_encoder = False
+    _VID = 0x2A3C
 
-    def __init__(self, port: str):
+    def __init__(self, port: str, _initialize: bool = True) -> None:
         self.port = port
-        self.update_motor_config()
+        if _initialize:
+            self.update_motor_config()
 
     def update_motor_config(self):
         raise NotImplementedError()
@@ -274,6 +276,20 @@ class TMCLStepperMotorController:
             Commands.FIRMWARE_VERSION, type_number=1, motor_number=0, value=0
         )["value"]
         return version
+
+    @classmethod
+    def get_comport_by_firmware_version(cls, firmware_version: int) -> str | None:
+        from serial.tools.list_ports import comports
+
+        # find the ones made by TMCL by vid
+        tmcl_devices_port = [
+            com_port.name for com_port in comports() if com_port.vid == cls._VID
+        ]
+        for port in tmcl_devices_port:
+            _tmcl_device = TMCLStepperMotorController(port=port, _initialize=False)
+            if firmware_version == _tmcl_device.get_firmware_version():
+                return port
+        return None
 
     def __del__(self):
         # stop the motor when the object is deleted

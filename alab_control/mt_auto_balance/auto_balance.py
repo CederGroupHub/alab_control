@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import abc
 import time
+from decimal import Decimal
 from pathlib import Path
 from typing import List, Literal, Type, TypeVar
 
 import zeep
-from alab_control.mt_auto_balance.cryptography_helper import decrypt_session_id
 from pydantic import BaseModel
+from zeep.helpers import serialize_object
+
+from alab_control.mt_auto_balance.cryptography_helper import decrypt_session_id
 
 all_services = [
     "SessionService",
@@ -35,15 +38,15 @@ class WeightWithUnit(BaseModel):
     Example weight with unit:
 
     {
-        'Value': '0.00015',
+        'Value': 0.00015,
         'Unit': 'Gram',
         'CustomUnitName': None
     }
     """
 
-    Value: str
+    Value: Decimal
     Unit: str
-    CustomUnitName: str = None
+    CustomUnitName: str | None = None
     PreTare: bool | None = None
 
     def get_weight_gram(self):
@@ -164,7 +167,7 @@ class WeighingClient(BaseClient):
             SessionId=session_id, WeighingCaptureMode=weight_capture_mode
         )
         self.check_response(response)
-        return BalanceWeightResult(**response["WeightSample"])
+        return BalanceWeightResult(**serialize_object(response["WeightSample"]))
 
     def tare(self, tare_immediately: bool = False):
         session_id = self.session.session_id
@@ -675,7 +678,9 @@ class MTAutoBalance:
                         result = {
                             "error": None,
                             "result": BalanceWeightResult(
-                                **notification["DosingResult"]["WeightSample"]
+                                **serialize_object(
+                                    notification["DosingResult"]["WeightSample"]
+                                )
                             )
                             if notification["DosingResult"]["WeightSample"]
                             else None,
