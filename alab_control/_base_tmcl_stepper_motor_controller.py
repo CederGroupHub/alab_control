@@ -61,6 +61,7 @@ class TMCLStepperMotorController:
 
     def __init__(self, firmware_version: int) -> None:
         self.firmware_version = firmware_version
+        self.port = None
         self.port = self._determine_comport_by_firmware_version()
         self.update_motor_config()
 
@@ -283,9 +284,10 @@ class TMCLStepperMotorController:
             com_port for com_port in comports() if com_port.vid == self._VID
         ]
         for port in tmcl_devices_port:
-            if self.firmware_version == port.vid:
+            self.port = port.device
+            if self.firmware_version == self.get_firmware_version():
                 return port.device
-        raise RuntimeError(f"Firmware version {firmware_version} not found.")
+        raise RuntimeError(f"Firmware version {self.firmware_version} not found.")
 
     def __del__(self):
         # stop the motor when the object is deleted
