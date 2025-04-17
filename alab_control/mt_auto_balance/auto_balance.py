@@ -44,7 +44,7 @@ class WeightWithUnit(BaseModel):
     }
     """
 
-    Value: Decimal
+    Value: Decimal | None
     Unit: str
     CustomUnitName: str | None = None
     PreTare: bool | None = None
@@ -89,9 +89,9 @@ class BalanceWeightResult(BaseModel):
      }
     """
 
-    NetWeight: WeightWithUnit
-    GrossWeight: WeightWithUnit
-    TareWeight: WeightWithUnit
+    NetWeight: WeightWithUnit | None
+    GrossWeight: WeightWithUnit | None
+    TareWeight: WeightWithUnit | None
     Stable: bool
     Status: str
 
