@@ -258,7 +258,10 @@ class TMCLStepperMotorController:
                     "Different checksum detected in the received frame."
                 )
             if status != 100 and raise_failure:
-                raise CommandError(f"Command {command} failed with status {status}")
+                raise CommandError(
+                    f"Command {command} failed with status {status}. Check the power"
+                    f"connect of the control board!"
+                )
             return {
                 "reply_address": reply_address,
                 "module_address": module_address,
