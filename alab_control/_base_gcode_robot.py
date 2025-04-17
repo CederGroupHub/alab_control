@@ -199,6 +199,21 @@ class BaseGcodeRobot(ABC):
         self.write("G28 X Y Z")
         self.get_current_position()
 
+    def gohome_x(self) -> None:
+        """Homes the x-axis (calls the G28 command) and updates the position."""
+        self.write("G28 X")
+        self.get_current_position()
+
+    def gohome_y(self) -> None:
+        """Homes the y-axis (calls the G28 command) and updates the position."""
+        self.write("G28 Y")
+        self.get_current_position()
+        
+    def gohome_z(self) -> None:
+        """Homes the z-axis (calls the G28 command) and updates the position."""
+        self.write("G28 Z")
+        self.get_current_position()
+
     def check_move_is_valid(
         self,
         x: Optional[float] = None,
