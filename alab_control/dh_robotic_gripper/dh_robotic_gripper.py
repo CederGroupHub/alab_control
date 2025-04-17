@@ -61,6 +61,8 @@ class GripperController:
         self.client.write_register(0x0504, 0, unit=self.slave_address)
 
     def initialize(self, wait=True, mode: int = 0xA5):
+        if self.check_initialization() == InitializationStatus.INITIALIZED:
+            return
         # Command: Initialize the gripper (0x0100 register, write A5)
         response = self.client.write_register(
             0x0100, value=mode, unit=self.slave_address
@@ -77,7 +79,7 @@ class GripperController:
             while self.check_initialization() != InitializationStatus.INITIALIZED:
                 if self.read_rotation_status() == RotationStatus.BLOCKED:
                     raise ValueError("Gripper is blocked during initialization.")
-                if time.time() - start_wait > 10:  # set 10s for time out
+                if time.time() - start_wait > 60:  # set 60s for time out
                     raise TimeoutError("Gripper initialization timeout.")
                 time.sleep(0.5)
 

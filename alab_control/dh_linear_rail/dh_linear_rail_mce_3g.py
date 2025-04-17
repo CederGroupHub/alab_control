@@ -62,6 +62,8 @@ class LinearRailController3G:
             raise ModbusException(f"Modbus Error: {response}")
 
     def initialize(self, wait=True):
+        if self.check_initialization() == InitializationStatus3G.INITIALIZED:
+            return
         # Command: Initialize the gripper (0x0100 register, write A5)
         response = self.client.write_register(0x0100, value=1, unit=self.slave_address)
         self._check_response(response)
