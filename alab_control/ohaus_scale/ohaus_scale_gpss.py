@@ -1,6 +1,8 @@
 import re
 import socket
 
+import retry
+
 
 class OhausScale:
     def __init__(self, ip: str, timeout: int = 3, max_retries: int = 10):
@@ -21,6 +23,7 @@ class OhausScale:
     def set_unit_to_mg(self):
         self.send_command("0U")
 
+    @retry.retry(tries=3, delay=2, backoff=2, jitter=(1, 3), logger=None)
     def get_mass_in_mg(self, get_command: str = "SP"):
         # SP: Stable Print (Print mass after value stabilizes)
         # IP: Immediate Print (Print mass regardless of value stabilizes)
@@ -32,10 +35,9 @@ class OhausScale:
                 break
             except socket.timeout:
                 retry += 1
-        if mass_string is None:
+        if mass_string is None or not mass_string.strip():
             return None
-        else:
-            return int(re.search(r"\d+", mass_string).group())
+        return int(re.search(r"\d+", mass_string).group())
 
 
 if __name__ == "__main__":
