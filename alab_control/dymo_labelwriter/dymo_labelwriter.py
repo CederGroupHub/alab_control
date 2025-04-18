@@ -17,18 +17,18 @@ class DYMOLabelWriter:
 
     LABEL_WIDTH = 1  # inches
     LABEL_HEIGHT = 1  # inches
-    FONTSIZE = 20
+    FONTSIZE = 24
     FONT_FILE = Path(__file__).parent / "Arial.ttf"
 
-    def __init__(self, print_name: str, sumatra_pdf_path: str | Path):
+    def __init__(self, printer_name: str, sumatra_pdf_path: str | Path = None):
         self.sumatra_pdf_path = Path(sumatra_pdf_path)
-        self.print_name = print_name
+        self.printer_name = printer_name
 
     def get_qr_img(self, qr_code_text: str):
         """Returns a PIL image of a QR code with the given sample string."""
         qr = qrcode.QRCode(
             version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_M,
+            error_correction=qrcode.constants.ERROR_CORRECT_H,
             box_size=7,
             border=0,
         )
@@ -39,8 +39,8 @@ class DYMOLabelWriter:
     def get_text_img(self, text, box_dim):
         """Get a PIL Image object of a box with centered text."""
         text = "\n".join(t for t in text.splitlines() if t)
-        if len(text.splitlines()) > 2:
-            raise ValueError("Text must be one or two lines.")
+        if len(text.splitlines()) > 1:
+            raise ValueError("Text must be one line.")
         img = Image.new("RGBA", box_dim)
         font = ImageFont.truetype(str(self.FONT_FILE), self.FONTSIZE)
         draw = ImageDraw.Draw(img)
@@ -75,17 +75,16 @@ class DYMOLabelWriter:
         Returns:
             Image: The generated image.
         """
-        qr = self.get_qr_img(qr_code_text)
-
-        qr = qr.resize(
-            (int(self.LABEL_WIDTH * 0.6 * 300), int(self.LABEL_HEIGHT * 0.6 * 300)),
-        )
-
         # Create a new image with a white background
         img = Image.new(
             "RGBA",
-            (int(self.LABEL_WIDTH * 0.9 * 300), int(self.LABEL_HEIGHT * 0.9 * 300)),
+            (int(self.LABEL_WIDTH * 300), int(self.LABEL_HEIGHT * 300)),
             "white",
+        )
+
+        qr = self.get_qr_img(qr_code_text)
+        qr = qr.resize(
+            (int(self.LABEL_WIDTH * 0.7 * 300), int(self.LABEL_HEIGHT * 0.7 * 300)),
         )
 
         # Paste the QR code onto the center of the new image
@@ -94,22 +93,25 @@ class DYMOLabelWriter:
         img.paste(qr, (qr_x, qr_y), qr)
 
         text_height = (img.height - qr.height) // 2 - 5
-        text_width = int(qr.width * 1.2)
+        up_low_text_width = img.width
+        left_right_text_width = qr.width + 10
 
         if upper_text:
-            text_img = self.get_text_img(upper_text, (text_width, text_height))
-            x = (img.width - text_width) // 2
+            text_img = self.get_text_img(upper_text, (up_low_text_width, text_height))
+            x = (img.width - up_low_text_width) // 2
             y = qr_y - text_height - 5
             text_img = text_img.rotate(0, expand=True)
             img.paste(text_img, (x, y), text_img)
         if lower_text:
-            text_img = self.get_text_img(lower_text, (text_width, text_height))
-            x = (img.width - text_width) // 2
+            text_img = self.get_text_img(lower_text, (up_low_text_width, text_height))
+            x = (img.width - up_low_text_width) // 2
             y = qr_y + qr.height + 5
             text_img = text_img.rotate(180, expand=True)
             img.paste(text_img, (x, y), text_img)
         if left_text:
-            text_img = self.get_text_img(left_text, (text_width, text_height))
+            text_img = self.get_text_img(
+                left_text, (left_right_text_width, text_height)
+            )
             x_center = (img.width - qr.width) // 4
             y_center = img.height // 2
             text_img = text_img.rotate(90, expand=True)
@@ -119,7 +121,9 @@ class DYMOLabelWriter:
                 text_img,
             )
         if right_text:
-            text_img = self.get_text_img(right_text, (text_width, text_height))
+            text_img = self.get_text_img(
+                right_text, (left_right_text_width, text_height)
+            )
             x_center = (img.width - qr.width) // 4 * 3
             y_center = img.height // 2
             text_img = text_img.rotate(270, expand=True)
@@ -136,7 +140,7 @@ class DYMOLabelWriter:
 
     def _print_file(self, image: Image):
         """Call Sumutra PDF to print the image."""
-        if not self.sumatra_pdf_path.exists():
+        if not self.sumatra_pdf_path or not self.sumatra_pdf_path.exists():
             raise FileNotFoundError(f"Sumatra PDF not found at {self.sumatra_pdf_path}")
         with tempfile.NamedTemporaryFile(
             mode="w+b",
@@ -151,8 +155,11 @@ class DYMOLabelWriter:
             cmd = [
                 str(self.sumatra_pdf_path),
                 f.name,
-                "-print-to",
-                self.print_name,
+                "-print-to",  # print to printer
+                self.printer_name,
+                "-silent",  # hide the error windows
+                "-print-settings",
+                '"fit"',  # scale the image to fit the page
             ]
             subprocess.run(cmd, check=True)
 
@@ -175,11 +182,13 @@ class DYMOLabelWriter:
             return_image_no_print (bool): If True, return the image without printing it.
         """
         qr_code_text = str(sample_id)
+        if len(sample_name) > 22:
+            sample_name = sample_name[:22]
         upper_text = sample_name
         lower_text = sample_name
-        left_text = f"Level: {consumable_rack_level} Row: {consumable_rack_row}"
+        left_text = f"Level: {consumable_rack_level}  ©  Row: {consumable_rack_row}"
         # current time
-        right_text = time.strftime("%Y-%m-%d %H:%M:%S")
+        right_text = time.strftime("%Y/%m/%d %H:%M:%S")
 
         img = self.generate_image(
             qr_code_text, upper_text, lower_text, left_text, right_text

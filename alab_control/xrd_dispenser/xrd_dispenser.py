@@ -5,8 +5,6 @@ import threading
 import time
 from typing import Literal
 
-from pydantic import BaseModel
-
 from alab_control.dh_linear_rail.dh_linear_rail import LinearRailController
 from alab_control.dh_robotic_gripper.dh_robotic_gripper import (
     GripperController,
@@ -14,6 +12,7 @@ from alab_control.dh_robotic_gripper.dh_robotic_gripper import (
 )
 from alab_control.gripper_shaker.gripper_shaker import GripperShaker
 from alab_control.ohaus_scale.ohaus_scale_gpss import OhausScale
+from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +100,7 @@ class XRDPrepController:
         """
         if mode == "quick":
             return self.balance.get_mass_in_mg("IP")
-        elif mode == "precise":
+        if mode == "precise":
             result = self.balance.get_mass_in_mg("SP")
             if result is None:
                 logger.info(
@@ -109,8 +108,7 @@ class XRDPrepController:
                 )
                 return self.get_weight_on_balance(mode="quick")
             return result
-        else:
-            raise ValueError("Invalid mode. Use 'quick' or 'precise'.")
+        raise ValueError("Invalid mode. Use 'quick' or 'precise'.")
 
     def initialize(self):
         # Do initializing XRDPrepController
@@ -169,15 +167,14 @@ class XRDPrepController:
                         check_gripper=False,
                         mode=RotationMode.RELATIVE,
                     )
-            else:
-                # rotate back to original position based on current counter
-                self.gripper.rotate(
-                    deg=angle * (1 if counter % 2 else -1),
-                    speed=5,
-                    force=25,
-                    check_gripper=False,
-                    mode=RotationMode.RELATIVE,
-                )
+            # rotate back to original position based on current counter
+            self.gripper.rotate(
+                deg=angle * (1 if counter % 2 else -1),
+                speed=5,
+                force=25,
+                check_gripper=False,
+                mode=RotationMode.RELATIVE,
+            )
 
         thread = threading.Thread(target=keep_rotating_gripper)
         return thread, stop_event
@@ -251,13 +248,13 @@ class XRDPrepController:
         else:
             logger.info("Stop due to target mass reached.")
 
-        return {
-            "initial_mass": initial_mass,
-            "final_mass": final_mass,
-            "target_mass": target_mass,
-            "mass_reached": mass_reached,
-            "remain_mass": final_mass - initial_mass,
-        }
+        return XRDDispenserResult(
+            initial_mass=initial_mass,
+            final_mass=final_mass,
+            target_mass=target_mass,
+            mass_reached=mass_reached,
+            remain_mass=final_mass - initial_mass,
+        )
 
 
 if __name__ == "__main__":
