@@ -1,7 +1,6 @@
 import random
 import re
 import time
-from alab_control import robot_arm_ur5e
 
 from alab_control.labman_dosing_head_rack.labman_dosing_head_rack import DosingHeadRack
 from alab_control.linear_rail_gpss.linear_rail_gpss import LinearRailGPSS
@@ -132,10 +131,14 @@ def take_one_set(level, row):
 
 
 def move_xrd_holder(pos, next_pos):
-    robot_arm.run_program(f"auto_program/pick_xrd_holder_rack/pick_xrd_holder_rack_{pos}.auto.urp")
+    robot_arm.run_program(
+        f"auto_program/pick_xrd_holder_rack/pick_xrd_holder_rack_{pos}.auto.urp"
+    )
     robot_arm.run_program("auto_program/place_xrd_holder_dispenser.auto.urp")
     robot_arm.run_program("auto_program/pick_xrd_holder_dispenser.auto.urp")
-    robot_arm.run_program(f"auto_program/place_xrd_holder_rack/place_xrd_holder_rack_{next_pos}.auto.urp")
+    robot_arm.run_program(
+        f"auto_program/place_xrd_holder_rack/place_xrd_holder_rack_{next_pos}.auto.urp"
+    )
 
 
 if __name__ == "__main__":
