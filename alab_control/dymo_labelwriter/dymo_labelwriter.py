@@ -65,6 +65,8 @@ class DYMOLabelWriter:
             qr_code_text (str): The text to encode in the QR code.
             upper_text (str): The text to display above the QR code.
             lower_text (str): The text to display below the QR code.
+            left_text (str): The text to display to the left of the QR code.
+            right_text (str): The text to display to the right of the QR code.
 
         Returns:
             Image: The generated image.
@@ -140,7 +142,7 @@ class DYMOLabelWriter:
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
             # save the image to a temporary file
             filename = f.name
-            image.save(filename, "PDF", resolution=100.0)
+            image.save(filename, "PDF", dpi=(600, 600))
             win32api.ShellExecute(0, "print", filename, f'"{self.print_name}"', ".", 0)
             time.sleep(10)  # TODO: find a better way to wait for print job to finish
 
@@ -150,7 +152,6 @@ class DYMOLabelWriter:
         sample_name: str,
         consumable_rack_level: int,
         consumable_rack_row: int,
-        experiment_name: str,
         return_image_no_print: bool = False,
     ):
         """
@@ -161,14 +162,14 @@ class DYMOLabelWriter:
             sample_name (str): The sample name to print.
             consumable_rack_level (int): The consumable rack level.
             consumable_rack_row (int): The consumable rack row.
-            experiment_name (str): The experiment name.
             return_image_no_print (bool): If True, return the image without printing it.
         """
         qr_code_text = str(sample_id)
         upper_text = sample_name
         lower_text = sample_name
-        left_text = f"Level: {consumable_rack_level}\nRow: {consumable_rack_row}"
-        right_text = experiment_name
+        left_text = f"Level: {consumable_rack_level} Row: {consumable_rack_row}"
+        # current time
+        right_text = time.strftime("%Y-%m-%d %H:%M:%S")
 
         img = self.generate_image(
             qr_code_text, upper_text, lower_text, left_text, right_text
