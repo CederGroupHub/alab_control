@@ -1,3 +1,6 @@
+from __future__ import annotations
+
+import subprocess
 import tempfile
 import time
 from pathlib import Path
@@ -17,7 +20,8 @@ class DYMOLabelWriter:
     FONTSIZE = 20
     FONT_FILE = Path(__file__).parent / "Arial.ttf"
 
-    def __init__(self, print_name: str):
+    def __init__(self, print_name: str, sumatra_pdf_path: str | Path):
+        self.sumatra_pdf_path = Path(sumatra_pdf_path)
         self.print_name = print_name
 
     def get_qr_img(self, qr_code_text: str):
@@ -131,20 +135,26 @@ class DYMOLabelWriter:
         return img
 
     def _print_file(self, image: Image):
-        """Call Windows API to print a file."""
-        try:
-            import win32api
-        except ImportError:
-            raise ImportError(
-                f"win32api is not installed! Printing with {self.print_name} is only available on Windows."
-            )
-
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
-            # save the image to a temporary file
-            filename = f.name
-            image.save(filename, "PDF", dpi=(600, 600))
-            win32api.ShellExecute(0, "print", filename, f'"{self.print_name}"', ".", 0)
-            time.sleep(10)  # TODO: find a better way to wait for print job to finish
+        """Call Sumutra PDF to print the image."""
+        if not self.sumatra_pdf_path.exists():
+            raise FileNotFoundError(f"Sumatra PDF not found at {self.sumatra_pdf_path}")
+        with tempfile.NamedTemporaryFile(
+            mode="w+b",
+            suffix=".pdf",
+            delete=False,
+            dir=self.sumatra_pdf_path.parent,
+        ) as f:
+            image.save(f.name, "PDF", dpi=(300, 300))
+            f.flush()
+            f.seek(0)
+            # print the file
+            cmd = [
+                str(self.sumatra_pdf_path),
+                f.name,
+                "-print-to",
+                self.print_name,
+            ]
+            subprocess.run(cmd, check=True)
 
     def print_label(
         self,
