@@ -186,7 +186,7 @@ class DYMOLabelWriter:
             sample_name = sample_name[:22]
         upper_text = sample_name
         lower_text = sample_name
-        left_text = f"Level: {consumable_rack_level}  ©  Row: {consumable_rack_row}"
+        left_text = f"Level: {consumable_rack_level}  Row: {consumable_rack_row}"
         # current time
         right_text = time.strftime("%Y/%m/%d %H:%M:%S")
 
