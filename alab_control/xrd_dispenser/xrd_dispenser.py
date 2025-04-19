@@ -22,7 +22,7 @@ class XRDDispenserResult(BaseModel):
     final_mass: float
     target_mass: float
     mass_reached: bool
-    remain_mass: float
+    dispensed_mass: float
 
     class Config:
         json_encoders = {
@@ -34,7 +34,7 @@ class XRDDispenserResult(BaseModel):
                 "final_mass": 0.0,
                 "target_mass": 100.0,
                 "mass_reached": True,
-                "remain_mass": 100.0,
+                "dispensed_mass": 100.0,
             }
         }
 
@@ -79,10 +79,12 @@ class XRDPrepController:
 
     def shake_powder_off_sieve(self):
         """
-        Shake the gripper once (for 3 second) to remove powder on the sieve
+        Shake the gripper five times each for 8 seconds, sleep for 2 seconds
         """
-        with self.shaker.motor_on():
-            time.sleep(3)
+        for _ in range(5):
+            with self.shaker.motor_on():
+                time.sleep(8)
+            time.sleep(2)
 
     def distribute_powder(self, angle: int = 45, speed: int = 3, force: int = 25):
         """
@@ -163,7 +165,7 @@ class XRDPrepController:
             last_rotation_time = time.time()
             while not stop_event.is_set():
                 time.sleep(0.05)
-                if time.time() - last_rotation_time > 2:
+                if time.time() - last_rotation_time > 3:
                     counter += 1
                     last_rotation_time = time.time()
                     self.gripper.rotate(
@@ -190,7 +192,7 @@ class XRDPrepController:
         target_mass,
         max_time: float = 10,
         tolerance: int = 10,
-        angle_offset: int = 10,
+        angle_offset: int = 5,
     ):
         """
         Move the vial onto the balance, dispense powder, and return the mass
@@ -225,10 +227,10 @@ class XRDPrepController:
                 with self.shaker.motor_on():
                     while time.time() - start_time < max_time:
                         current_mass = self.get_weight_on_balance(mode="quick")
-                        remain_mass = current_mass - initial_mass
+                        dispensed_mass = current_mass - initial_mass
 
                         # if the mass is within the tolerance, mark it as finished
-                        if remain_mass >= target_mass - tolerance:
+                        if dispensed_mass >= target_mass - tolerance:
                             finished = True
                             break
                         # add a short delay to avoid spamming the balance
@@ -259,7 +261,7 @@ class XRDPrepController:
             final_mass=final_mass,
             target_mass=target_mass,
             mass_reached=mass_reached,
-            remain_mass=final_mass - initial_mass,
+            dispensed_mass=final_mass - initial_mass,
         )
 
 
