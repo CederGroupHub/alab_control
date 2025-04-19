@@ -74,6 +74,9 @@ class XRDPrepController:
     def open_gripper(self):
         self.gripper.open_to(speed_percentage=50, force_percentage=100, position=500)
 
+    def open_gripper_full(self):
+        self.gripper.open_to(speed_percentage=50, force_percentage=100, position=1000)
+
     def shake_powder_off_sieve(self):
         """
         Shake the gripper once (for 3 second) to remove powder on the sieve
@@ -123,6 +126,7 @@ class XRDPrepController:
         """
         Do after place vial on the Gripper
         """
+        self.open_gripper_full()
         self.close_gripper()
         self.move_rail_forward()
         self.face_to_balance()
@@ -134,6 +138,8 @@ class XRDPrepController:
         self.move_rail_backward()
         self.face_to_robot()
         self.shake_powder_off_sieve()
+        self.open_gripper_full()
+        self.close_gripper()
         self.open_gripper()
 
     def get_rotate_gripper_thread(
@@ -157,7 +163,7 @@ class XRDPrepController:
             last_rotation_time = time.time()
             while not stop_event.is_set():
                 time.sleep(0.05)
-                if time.time() - last_rotation_time > 1:
+                if time.time() - last_rotation_time > 2:
                     counter += 1
                     last_rotation_time = time.time()
                     self.gripper.rotate(
