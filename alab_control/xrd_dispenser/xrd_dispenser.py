@@ -223,6 +223,7 @@ class XRDPrepController:
                 angle=angle_offset
             )
             current_mass = self.get_weight_on_balance(mode="quick")
+            dispensed_mass = current_mass - initial_mass
             if dispensed_mass < target_mass - tolerance:
                 try:
                     gripper_rotating_thread.start()
