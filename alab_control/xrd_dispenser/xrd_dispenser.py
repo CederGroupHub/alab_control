@@ -81,9 +81,9 @@ class XRDPrepController:
         """
         Shake the gripper five times each for 5 seconds, sleep for 2 seconds
         """
-        for _ in range(5):
+        for _ in range(2):
             with self.shaker.motor_on():
-                time.sleep(3)
+                time.sleep(8)
             time.sleep(2)
 
     def distribute_powder(self, angle: int = 45, speed: int = 3, force: int = 25):
@@ -224,7 +224,7 @@ class XRDPrepController:
                 try:
                     gripper_rotating_thread.start()
                     with self.shaker.motor_on():
-                        while time.time() - start_time < 5:
+                        while time.time() - start_time < 12:
                             dispensed_mass = current_mass - initial_mass
 
                             # if the mass is within the tolerance, mark it as finished
