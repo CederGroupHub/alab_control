@@ -83,7 +83,7 @@ class XRDPrepController:
         """
         for _ in range(5):
             with self.shaker.motor_on():
-                time.sleep(5)
+                time.sleep(3)
             time.sleep(2)
 
     def distribute_powder(self, angle: int = 45, speed: int = 3, force: int = 25):
