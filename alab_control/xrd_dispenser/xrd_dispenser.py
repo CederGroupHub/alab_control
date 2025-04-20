@@ -128,7 +128,6 @@ class XRDPrepController:
         """
         Do after place vial on the Gripper
         """
-        self.open_gripper_full()
         self.close_gripper()
         self.move_rail_forward()
         self.face_to_balance()
@@ -165,7 +164,7 @@ class XRDPrepController:
             last_rotation_time = time.time()
             while not stop_event.is_set():
                 time.sleep(0.05)
-                if time.time() - last_rotation_time > 3:
+                if time.time() - last_rotation_time > 3.0:
                     counter += 1
                     last_rotation_time = time.time()
                     self.gripper.rotate(
@@ -190,7 +189,6 @@ class XRDPrepController:
     def dispensing_powder(
         self,
         target_mass,
-        max_time: float = 5,
         tolerance: int = 10,
         angle_offset: int = 5,
     ):
@@ -199,7 +197,6 @@ class XRDPrepController:
 
         Args:
             target_mass: target mass to dispense
-            max_time: maximum time to dispense the powder
             tolerance: tolerance for the mass (default to -10mg). If the mass is
                 within the tolerance, mark it as finished
             angle_offset: angle to rotate the gripper while dispensing
@@ -222,29 +219,29 @@ class XRDPrepController:
             gripper_rotating_thread, stop_event = self.get_rotate_gripper_thread(
                 angle=angle_offset
             )
-            try:
-                gripper_rotating_thread.start()
-                with self.shaker.motor_on():
-                    while time.time() - start_time < max_time:
-                        current_mass = self.get_weight_on_balance(mode="quick")
-                        dispensed_mass = current_mass - initial_mass
+            current_mass = self.get_weight_on_balance(mode="quick")
+            if dispensed_mass < target_mass - tolerance:
+                try:
+                    gripper_rotating_thread.start()
+                    with self.shaker.motor_on():
+                        while time.time() - start_time < 5:
+                            dispensed_mass = current_mass - initial_mass
 
-                        # if the mass is within the tolerance, mark it as finished
-                        if dispensed_mass >= target_mass - tolerance:
-                            finished = True
-                            break
-                        # add a short delay to avoid spamming the balance
-                        time.sleep(0.05)
-            finally:
-                # ensure the gripper stops rotating
-                stop_event.set()
-                gripper_rotating_thread.join()
-                time.sleep(2)
+                            # if the mass is within the tolerance, mark it as finished
+                            if dispensed_mass >= target_mass - tolerance:
+                                finished = True
+                                break
+                            # add a short delay to avoid spamming the balance
+                            time.sleep(0.05)
+                finally:
+                    # ensure the gripper stops rotating
+                    stop_event.set()
+                    gripper_rotating_thread.join()
 
             if current_mass - last_time_weight <= tolerance:
                 # if the mass is increasing, reset the retry count
                 finished = True
-
+            time.sleep(2)
             logger.info(f"Current mass: {current_mass} mg")
 
         self.after_dispensing()
