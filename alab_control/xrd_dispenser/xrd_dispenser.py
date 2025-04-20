@@ -79,11 +79,11 @@ class XRDPrepController:
 
     def shake_powder_off_sieve(self):
         """
-        Shake the gripper five times each for 8 seconds, sleep for 2 seconds
+        Shake the gripper five times each for 5 seconds, sleep for 2 seconds
         """
         for _ in range(5):
             with self.shaker.motor_on():
-                time.sleep(8)
+                time.sleep(5)
             time.sleep(2)
 
     def distribute_powder(self, angle: int = 45, speed: int = 3, force: int = 25):
@@ -190,7 +190,7 @@ class XRDPrepController:
     def dispensing_powder(
         self,
         target_mass,
-        max_time: float = 10,
+        max_time: float = 5,
         tolerance: int = 10,
         angle_offset: int = 5,
     ):
@@ -239,6 +239,7 @@ class XRDPrepController:
                 # ensure the gripper stops rotating
                 stop_event.set()
                 gripper_rotating_thread.join()
+                time.sleep(2)
 
             if current_mass - last_time_weight <= tolerance:
                 # if the mass is increasing, reset the retry count
