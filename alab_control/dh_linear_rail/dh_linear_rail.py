@@ -52,11 +52,12 @@ class LinearRailController:
         # move to zero, enable robot
         # 0100 0100 0000 0000
         # run return to zero command
+        self.clear_alarm()
         self.set_control_words(0x22)
         time.sleep(0.2)
         start_time = time.time()
         while self.read_motion_state() != RailStatus.MOVING and (
-            time.time() - start_time < 2
+            time.time() - start_time < 5
         ):
             time.sleep(0.5)
         if wait:
