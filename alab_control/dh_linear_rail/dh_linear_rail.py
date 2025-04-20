@@ -133,7 +133,7 @@ class LinearRailController:
         return response.registers[0]
 
     def clear_alarm(self):
-        self.set_control_words(0x10)
+        self.set_control_words(0x30)
 
     @staticmethod
     def _check_response(response):
