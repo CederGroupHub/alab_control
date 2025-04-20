@@ -119,10 +119,13 @@ class XRDPrepController:
         # Do initializing XRDPrepController
         self.gripper.initialize()
         self.gripper.save_configuration()
-        self.face_to_robot()
         self.linear_rail.initialize(wait=True)
-        logger.info("Initialization finished")
+        self.homing()
+
+    def homing(self):
+        self.face_to_robot()
         self.open_gripper()
+        self.move_rail_backward()
 
     def prepare_dispensing(self):
         """
