@@ -157,12 +157,12 @@ class DYMOLabelWriter:
                 f.name,
                 "-print-to",  # print to printer
                 self.printer_name,
-                "-silent",  # hide the error windows
+                # "-silent",  # hide the error windows
                 "-print-settings",
                 '"fit"',  # scale the image to fit the page
             ]
             subprocess.run(cmd, check=True)
-            time.sleep(5)
+            time.sleep(60)
 
     def print_label(
         self,
