@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import logging
 import time
 from decimal import Decimal
 from pathlib import Path
@@ -27,6 +28,8 @@ all_services = [
     "AuthenticationService",
     "AdjustmentService",
 ]
+
+logger = logging.getLogger("auto_balance")
 
 
 class MTAutoBalanceError(Exception):
@@ -364,7 +367,7 @@ class NotificationClient(BaseClient):
             if "GetNotifications has timed out." in response["ErrorMessage"]:
                 return []
 
-        # print(response["Notifications"]["_value_1"])
+        logger.info(response["Notifications"]["_value_1"])
         return response["Notifications"]["_value_1"]
 
 
