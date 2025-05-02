@@ -216,6 +216,9 @@ class XRDPrepController:
         last_time_weight = initial_mass
         while not finished:
             retry_count += 1
+            if retry_count > 10:
+                logger.info("Stop dispensing powder due to too many retries.")
+                break
             logger.info(f"Attempt {retry_count} started...")
 
             start_time = time.time()
@@ -247,6 +250,7 @@ class XRDPrepController:
                 finished = True
             time.sleep(2)
             logger.info(f"Current mass: {current_mass} mg")
+            last_time_weight = current_mass
 
         self.after_dispensing()
         final_mass = self.get_weight_on_balance(mode="precise")
