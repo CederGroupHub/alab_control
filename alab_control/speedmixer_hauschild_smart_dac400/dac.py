@@ -169,6 +169,7 @@ class HauschildDAC400:
                 self.dac.clear_error()
                 time.sleep(0.1)
                 self.dac.set_speed(0)
+                time.sleep(0.1)
             self.dac.stop()
 
         time.sleep(5)
