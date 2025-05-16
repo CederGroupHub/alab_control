@@ -154,6 +154,9 @@ class DACDriver:
     def get_error(self):
         return self.send_command("read", 20)[1]
 
+    def clear_error(self):
+        self.send_command("write", 20, 1)
+
 
 class HauschildDAC400:
     def __init__(self, com_port: str, timeout: int = 1, homing_retries: int = 5):
@@ -162,7 +165,19 @@ class HauschildDAC400:
 
     def stop(self):
         for i in range(10):
+            if self.dac.get_error():
+                self.dac.clear_error()
+                time.sleep(0.1)
+                self.dac.set_speed(0)
             self.dac.stop()
+
+        time.sleep(5)
+        if self.dac.get_error():
+            raise DACError(
+                "Could not stop the device. Get error code: {}".format(
+                    self.dac.get_error()
+                )
+            )
 
     def run_program(self, speed: int, time_sec: int):
         try:
@@ -184,6 +199,8 @@ class HauschildDAC400:
                     break
             else:
                 raise DACError("The program did not finish properly.")
+            self.dac.set_speed(0)
+            time.sleep(5)
             self.stop()
             start = time.time()
             while self.dac.is_running():
