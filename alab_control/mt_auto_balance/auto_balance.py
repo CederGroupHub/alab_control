@@ -509,6 +509,11 @@ class MTAutoBalance:
         with self.get_session() as session:
             weighing_client = session.create_client(WeighingClient)
             return weighing_client.get_weight(weight_capture_mode=weight_capture_mode)
+        
+    def zero(self):
+        with self.get_session() as session:
+            weighing_client = session.create_client(WeighingClient)
+            weighing_client.zero(zero_immediately=True)
 
     def automatic_dosing(
         self,
@@ -588,14 +593,14 @@ class MTAutoBalance:
                 }
             substance_name = dosing_head_info["DosingHeadInfo"]["SubstanceName"]
 
-            try:
-                weighing_client.zero(zero_immediately=True)
-            except MTAutoBalanceError as e:
-                return {
-                    "error": f"Failed to zero the balance. The error message: \n{e}",
-                    "result": None,
-                    "success": False,
-                }
+            # try:
+            #     weighing_client.zero(zero_immediately=True)
+            # except MTAutoBalanceError as e:
+            #     return {
+            #         "error": f"Failed to zero the balance. The error message: \n{e}",
+            #         "result": None,
+            #         "success": False,
+            #     }
             try:
                 dosing_automation_client.start_dosing(
                     substance_name=substance_name,
