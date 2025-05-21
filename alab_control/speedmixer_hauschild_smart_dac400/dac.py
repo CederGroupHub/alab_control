@@ -171,8 +171,9 @@ class HauschildDAC400:
                 self.dac.set_speed(0)
                 time.sleep(0.1)
             self.dac.stop()
+            time.sleep(1)
 
-        time.sleep(5)
+        time.sleep(10)
         if self.dac.get_error():
             raise DACError(
                 "Could not stop the device. Get error code: {}".format(
