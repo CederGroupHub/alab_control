@@ -163,15 +163,32 @@ class HauschildDAC400:
         self.dac = DACDriver(com_port=com_port, timeout=timeout)
         self.homing_retries = homing_retries
 
+    def clear_error_and_wait(self, timeout: int = 60):
+        start = time.time()
+        while self.dac.get_error() and time.time() - start < timeout:
+            try:
+                self.dac.clear_error()
+            except DACError:
+                # ignore the error
+                pass
+            time.sleep(0.1)
+        if self.dac.get_error():
+            raise DACError(
+                "Could not clear the error. Get error code: {}".format(
+                    self.dac.get_error()
+                )
+            )
+
     def stop(self):
         for i in range(10):
+            self.clear_error_and_wait()
+            self.dac.stop()
             if self.dac.get_error():
                 self.dac.clear_error()
                 time.sleep(0.1)
                 self.dac.set_speed(0)
                 time.sleep(0.1)
-            self.dac.stop()
-            time.sleep(1)
+            time.sleep(0.5)
 
         time.sleep(10)
         if self.dac.get_error():
@@ -183,6 +200,7 @@ class HauschildDAC400:
 
     def run_program(self, speed: int, time_sec: int):
         try:
+            self.clear_error_and_wait()
             self.dac.set_speed(speed)
             self.dac.set_acc_ramp(10)
             self.dac.set_dec_ramp(10)
@@ -214,6 +232,7 @@ class HauschildDAC400:
 
     def homing(self):
         for _ in range(self.homing_retries):
+            self.clear_error_and_wait()
             if self.dac.init_drive():
                 time.sleep(0.5)
                 for i in range(50):
