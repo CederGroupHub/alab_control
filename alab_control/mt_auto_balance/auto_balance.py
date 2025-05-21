@@ -304,7 +304,7 @@ class DosingAutomationClient(BaseClient):
                         "SubstanceName": substance_name,
                         "VialName": vial_name,
                         "TargetWeight": {
-                            "Value": target_value_g,
+                            "Value": round(target_value_g, 5),
                             "Unit": "Gram",
                         },
                         "LowerTolerance": {
@@ -680,13 +680,15 @@ class MTAutoBalance:
                     else:
                         result = {
                             "error": None,
-                            "result": BalanceWeightResult(
-                                **serialize_object(
-                                    notification["DosingResult"]["WeightSample"]
+                            "result": (
+                                BalanceWeightResult(
+                                    **serialize_object(
+                                        notification["DosingResult"]["WeightSample"]
+                                    )
                                 )
-                            )
-                            if notification["DosingResult"]["WeightSample"]
-                            else None,
+                                if notification["DosingResult"]["WeightSample"]
+                                else None
+                            ),
                             "success": True,
                         }
                 elif any(
