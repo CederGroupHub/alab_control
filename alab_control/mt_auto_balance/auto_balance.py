@@ -509,7 +509,7 @@ class MTAutoBalance:
         with self.get_session() as session:
             weighing_client = session.create_client(WeighingClient)
             return weighing_client.get_weight(weight_capture_mode=weight_capture_mode)
-        
+
     def zero(self):
         with self.get_session() as session:
             weighing_client = session.create_client(WeighingClient)
@@ -553,7 +553,6 @@ class MTAutoBalance:
         with self.get_session() as session:
             dosing_automation_client = session.create_client(DosingAutomationClient)
             notification_client = session.create_client(NotificationClient)
-            weighing_client = session.create_client(WeighingClient)
             weighing_task_client = session.create_client(WeightingTaskClient)
 
             methods = weighing_task_client.get_weighing_methods()
@@ -629,13 +628,13 @@ class MTAutoBalance:
                         "result": None,
                         "success": False,
                     }
-                elif job_finish_time is not None and time.time() - job_finish_time > 60:
+                if job_finish_time is not None and time.time() - job_finish_time > 60:
                     return {
                         "error": "Failed to move dosing head back to home within one minute.",
                         "result": result["result"],
                         "success": False,
                     }
-                elif any(
+                if any(
                     next(iter(notification))
                     == "DosingAutomationActionAsyncNotification"
                     for notification in notifications
@@ -662,7 +661,7 @@ class MTAutoBalance:
                             "result": None,
                             "success": False,
                         }
-                elif any(
+                if any(
                     next(iter(notification))
                     == "DosingAutomationJobFinishedAsyncNotification"
                     for notification in notifications
@@ -696,7 +695,7 @@ class MTAutoBalance:
                             ),
                             "success": True,
                         }
-                elif any(
+                if any(
                     next(iter(notification))
                     == "DosingAutomationFinishedAsyncNotification"
                     for notification in notifications
