@@ -17,6 +17,7 @@ class ProgramMode(Enum):
     """
     The current state of machine (if it is running a program)
     """
+
     RES = 0
     RUN = 1
     HOLD = 2
@@ -27,6 +28,7 @@ class ProgramEndType(Enum):
     """
     What to do when a program ends
     """
+
     DWELL = 1
     SP2 = 2
     RESET = 3
@@ -37,6 +39,7 @@ class SegmentFurnace3216P(NamedTuple):
     """
     The arguments for configuring
     """
+
     dwell_time_min: Optional[int]
     ramp_rate: Optional[float]
     target_temperature: int
@@ -78,11 +81,11 @@ class FurnaceRegister:
     """
 
     def __init__(
-            self,
-            *,
-            port: str = "COM3",
-            baudrate: int = 9600,
-            timeout: Optional[float] = 30.,
+        self,
+        *,
+        port: str = "COM3",
+        baudrate: int = 9600,
+        timeout: Optional[float] = 30.0,
     ):
         """
         Args:
@@ -91,7 +94,9 @@ class FurnaceRegister:
             timeout: waiting time for response
         """
         self._port = port
-        self._modbus_client = ModbusSerialClient(method='rtu', port=port, timeout=timeout, baudrate=baudrate)
+        self._modbus_client = ModbusSerialClient(
+            method="rtu", port=port, timeout=timeout, baudrate=baudrate
+        )
         self._modbus_client.connect()
         self._mutex_lock = Lock()
         self._register = self.load_register_list()
@@ -101,7 +106,9 @@ class FurnaceRegister:
         """
         Load register list from file, which includes the address, name, description
         """
-        with (Path(__file__).parent / "modbus_addr.csv").open("r", encoding="utf-8") as f:
+        with (Path(__file__).parent / "modbus_addr.csv").open(
+            "r", encoding="utf-8"
+        ) as f:
             csv_reader = DictReader(f)
 
             registers = {}
@@ -148,7 +155,9 @@ class FurnaceRegister:
             )
             if isinstance(value, Exception):
                 raise FurnaceReadError(
-                    "Cannot read register {} ({})".format(register_name, register_info.address)
+                    "Cannot read register {} ({})".format(
+                        register_name, register_info.address
+                    )
                 ) from value
 
             value = value.registers
@@ -187,13 +196,16 @@ class FurnaceRegister:
         logger.debug("Write to register {}: {}".format(register_name, value))
 
         if isinstance(response, Exception):
-            raise FurnaceWriteError("Fails to write to register: {}".format(register_name)) from response
+            raise FurnaceWriteError(
+                "Fails to write to register: {}".format(register_name)
+            ) from response
 
 
 class FurnaceController(FurnaceRegister):
     """
     Implement higher-level functionalities over 2416 heat controller register
     """
+
     # temperature that allows for safe operations (in degree C)
     _SAFETY_TEMPERATURE = 100
 
@@ -269,8 +281,10 @@ class FurnaceController(FurnaceRegister):
         """
         Whether the program is running
         """
-        return (self.program_mode == ProgramMode.RUN
-                or self.current_temperature >= self._SAFETY_TEMPERATURE)
+        return (
+            self.program_mode == ProgramMode.RUN
+            or self.current_temperature >= self._SAFETY_TEMPERATURE
+        )
 
     def _read_segment_i(self, i: int) -> Dict[str, Any]:
         if self["PROGRAMMER.DwellUnits"] != 1:  # 0 is hour, 1 is minute
@@ -295,7 +309,7 @@ class FurnaceController(FurnaceRegister):
 
         for j in list(range(8))[::-1]:
             if segments[j]["dwell_time"] or segments[j]["ramp_rate"]:
-                return segments[:(j + 1)]
+                return segments[: (j + 1)]
         return []
 
     def configure_segments(self, *segments: SegmentFurnace3216P):
@@ -307,23 +321,25 @@ class FurnaceController(FurnaceRegister):
             If there is end segment in the middle, a warning will be thrown.
         """
         _EMPTY_SEGMENT = SegmentFurnace3216P(
-            dwell_time_min=None,
-            ramp_rate=None,
-            target_temperature=0
+            dwell_time_min=None, ramp_rate=None, target_temperature=0
         )
         segments = list(segments) + [_EMPTY_SEGMENT] * (8 - len(segments))
         if len(segments) > 8:
             raise ValueError("The maximum number of segments is 8")
 
-        if self["PROGRAMMER.DwellUnits"] != 1:  # 0 is hour, 1 is minute
-            self["PROGRAMMER.DwellUnits"] = 1
+        if self["PROGRAMMER.DwellUnits"] != 0:  # 0 is hour, 1 is minute
+            self["PROGRAMMER.DwellUnits"] = 0
         if self["SP.RampUnits"] != 0:  # 0 is minute, 1 is hour, 2 is second
             self["SP.RampUnits"] = 0
 
         for i, segment in enumerate(segments, 1):
             self[f"PROGRAMMER.SP{i}"] = segment.target_temperature
-            self[f"PROGRAMMER.Dwell{i}"] = segment.dwell_time_min if segment.dwell_time_min else 0
-            self[f"PROGRAMMER.Ramp{i}"] = int(segment.ramp_rate * 10) if segment.ramp_rate else 0
+            self[f"PROGRAMMER.Dwell{i}"] = (
+                segment.dwell_time_min if segment.dwell_time_min else 0
+            )
+            self[f"PROGRAMMER.Ramp{i}"] = (
+                int(segment.ramp_rate * 10) if segment.ramp_rate else 0
+            )
 
     def get_current_time(self) -> str:
         return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
