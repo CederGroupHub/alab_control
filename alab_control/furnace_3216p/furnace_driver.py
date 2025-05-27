@@ -287,8 +287,8 @@ class FurnaceController(FurnaceRegister):
         )
 
     def _read_segment_i(self, i: int) -> Dict[str, Any]:
-        if self["PROGRAMMER.DwellUnits"] != 1:  # 0 is hour, 1 is minute
-            self["PROGRAMMER.DwellUnits"] = 1
+        if self["PROGRAMMER.DwellUnits"] != 0:  # 0 is hour, 1 is minute
+            self["PROGRAMMER.DwellUnits"] = 0
         if self["SP.RampUnits"] != 0:  # 0 is minute, 1 is hour, 2 is second
             self["SP.RampUnits"] = 0
 
