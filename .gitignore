@@ -141,3 +141,4 @@ dmypy.json
 
 .DS_Store
 example/.DS_Store
+/alab_control/phenom/Auto_EDS
