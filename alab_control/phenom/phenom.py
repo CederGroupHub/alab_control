@@ -7,7 +7,7 @@ import numpy as np
 import sys
 from pymatgen.core import Composition,periodic_table
 import pandas as pd
-from Auto_EDS.Launch_SEMEDX_analyser import SEMEDXLauncher
+from .Auto_EDS.Launch_SEMEDX_analyser import SEMEDXLauncher
 
 
 # def from_weight_dict( weight_dict) -> Composition:
@@ -605,11 +605,21 @@ class PhenomDriver():
             return False
         return True
 
-    def launch_SEMEDX_analyser(self, samples):
+    # TODO: do a test run on sample position #1. 
+    def launch_SEMEDX_collection(self, samples):
         """
-        Launch the SEMEDX analyser.
+        Launch the SEMEDX collection.
+        samples is a list of dictionaries, each dictionary contains the following keys:
+        - 'els': list of elements to quantify in the spectra. example: ['Ca', 'Al', 'Si', 'O']
+        - 'id': id of the sample. example: 'Anorthite' + '_mineral'
+        - 'pos': position of the sample. example: (-37.5, 37.5)
+        - 'refs': list of reference formulae for the sample. example: ['CaAl2Si2O8']
         """
-        self.SEMEDXLauncher.launch_collection(samples)
+        try:
+            self.SEMEDXLauncher.launch_collection(samples)
+        except:
+            print("Failed to launch SEMEDX collection.")
+            return False
     
     # def hibernate(self):
     #     """
