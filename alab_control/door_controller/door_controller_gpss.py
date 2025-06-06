@@ -73,6 +73,7 @@ class DoorController(BaseArduinoDevice):
         if block:
             while self.is_running():
                 time.sleep(0.1)
+            time.sleep(2)  # give it some time to settle
 
     def get_status(self):
         """
