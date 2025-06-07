@@ -3,13 +3,17 @@ from enum import Enum
 
 from alab_control._base_arduino_device import BaseArduinoDevice
 
+
 class BallDispenserState(Enum):
     STOPPED = "stopped"
     RUNNING = "running"
 
+
 class EmptyError(Exception):
     """An error that is raised when the ball dispenser is empty"""
+
     pass
+
 
 class BallDispenser(BaseArduinoDevice):
     """
@@ -31,7 +35,13 @@ class BallDispenser(BaseArduinoDevice):
         if self.get_state() == BallDispenserState.RUNNING:
             raise RuntimeError("Dispenser is still running")
 
-        self.send_request(self.ENDPOINTS["start"], method="GET", suppress_error=True, timeout=10, max_retries=5)
+        self.send_request(
+            self.ENDPOINTS["start"],
+            method="GET",
+            suppress_error=True,
+            timeout=10,
+            max_retries=5,
+        )
         print(f"{self.get_current_time()} Dispensing balls")
         start_time = time.time()
         time.sleep(5)
@@ -49,7 +59,13 @@ class BallDispenser(BaseArduinoDevice):
         """
         if self.get_state() == BallDispenserState.STOPPED:
             return
-        self.send_request(self.ENDPOINTS["stop"], method="GET", suppress_error=True, timeout=10, max_retries=5)
+        self.send_request(
+            self.ENDPOINTS["stop"],
+            method="GET",
+            suppress_error=True,
+            timeout=10,
+            max_retries=5,
+        )
 
     def change_number(self, n: int):
         """
@@ -60,12 +76,18 @@ class BallDispenser(BaseArduinoDevice):
         """
         if not 0 <= n <= 100:
             raise ValueError("n must be between 0 and 100")
-        self.send_request(self.ENDPOINTS["change_number"]+ f"n={n}", method="GET")
+        self.send_request(self.ENDPOINTS["change_number"] + f"?n={n}", method="GET")
 
     def get_state(self) -> BallDispenserState:
         """
         Get the current state of the dispenser
         """
         return BallDispenserState[
-            self.send_request(self.ENDPOINTS["state"], suppress_error=True, method="GET", max_retries=5, timeout=10)["state"].upper()
+            self.send_request(
+                self.ENDPOINTS["state"],
+                suppress_error=True,
+                method="GET",
+                max_retries=5,
+                timeout=10,
+            )["state"].upper()
         ]
