@@ -60,6 +60,11 @@ class GripperController:
         # disable auto initialization
         self.client.write_register(0x0504, 0, unit=self.slave_address)
 
+    def set_rotating_blocking(self, enabled: bool):
+        # 0: do not stop when gripper is blocked
+        # 1: stop when gripper is blocked
+        self.client.write_register(0x0505, int(enabled), unit=self.slave_address)
+
     def initialize(self, wait=True, mode: int = 0xA5):
         if self.check_initialization() == InitializationStatus.INITIALIZED:
             return
