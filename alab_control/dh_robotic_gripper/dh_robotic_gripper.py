@@ -26,6 +26,7 @@ class RotationMode(Enum):
 class RotationStatus(Enum):
     MOVING = 0
     REACHED = 1
+    BLOCKED_MOVING = 2
     BLOCKED = 3
 
 
