@@ -148,3 +148,11 @@ class LinearRailController3G:
                 if self.read_motion_state() == RailStatus3G.BLOCKED:
                     raise RuntimeError("Rail is blocked.")
                 time.sleep(0.2)
+
+    def close(self):
+        """
+        Close the Modbus client connection.
+        """
+        if self.client:
+            self.client.close()
+            self.client = None

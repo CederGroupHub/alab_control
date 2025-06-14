@@ -270,6 +270,13 @@ class XRDPrepController:
             dispensed_mass=final_mass - initial_mass,
         )
 
+    def close(self):
+        """
+        Close the controller and release resources
+        """
+        self.gripper.close()
+        self.linear_rail.close()
+
 
 if __name__ == "__main__":
     xrd_dispenser = XRDPrepController(
