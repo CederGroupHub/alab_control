@@ -167,7 +167,7 @@ class XRDPrepController:
             last_rotation_time = time.time()
             while not stop_event.is_set():
                 time.sleep(0.05)
-                if time.time() - last_rotation_time > 3.0:
+                if time.time() - last_rotation_time > 5.0:
                     counter += 1
                     last_rotation_time = time.time()
                     self.gripper.rotate(
@@ -231,7 +231,7 @@ class XRDPrepController:
                 try:
                     gripper_rotating_thread.start()
                     with self.shaker.motor_on():
-                        while time.time() - start_time < 12:
+                        while time.time() - start_time < 15:
                             dispensed_mass = current_mass - initial_mass
 
                             # if the mass is within the tolerance, mark it as finished
