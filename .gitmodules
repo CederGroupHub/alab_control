@@ -1,3 +1,6 @@
 [submodule "alab_control/tube_furnace_mti/tube_furnace_MTI"]
 	path = alab_control/tube_furnace_mti/tube_furnace_MTI
 	url = https://github.com/idocx/tube_furnace_MTI
+[submodule "alab_control/EMSBot"]
+	path = alab_control/EMSBot
+	url = https://github.com/dmilsted/EMSBot
