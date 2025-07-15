@@ -72,6 +72,9 @@ class EnderCapperRelay(BaseArduinoDevice):
             max_retries=10,
             timeout=10
         )
+        # wait until state is IDLE
+        while self.get_state() == EnderCapperRelayState.RUNNING:
+            time.sleep(0.1)
         
     def ccw_motor(self, rpm: int, revolutions: int):
         """
@@ -88,4 +91,7 @@ class EnderCapperRelay(BaseArduinoDevice):
             max_retries=10,
             timeout=10
         )
+        # wait until state is IDLE
+        while self.get_state() == EnderCapperRelayState.RUNNING:
+            time.sleep(0.1)
         
