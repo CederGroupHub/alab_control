@@ -1,4 +1,5 @@
 import time
+from typing import Literal
 
 from alab_control._base_arduino_device import BaseArduinoDevice
 
@@ -17,15 +18,20 @@ class DoorController(BaseArduinoDevice):
         if status[f"furnace{name}"] == "Open":
             return
 
-        self.run_action(endpoint, block)
+        for i in range(2):
+            self.run_action(endpoint, block)
 
-        # check if the door is open
-        status = self.get_status()
-        if status[f"furnace{name}"] != "Open":
-            raise RuntimeError(
-                f"Failed to open door {name}: {status.get('error', 'Unknown error')}. "
-                f"Raw response: {status}"
-            )
+            # check if the door is open
+            status = self.get_status()
+            if status[f"furnace{name}"] != "Open":
+                if i < 1:
+                    continue
+                raise RuntimeError(
+                    f"Failed to open door {name}: {status.get('error', 'Unknown error')}. "
+                    f"Raw response: {status}"
+                )
+            else:
+                break
 
     def close_furnace(self, name: str, block: bool = True):
         if name not in self.ALL_DOORS:
@@ -43,7 +49,11 @@ class DoorController(BaseArduinoDevice):
                 f"Raw response: {status}"
             )
 
-    def run_action(self, endpoint: str, block: bool = True):
+    def run_action(
+        self,
+        endpoint: str,
+        block: bool = True,
+    ):
         """
         Run action on the furnace
         """
@@ -57,6 +67,12 @@ class DoorController(BaseArduinoDevice):
         time.sleep(1)
         status = self.get_status()
         start_time = time.time()
+
+        action = "Open" if "open" in endpoint else "Close"
+        furnace_id = endpoint.split("_")[-1].upper()
+
+        if status[f"furnace{furnace_id}"] == "Opened" and action == "Open":
+            return
 
         # make sure it starts
         while (
