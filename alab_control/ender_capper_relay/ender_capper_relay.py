@@ -27,7 +27,7 @@ class EnderCapperRelay(BaseArduinoDevice):
         Get the current state of the cap dispenser
         whether it is running or not.
         """
-        state=str(EnderCapperRelayState[self.send_request(self.ENDPOINTS["state"], method="GET", suppress_error=True, max_retries=10, timeout=10)["state"].upper()])
+        state=str(self.send_request(self.ENDPOINTS["state"], method="GET", suppress_error=True, max_retries=10, timeout=10)["system_status"].upper())
         if state=="RUNNING":
             return EnderCapperRelayState.RUNNING
         elif state=="IDLE":
@@ -37,27 +37,31 @@ class EnderCapperRelay(BaseArduinoDevice):
         """
         Open the top gripper
         """
-        self.send_request(self.ENDPOINTS["open-top-gripper"], method="GET", suppress_error=True, max_retries=10, timeout=10)
+        for i in range(3):
+            self.send_request(self.ENDPOINTS["open-top-gripper"], method="GET", suppress_error=True, max_retries=10, timeout=10)
 
     def close_top_gripper(self):
         """
         Close the top gripper
         """
-        self.send_request(self.ENDPOINTS["close-top-gripper"], method="GET", suppress_error=True, max_retries=10, timeout=10)
+        for i in range(3):
+            self.send_request(self.ENDPOINTS["close-top-gripper"], method="GET", suppress_error=True, max_retries=10, timeout=10)
 
     def open_bottom_gripper(self):
         """
         Open the bottom gripper
         """
-        self.send_request(self.ENDPOINTS["open-bottom-gripper"], method="GET", suppress_error=True, max_retries=10, timeout=10)
+        for i in range(3):
+            self.send_request(self.ENDPOINTS["open-bottom-gripper"], method="GET", suppress_error=True, max_retries=10, timeout=10)
 
     def close_bottom_gripper(self):
         """
         Close the bottom gripper
         """
-        self.send_request(self.ENDPOINTS["close-bottom-gripper"], method="GET", suppress_error=True, max_retries=10, timeout=10)
+        for i in range(3):
+            self.send_request(self.ENDPOINTS["close-bottom-gripper"], method="GET", suppress_error=True, max_retries=10, timeout=10)
 
-    def cw_motor(self, rpm: int, revolutions: int):
+    def cw_motor(self, rpm: int, revolutions: float):
         """
         Rotate the motor clockwise for a given speed and number of revolutions.
         rpm: the speed of the motor in rpm
@@ -67,7 +71,7 @@ class EnderCapperRelay(BaseArduinoDevice):
         self.send_request(
             self.ENDPOINTS["cw-motor"],
             method="GET",
-            data=params,
+            params=params,
             suppress_error=True,
             max_retries=10,
             timeout=10
@@ -76,7 +80,7 @@ class EnderCapperRelay(BaseArduinoDevice):
         while self.get_state() == EnderCapperRelayState.RUNNING:
             time.sleep(0.1)
         
-    def ccw_motor(self, rpm: int, revolutions: int):
+    def ccw_motor(self, rpm: int, revolutions: float):
         """
         Rotate the motor counterclockwise for a given speed and number of revolutions.
         rpm: the speed of the motor in rpm
@@ -86,7 +90,7 @@ class EnderCapperRelay(BaseArduinoDevice):
         self.send_request(
             self.ENDPOINTS["ccw-motor"],
             method="GET",
-            data=params,
+            params=params,
             suppress_error=True,
             max_retries=10,
             timeout=10

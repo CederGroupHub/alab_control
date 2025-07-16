@@ -14,13 +14,16 @@ class BaseArduinoDevice(abc.ABC):
         self.port = port
 
     def send_request(self, endpoint: str, data: Optional[Dict[str, Union[str, int, float, bytes, bool]]] = None,
-                     method: str = "GET", jsonify: bool = True, suppress_error: bool = False, timeout=600, max_retries=1):
+                     method: str = "GET", jsonify: bool = True, suppress_error: bool = False, timeout=600, max_retries=1, params: Optional[Dict[str, Union[str, int, float, bytes, bool]]] = None) -> Union[requests.Response, Dict]:
+        """        
+        Send a request to the device's RESTful API.
+        """
         url = f"http://{self.ip_address}:{self.port}{endpoint}"
         time.sleep(0.1)
         retries = 0
         while retries < max_retries:
             try:
-                response = requests.request(method=method, url=url, data=data, timeout=timeout)
+                response = requests.request(method=method, url=url, data=data, timeout=timeout, params=params)
                 break
             except:
                 retries += 1
