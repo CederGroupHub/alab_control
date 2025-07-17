@@ -1,5 +1,4 @@
 import time
-from typing import Literal
 
 from alab_control._base_arduino_device import BaseArduinoDevice
 
@@ -30,8 +29,7 @@ class DoorController(BaseArduinoDevice):
                     f"Failed to open door {name}: {status.get('error', 'Unknown error')}. "
                     f"Raw response: {status}"
                 )
-            else:
-                break
+            break
 
     def close_furnace(self, name: str, block: bool = True):
         if name not in self.ALL_DOORS:
