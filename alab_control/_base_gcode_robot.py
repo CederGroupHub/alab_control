@@ -111,6 +111,7 @@ class BaseGcodeRobot(ABC):
         y: Optional[float] = None,
         z: Optional[float] = None,
         zhop: bool = False,
+        do_not_check_if_move_is_valid: bool = False,
     ):
         """Moves to target position in x,y,z (mm). If a particular target coordinate is not supplied, automatically
         returns the current position for that coordinate.
@@ -121,7 +122,8 @@ class BaseGcodeRobot(ABC):
             z (float): Target z position (mm)
             zhop (bool): Whether to z-hop (raise the z-axis) before moving to the target position. This is useful to avoid collisions.
         """
-        x, y, z = self.check_move_is_valid(x, y, z)  # check for invalid move
+        if not do_not_check_if_move_is_valid:
+            x, y, z = self.check_move_is_valid(x, y, z)  # check for invalid move
 
         ######################################################
         # Uncomment next line to print positions for each movement request
@@ -148,7 +150,7 @@ class BaseGcodeRobot(ABC):
             self._movecommand(x, y, z)
             self._waitformovement()
 
-    def moverel(self, x=0, y=0, z=0, zhop=False):
+    def moverel(self, x=0, y=0, z=0, zhop=False, do_not_check_if_move_is_valid=False):
         """
         moves by coordinates relative to the current position
         """
@@ -160,7 +162,7 @@ class BaseGcodeRobot(ABC):
         x += self.position[0]
         y += self.position[1]
         z+= self.position[2]
-        self.moveto(x, y, z, zhop)
+        self.moveto(x, y, z, zhop, do_not_check_if_move_is_valid=do_not_check_if_move_is_valid)
 
     def moveto_sequence(
         self, coordinates: List[tuple[float | None, float | None, float | None]]
