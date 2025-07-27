@@ -224,7 +224,10 @@ class Shaker(BaseArduinoDevice):
         """
         Send a stop command to the shaker machine
         """
-        self.send_request(self.ENDPOINTS["stop"], timeout=10, max_retries=3)
+        # three times to send the stop command
+        for _ in range(3):
+            self.send_request(self.ENDPOINTS["stop"], timeout=10, max_retries=3)
+            time.sleep(2)
 
     def reset(self):
         """

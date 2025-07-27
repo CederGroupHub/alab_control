@@ -180,7 +180,7 @@ class LabmanView:
         5  # minimum time (seconds) between getting status updates from Labman
     )
 
-    def __init__(self, url="128.3.17.139", port=8080):
+    def __init__(self, url="192.168.1.204", port=8080):
         initialize_labman_database(overwrite_existing=False)
         self.quadrants = {i: Quadrant(i) for i in [1, 2, 3, 4]}  # four quadrants, 1-4
         self.powder_view = PowderView()
@@ -350,7 +350,7 @@ class LabmanView:
 
 
 class Labman(LabmanView):
-    def __init__(self, url="128.3.17.139", port=8080):
+    def __init__(self, url="192.168.1.204", port=8080):
         super().__init__(url=url, port=port)
 
     def load_jar(self, quadrant: int, position: int):
