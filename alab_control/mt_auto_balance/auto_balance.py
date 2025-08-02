@@ -470,13 +470,13 @@ class MTAutoBalance:
             # check if the door is opened
             position = 0
             start_time = time.time()
-            while position < 98 and time.time() - start_time < 5:
+            while position < 95 and time.time() - start_time < 10:
                 time.sleep(0.1)
                 position = draft_shields_client.get_door_position(doors=[f"{door}"])[0][
                     "OpeningWidth"
                 ]
             else:
-                if position < 98:
+                if position < 95:
                     raise MTAutoBalanceError(
                         f"Failed to open the door within 5 seconds. "
                         f"The door position is {position}."
@@ -491,13 +491,13 @@ class MTAutoBalance:
             # check if the door is closed
             position = 100
             start_time = time.time()
-            while position > 2 and time.time() - start_time < 5:
+            while position > 5 and time.time() - start_time < 10:
                 time.sleep(0.1)
                 position = draft_shields_client.get_door_position(doors=[f"{door}"])[0][
                     "OpeningWidth"
                 ]
             else:
-                if position > 2:
+                if position > 5:
                     raise MTAutoBalanceError(
                         f"Failed to close the door within 5 seconds. "
                         f"The door position is {position}."
