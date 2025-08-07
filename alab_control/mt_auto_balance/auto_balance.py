@@ -465,7 +465,7 @@ class MTAutoBalance:
     def open_door(self, door: Literal["LeftOuter", "RightOuter"]):
         with self.get_session() as session:
             draft_shields_client = session.create_client(DraftShieldsClient)
-            draft_shields_client.set_door_position(door=door, position=100)
+            draft_shields_client.set_door_position(door=door, position=98)
 
             # check if the door is opened
             position = 0
