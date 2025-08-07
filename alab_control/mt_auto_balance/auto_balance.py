@@ -485,7 +485,7 @@ class MTAutoBalance:
     def close_door(self, door: Literal["LeftOuter", "RightOuter"]):
         with self.get_session() as session:
             draft_shields_client = session.create_client(DraftShieldsClient)
-            draft_shields_client.set_door_position(door=door, position=2)
+            draft_shields_client.set_door_position(door=door, position=0)
             time.sleep(1)
 
             # check if the door is closed
