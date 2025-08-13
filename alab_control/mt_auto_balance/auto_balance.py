@@ -103,8 +103,9 @@ class BaseClient(abc.ABC):
     name: str
     wsdl: Path = Path(__file__).parent / "MT.Laboratory.Balance.XprXsr.V03.wsdl"
 
-    def __init__(self, host: str, session: "Session" = None):
-        self.client = zeep.Client(wsdl=self.wsdl.as_posix())
+    def __init__(self, host: str, session: "Session" = None, timeout: int = 10):
+        self.transport = zeep.transports.Transport(operation_timeout=timeout)
+        self.client = zeep.Client(wsdl=self.wsdl.as_posix(), transport=self.transport)
         self.session = session
         self.service = self.client.create_service(
             binding_name=f"{{http://MT/Laboratory/Balance/XprXsr/V03}}BasicHttpBinding_I{self.name}",
