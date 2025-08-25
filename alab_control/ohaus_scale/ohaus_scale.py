@@ -28,11 +28,13 @@ class OhausScale:
         while retry < self.max_retries:
             try:
                 mass_string = self.send_command("SP").strip()
+                if mass_string == "":
+                    raise TimeoutError("No response from scale.")
                 break
             except socket.timeout:
                 retry += 1
                 time.sleep(0.5)
-            except OSError:
+            except (OSError, TimeoutError):
                 retry += 1
                 time.sleep(0.5)
         if mass_string is None:
