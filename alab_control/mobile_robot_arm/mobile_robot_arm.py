@@ -1,5 +1,6 @@
 import time
 from enum import Enum
+from functools import wraps
 
 import requests
 
@@ -9,21 +10,60 @@ class MRAState(Enum):
     ERROR = "error"
     SAFEGUARD_STOP = "safeguard_stop"
 
+def retry_request(max_retries=3, timeout=10):
+    """
+    Decorator to retry HTTP requests with timeout.
+    
+    Args:
+        max_retries: Maximum number of retry attempts (default: 3)
+        timeout: Request timeout in seconds (default: 10)
+    """
+    def decorator(func):
+        @wraps(func)
+        def wrapper(self, *args, **kwargs):
+            last_exception = None
+            
+            for attempt in range(max_retries + 1):
+                try:
+                    # Add timeout to requests if it's a requests call
+                    if hasattr(self, '_make_request_with_timeout'):
+                        return self._make_request_with_timeout(func, timeout, *args, **kwargs)
+                    else:
+                        return func(self, *args, **kwargs)
+                except (requests.exceptions.RequestException, ValueError) as e:
+                    last_exception = e
+                    if attempt < max_retries:
+                        time.sleep(1)  # Wait 1 second before retry
+                        continue
+                    else:
+                        raise last_exception
+            
+            return None
+        return wrapper
+    return decorator
+
 class MobileRobotArm():
     """
     Mobile Robot Arm.
     """
 
-    def __init__(self, ip: str = "192.168.1.207"):
+    def __init__(self, ip: str = "192.168.1.207", timeout: int = 10, max_retries: int = 3):
         self.ip = ip
+        self.timeout = timeout
+        self.max_retries = max_retries
         self.state, self.message = self.get_state_and_message()
         self.battery_level = self.get_battery_level()
+    
+    def _make_request_with_timeout(self, func, timeout, *args, **kwargs):
+        """Helper method to make requests with timeout."""
+        return func(self, *args, **kwargs)
 
+    @retry_request(max_retries=3, timeout=10)
     def request_status(self) -> dict:
         """
         Request the status of the MRA.
         """
-        response = requests.get(f"http://{self.ip}:8082/v2/status")
+        response = requests.get(f"http://{self.ip}:8082/v2/status", timeout=self.timeout)
         if response.status_code != 200:
             raise ValueError(f"Failed to get status. Status code: {response.status_code}. Response: {response.text}")
         return response.json()
@@ -73,13 +113,14 @@ class MobileRobotArm():
         else:
             return MRAState.ERROR, f"Unknown state: {state}. Please check the API documentation for the full list of states."
         
+    @retry_request(max_retries=3, timeout=10)
     def acknowledge_error(self):
         # send a put request to http://192.168.1.207:8082/v2/status with the following body:
         # {
         #     "state": "Ready"
         # }
         time.sleep(5) # wait for 5 seconds to make sure the MRA is ready to acknowledge the error
-        response = requests.put(f"http://{self.ip}:8082/v2/status", json={"state": "Ready"})
+        response = requests.put(f"http://{self.ip}:8082/v2/status", json={"state": "Ready"}, timeout=self.timeout)
         if response.status_code != 200:
             raise ValueError(f"Failed to acknowledge error. Status code: {response.status_code}. Response: {response.text}")
         
@@ -97,6 +138,7 @@ class MobileRobotArm():
         response = self.request_status()
         return response["current_program"]
     
+    @retry_request(max_retries=3, timeout=10)
     def load_program(self, program_name: str, arguments: list[dict]):
         # send a put request to http://192.168.1.207:8082/v2/programs/current with the following body example:
         # {
@@ -109,7 +151,7 @@ class MobileRobotArm():
         #         }
         #     ]
         # }
-        response = requests.put(f"http://{self.ip}:8082/v2/programs/current", json={"name": program_name, "arguments": arguments})
+        response = requests.put(f"http://{self.ip}:8082/v2/programs/current", json={"name": program_name, "arguments": arguments}, timeout=self.timeout)
         if response.status_code != 200:
             # if status code is 400 and response contains "ActivateProgramming", try again after acknowledging the error
             if response.status_code == 400 and "ActivateProgramming" in response.text:
@@ -123,6 +165,7 @@ class MobileRobotArm():
                     return
             raise ValueError(f"Failed to load program. Status code: {response.status_code}. Response: {response.text}")
         
+    @retry_request(max_retries=3, timeout=10)
     def start_program(self):
         # send a put request to http://192.168.1.207:8082/v2/status with the following body:
         # {
@@ -131,16 +174,17 @@ class MobileRobotArm():
         # check the state before sending the request. The state must be IDLE.
         if self.get_state_and_message()[0] != MRAState.IDLE:
             raise ValueError(f"The MRA must be in IDLE state to start a program. Current state: {self.get_state_and_message()[0]}")
-        response = requests.put(f"http://{self.ip}:8082/v2/status", json={"state": "Executing"})
+        response = requests.put(f"http://{self.ip}:8082/v2/status", json={"state": "Executing"}, timeout=self.timeout)
         if response.status_code != 200:
             raise ValueError(f"Failed to start program. Status code: {response.status_code}. Response: {response.text}")
         
+    @retry_request(max_retries=3, timeout=10)
     def stop_program(self):
         # send a put request to http://192.168.1.207:8082/v2/status with the following body:
         # {
         #     "state": "Ready"
         # }
-        response = requests.put(f"http://{self.ip}:8082/v2/status", json={"state": "Ready"})
+        response = requests.put(f"http://{self.ip}:8082/v2/status", json={"state": "Ready"}, timeout=self.timeout)
         if response.status_code != 200:
             raise ValueError(f"Failed to stop program. Status code: {response.status_code}. Response: {response.text}")
         
