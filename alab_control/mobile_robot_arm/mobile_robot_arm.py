@@ -211,3 +211,6 @@ class MobileRobotArm():
     
     def charge(self):
         self.run_main_program("Charging", "None", "None", "None", "None")
+
+    def charge_no_waiting(self):
+        self.run_main_program("ChargingNoWait", "None", "None", "None", "None")
