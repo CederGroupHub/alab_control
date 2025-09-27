@@ -117,6 +117,11 @@ class LinearRailController:
         # this is moving commands
         self.set_control_words(0x21)
         time.sleep(0.5)
+        start_time = time.time()
+        while self.read_motion_state() != RailStatus.MOVING and (
+            time.time() - start_time < 5
+        ):
+            time.sleep(0.2)
         if wait:
             while self.read_motion_state() != RailStatus.ARRIVED:
                 if self.read_alarm_code() != 0:
