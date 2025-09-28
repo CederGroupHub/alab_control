@@ -8,14 +8,13 @@ from pymodbus.exceptions import ModbusException
 
 
 class RailInitializationStatus(Enum):
-    NOT_INITIALIZED = 0
-    INITIALIZED = 1
-    INITIALIZING = 2
+    NOT_INITIALIZING = 0
+    INITIALIZING = 1
 
 
 class RailStatus(Enum):
-    MOVING = 0
-    ARRIVED = 1
+    MOVING = 1
+    ARRIVED = 0
 
 
 class LinearRailController:
@@ -56,12 +55,16 @@ class LinearRailController:
         self.set_control_words(0x22)
         time.sleep(0.2)
         start_time = time.time()
-        while self.read_motion_state() != RailStatus.MOVING and (
-            time.time() - start_time < 5
+        while (
+            self.read_initialization_status() != RailInitializationStatus.INITIALIZING
+            and (time.time() - start_time < 5)
         ):
             time.sleep(0.5)
         if wait:
-            while self.read_motion_state() != RailStatus.ARRIVED:
+            while (
+                self.read_initialization_status()
+                != RailInitializationStatus.NOT_INITIALIZING
+            ):
                 if self.read_alarm_code() != 0:
                     raise RuntimeError(
                         f"Alarm detected during initialization. "
@@ -87,7 +90,13 @@ class LinearRailController:
         response = self.client.read_holding_registers(0x1611, unit=self.slave_address)
         self._check_response(response)
         state = bin(response.registers[0])[2:]
-        return RailStatus(int(state[4]))
+        return RailStatus(int(state[7]))
+
+    def read_initialization_status(self) -> RailInitializationStatus:
+        response = self.client.read_holding_registers(0x1611, unit=self.slave_address)
+        self._check_response(response)
+        state = bin(response.registers[0])[2:]
+        return RailInitializationStatus(int(state[9]))
 
     def move_to(
         self,
