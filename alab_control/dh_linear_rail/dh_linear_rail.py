@@ -57,7 +57,7 @@ class LinearRailController:
         start_time = time.time()
         while (
             self.read_initialization_status() != RailInitializationStatus.INITIALIZING
-            and (time.time() - start_time < 5)
+            and (time.time() - start_time < 2)
         ):
             time.sleep(0.5)
         if wait:
@@ -125,10 +125,10 @@ class LinearRailController:
         time.sleep(0.3)
         # this is moving commands
         self.set_control_words(0x21)
-        time.sleep(0.5)
+        time.sleep(0.2)
         start_time = time.time()
         while self.read_motion_state() != RailStatus.MOVING and (
-            time.time() - start_time < 5
+            time.time() - start_time < 2
         ):
             time.sleep(0.2)
         if wait:
