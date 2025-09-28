@@ -8,8 +8,8 @@ from pymodbus.exceptions import ModbusException
 
 
 class RailInitializationStatus(Enum):
-    NOT_INITIALIZING = 0
-    INITIALIZING = 1
+    NOT_INITIALIZING = 1
+    INITIALIZING = 0
 
 
 class RailStatus(Enum):
