@@ -5,6 +5,8 @@ import threading
 import time
 from typing import Literal
 
+from pydantic import BaseModel
+
 from alab_control.dh_linear_rail.dh_linear_rail import LinearRailController
 from alab_control.dh_robotic_gripper.dh_robotic_gripper import (
     GripperController,
@@ -12,7 +14,6 @@ from alab_control.dh_robotic_gripper.dh_robotic_gripper import (
 )
 from alab_control.gripper_shaker.gripper_shaker import GripperShaker
 from alab_control.ohaus_scale.ohaus_scale_gpss import OhausScale
-from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
 
@@ -40,11 +41,13 @@ class XRDDispenserResult(BaseModel):
 
 
 class XRDPrepController:
-    def __init__(self, gripper_port, rail_port, balance_ip, shaker_ip):
+    def __init__(
+        self, gripper_port, rail_port, balance_ip, shaker_ip, shaker_com_port=None
+    ):
         self.gripper = GripperController(port=gripper_port)
         self.linear_rail = LinearRailController(port=rail_port)
         self.balance = OhausScale(balance_ip)
-        self.shaker = GripperShaker(shaker_ip)
+        self.shaker = GripperShaker(shaker_ip, com_port=shaker_com_port)
 
     def move_rail_forward(self):
         # Move to balance

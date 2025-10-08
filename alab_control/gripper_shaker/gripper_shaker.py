@@ -4,6 +4,8 @@ import time
 from contextlib import contextmanager
 from enum import Enum
 
+import serial
+
 from alab_control._base_arduino_device import BaseArduinoDevice
 
 
@@ -19,6 +21,31 @@ class GripperShaker(BaseArduinoDevice):
         "repeat": "/repeat",
         "state": "/state",
     }
+
+    def __init__(self, ip_address, port=80, com_port=None):
+        super().__init__(ip_address, port=port)
+        self.com_port = com_port
+
+    def reset_gripper(self):
+        if self.com_port is None:
+            raise Exception("com_port must be set")
+
+        with serial.Serial(self.com_port, 9600) as ser:
+            ser.dtr = False
+            time.sleep(1)
+            ser.reset_input_buffer()
+            ser.dtr = True
+            time.sleep(10)  # wait for Arduino to reboot
+
+    def send_request(self, *args, **kwargs):
+        try:
+            return super().send_request(*args, **kwargs)
+        except RuntimeError:
+            if self.com_port is None:
+                raise
+            else:
+                self.reset_gripper()
+                return super().send_request(*args, **kwargs)
 
     def start_motor(self):
         if self.get_state()["state"] == MotorState.RUNNING:
