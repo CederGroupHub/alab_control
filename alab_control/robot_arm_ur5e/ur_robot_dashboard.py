@@ -127,7 +127,8 @@ class URRobotDashboard:
 
         return response
 
-    def run_program(self, name: str, block: bool = True):
+    def run_program(self, name: str, block: bool = True, timeout: Optional[int] = 600,
+                    stop_program_on_timeout: bool = False):
         """
         Run a program
 
@@ -136,9 +137,17 @@ class URRobotDashboard:
                 predefined name in the PREDEFINED_PROGRAM
             block: whether to wait and return until the program is finished.
         """
+        if timeout is not None:
+            timeout_seconds = timeout
+        else:
+            timeout_seconds = 999999  # effectively no timeout
         if self.is_running():
             raise URRobotError("There is still a program running!")
         self.load(name)
+        # TODO: DELETE THIS LATER AND FIND BETTER SOLUTION!! wait for three seconds to make sure the program is loaded
+        # TODO: USE get loaded program to check if the correct program is loaded - test whether this exactly works after the loading is done or during loading.
+        # CANNOT BE USED UF ITS ONLY DURING LOADING
+        time.sleep(3)
         logger.info("Run program: {}".format(name))
         with self._primary.monitor_popup():
             self.play()
@@ -149,11 +158,13 @@ class URRobotDashboard:
             if block:
                 try:
                     self.wait_for_finish(
-                        timeout=600
-                    )  # set a maximum timeout of 10 minutes
+                        timeout=timeout_seconds
+                    )  # set the maximum wait time for program finish
                 except URRobotPopupError:
                     raise
                 except Exception as e:
+                    if stop_program_on_timeout:
+                        self.stop()
                     raise URRobotError(
                         f"Error when waiting for program to finish: {name}. Protective/Emergency stop might have occured. If so, please jog the robot arm safely to reset and try again. {e.args[0]}"
                     ) from e

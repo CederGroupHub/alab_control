@@ -28,6 +28,8 @@ class BaseURRobot:
             program: str,
             fmt: Optional[Literal["urp_path", "urscript", "urscript_path"]] = None,
             block: bool = True,
+            timeout: Optional[int] = 600,
+            stop_program_on_timeout: bool = False,
     ):
         """
         Run single program in the robot arm.
@@ -63,13 +65,18 @@ class BaseURRobot:
             )
 
         if fmt == "urp_path":
-            self.dashboard.run_program(program, block=block)
+            self.dashboard.run_program(program, block=block, timeout=timeout,
+                                       stop_program_on_timeout=stop_program_on_timeout)
         elif fmt == "urscript_path":
             program_content = self.ssh.read_program(
                 program, header_file_name=self.HEADER_FILE_NAME
             )
+            # timeout is not supported for urscript_path format
+            # stop_program_on_timeout is not supported for urscript_path format
             self.secondary.run_program(program_content, block=block)
         elif fmt == "urscript":
+            # timeout is not supported for urscript format
+            # stop_program_on_timeout is not supported for urscript format
             self.secondary.run_program(program, block=block)
         else:
             raise ValueError(
