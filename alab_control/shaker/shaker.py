@@ -200,6 +200,25 @@ class Shaker(BaseArduinoDevice):
                     raise ShakerError("Shaker machine is in error state.")
                 time.sleep(1)
             self.stop()
+            # sometimes the start signal might still be activated even after its not "starting"
+            time.sleep(3)
+            state = self.get_state()
+            while ShakerState(state["shaker_status"]) == ShakerState.STARTING:
+                state = self.get_state()
+                if SystemState(state["system_status"]) == SystemState.ERROR:
+                    raise ShakerError("Shaker machine is in error state.")
+                time.sleep(1)
+            self.stop()
+            # stop again after start signal is fully deactivated
+            time.sleep(2)
+            state = self.get_state()
+            while ShakerState(state["shaker_status"]) == ShakerState.STARTING:
+                state = self.get_state()
+                if SystemState(state["system_status"]) == SystemState.ERROR:
+                    raise ShakerError("Shaker machine is in error state.")
+                time.sleep(1)
+            self.stop()
+            time.sleep(3)
 
     def close_gripper_and_shake(self, duration_sec: int):
         """
