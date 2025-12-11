@@ -173,6 +173,11 @@ class BaseURRobot:
             self.secondary.close()
         self.dashboard.close()
 
+    def stop(self):
+        """
+        Stop the robot arm
+        """
+        self.dashboard.stop()
 
 class Dummy:
     """
