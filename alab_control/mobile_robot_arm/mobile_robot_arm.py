@@ -225,6 +225,10 @@ class MobileRobotArm():
         # wait for the program to finish.
         while self.is_running():
             time.sleep(1)
+        # sometimes somehow the program is not finished yet but the is_running suddenly returns False.
+        # so we need to check again and wait until the program is finished.
+        while self.is_running():
+            time.sleep(1)
         self.state, self.message = self.get_state_and_message()
         # if the state is SAFEGUARD_STOP, wait for 10 seconds and try check again, try 3 times
         if self.state == MRAState.SAFEGUARD_STOP:
