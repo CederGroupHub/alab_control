@@ -173,7 +173,16 @@ class MobileRobotArm():
         # }
         # check the state before sending the request. The state must be IDLE.
         if self.get_state_and_message()[0] != MRAState.IDLE:
-            raise ValueError(f"The MRA must be in IDLE state to start a program. Current state: {self.get_state_and_message()[0]}")
+            if self.is_running():
+                # if it is still running, wait for maximum 30 seconds and try again
+                patience = 30
+                while self.is_running() and patience > 0:
+                    patience -= 1
+                    time.sleep(1)
+                if patience == 0:
+                    raise ValueError(f"The MRA is still running after 30 seconds. Current state: {self.get_state_and_message()[0]}")
+            else:
+                raise ValueError(f"The MRA must be in IDLE state to start a program. Current state: {self.get_state_and_message()[0]}")
         response = requests.put(f"http://{self.ip}:8082/v2/status", json={"state": "Executing"}, timeout=self.timeout)
         if response.status_code != 200:
             raise ValueError(f"Failed to start program. Status code: {response.status_code}. Response: {response.text}")
@@ -204,6 +213,7 @@ class MobileRobotArm():
     def is_running(self) -> bool:
         """
         Return True if the MRA is running.
+        Safety stop is also considered as running.
         """
         # if the state is SAFEGUARD_STOP, wait for 10 seconds and try check again, try 3 times
         self.state, self.message = self.get_state_and_message()
@@ -213,7 +223,7 @@ class MobileRobotArm():
                 self.state, self.message = self.get_state_and_message()
                 if self.state != MRAState.SAFEGUARD_STOP:
                     break
-        return self.state == MRAState.RUNNING
+        return self.state == MRAState.RUNNING or self.state == MRAState.SAFEGUARD_STOP
     
     def is_error(self) -> bool:
         """
@@ -248,12 +258,19 @@ class MobileRobotArm():
             raise ValueError(f"Unknown state: {self.state}. Please check the API documentation for the full list of states.")
         
     def run_main_program(self, target_base_position: str, source_region: str, source_slot: str, destination_region: str, destination_slot: str):
-        # load the main program
+        # load the main program once it is not running.
+        while self.is_running():
+            patience = 30
+            while self.is_running() and patience > 0:
+                patience -= 1
+                time.sleep(1)
+            if patience == 0:
+                raise ValueError(f"The MRA is still running after 30 seconds. Current state: {self.get_state_and_message()[0]}")
         self.load_main_program(target_base_position, source_region, source_slot, destination_region, destination_slot)
-        time.sleep(2) # wait for the program to load.
+        time.sleep(3) # wait for the program to load.
         # start the program
         self.start_program()
-        time.sleep(2) # wait for the program to start.
+        time.sleep(3) # wait for the program to start.
         # wait for the program to finish
         self.wait_for_program_to_finish()
     
