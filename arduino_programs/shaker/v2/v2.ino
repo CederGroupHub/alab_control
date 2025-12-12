@@ -55,7 +55,7 @@ void readForceSensor() {
   force_reading = analogRead(analogIn);
   Serial.print("Analog reading:");
   Serial.println(force_reading);
-  if (force_reading < 300) {
+  if (force_reading < 100) {
     gripper_detect = true;
     Serial.println("detected something");
   }
