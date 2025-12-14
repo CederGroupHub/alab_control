@@ -231,7 +231,7 @@ COROUTINE(gripper) {
       gripperTime = millis();
       if ((gripperTime - gripperTimePrev) > gripperCheckDuration) {
         gripperTimePrev = gripperTime;
-        if (mag >= MAG_MIN && gripper_detect) {
+        if (gripper_detect) {
           Serial.println(F("closed properly"));
           gripperState = CLOSE;
           resetSystemState();
