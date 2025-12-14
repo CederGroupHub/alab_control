@@ -1,7 +1,7 @@
 #include <Arduino.h>
 // System parameters
 #define INITIAL_MAG 1600 //initial position of the actuator
-#define MAG_MIN 1150 //minimum position of the actuator
+#define MAG_MIN 1200 //minimum position of the actuator
 #define MAG_DELTA 25 //delta value for the actuator
 
 // Coroutine framework
