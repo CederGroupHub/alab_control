@@ -141,7 +141,7 @@ COROUTINE(gripper) {
       gripperTime = millis();
       if ((gripperTime - gripperTimePrev) > gripperCheckDuration) {
         gripperTimePrev = gripperTime;
-        if (mag >= MAG_MIN && gripper_detect) {
+        if (gripper_detect) {
           Serial.println(F("closed properly"));
           gripperState = CLOSE;
           resetSystemState();
@@ -151,7 +151,7 @@ COROUTINE(gripper) {
           actuator.writeMicroseconds(mag);
           readForceSensor();
         }
-        else if (mag < MAG_MIN && !gripper_detect) {
+        else if (mag < MAG_MIN) {
           Serial.println(F("closed to maximum but program failed to detect the object."));
           gripperState = CLOSE;
           systemState = ERROR;
