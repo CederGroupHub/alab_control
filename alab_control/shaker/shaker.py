@@ -97,7 +97,7 @@ class Shaker(BaseArduinoDevice):
             logger.info("Gripping the container")
             self.send_request(
                 self.ENDPOINTS["close gripper"],
-                suppress_error=True,
+                suppress_error=False,
                 timeout=10,
                 max_retries=3,
             )
@@ -118,6 +118,7 @@ class Shaker(BaseArduinoDevice):
                 _close_gripper()
                 break
             except ShakerError as e:
+                time.sleep(3)
                 logger.error(f"Attempt {i + 1} failed: {e}")
                 self.open_gripper()
                 if i == 1:
@@ -134,7 +135,7 @@ class Shaker(BaseArduinoDevice):
             logger.info("Releasing the gripper")
             self.send_request(
                 self.ENDPOINTS["open gripper"],
-                suppress_error=True,
+                suppress_error=False,
                 timeout=10,
                 max_retries=3,
             )
@@ -157,6 +158,7 @@ class Shaker(BaseArduinoDevice):
                 _open_gripper()
                 break
             except ShakerError as e:
+                time.sleep(3)
                 logger.error(f"Attempt {i + 1} failed: {e}")
                 if i == 1:
                     raise ShakerError("Failed to open gripper after 3 attempts.")
