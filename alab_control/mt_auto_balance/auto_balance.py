@@ -648,12 +648,12 @@ class MTAutoBalance:
                     ][0]["DosingAutomationActionAsyncNotification"]
 
                     if (
-                        notification["DosingJobActionType"] == "PlaceVial"
+                        notification["DosingJobActionType"] in ["PlaceVial", "RemoveVial"]
                         and notification["ActionItem"] == "Vial"
                         and notification["DosingJobActionReason"] == "DosingJobSetup"
                     ):
                         dosing_automation_client.confirm_dosing_job_action(
-                            dosing_job_action="PlaceVial",
+                            dosing_job_action=notification["DosingJobActionType"],
                             action_item="Vial",
                         )
                     else:
