@@ -162,7 +162,7 @@ class DYMOLabelWriter:
                 '"fit"',  # scale the image to fit the page
             ]
             subprocess.run(cmd, check=True)
-            time.sleep(60)
+            time.sleep(5)
 
     def print_label(
         self,
