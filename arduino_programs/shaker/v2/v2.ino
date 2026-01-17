@@ -28,6 +28,8 @@ const char* commands[] = {
 #include <Servo.h>
 #define analogIn 18 //Force sensing resistor
 #define output5 9 //PWM for actuator
+#define outputRelay5V 3 // For relay power
+#define outputPower 2 // For power cutoff
 Servo actuator; //create a servo object for the actuators
 bool gripper_detect = false; //flag to detect if the object is in the gripper
 int mag = INITIAL_MAG; //position of the actuator
@@ -185,6 +187,8 @@ COROUTINE(shaker) {
     COROUTINE_DELAY(30);
     if (systemState == RUNNING && command == commands[0]) {
       shakerTime = millis();
+      digitalWrite(outputRelay5V,HIGH);
+      digitalWrite(outputPower,HIGH);
       digitalWrite(output1, HIGH);
       shakerState=STARTING;
       if ((shakerTime - shakerTimePrev) > shakerDuration) {
@@ -196,6 +200,8 @@ COROUTINE(shaker) {
     }
     else if (systemState == RUNNING && command == commands[1]) {
       shakerTime = millis();
+      digitalWrite(outputRelay5V,HIGH);
+      digitalWrite(outputPower,LOW);
       digitalWrite(output2, HIGH);
       shakerState=STOPPING;
       if ((shakerTime - shakerTimePrev) > shakerDuration) {
@@ -206,6 +212,8 @@ COROUTINE(shaker) {
       }
     }
     else{
+      digitalWrite(outputRelay5V, HIGH);
+      digitalWrite(outputPower, HIGH);
       digitalWrite(output1, LOW);
       digitalWrite(output2, LOW);
     }
@@ -363,6 +371,9 @@ void setup()
   pinMode(output2, OUTPUT);
   digitalWrite(output1, LOW);
   digitalWrite(output2, LOW);
+  pinMode(outputRelay5V, OUTPUT);
+  pinMode(outputPower, OUTPUT);
+  digitalWrite(outputPower,HIGH);
   shakerStop();
   actuator.writeMicroseconds(mag);
   gripperState = OPEN;
@@ -378,6 +389,7 @@ void setup()
 
 void loop()
 {
+  digitalWrite(outputRelay5V,HIGH);
   handleRemoteRequest.runCoroutine();
   gripper.runCoroutine();
   shaker.runCoroutine();
