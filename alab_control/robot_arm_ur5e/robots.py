@@ -178,6 +178,12 @@ class BaseURRobot:
         Stop the robot arm
         """
         self.dashboard.stop()
+    
+    def get_loaded_program_path(self) -> Optional[str]:
+        """
+        Get the path of currently loaded program
+        """
+        return self.dashboard.loaded_program_path
 
 class Dummy:
     """
