@@ -183,7 +183,7 @@ class BaseURRobot:
         """
         Get the path of currently loaded program
         """
-        return self.dashboard.loaded_program_path
+        return self.dashboard.loaded_program
 
 class Dummy:
     """
