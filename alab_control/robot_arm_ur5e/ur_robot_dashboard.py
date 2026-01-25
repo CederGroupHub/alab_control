@@ -355,7 +355,7 @@ class URRobotDashboard:
         response = self.send_cmd("get loaded program")
         if response.startswith("No program loaded"):
             return None
-        elif response.endswith(".urp") or response.endswith(".urscript"):
+        elif ".urp" in response or ".urscript" in response:
             return response
         raise URRobotError(
             "Unexpected result for loaded_program query: {}".format(response)
