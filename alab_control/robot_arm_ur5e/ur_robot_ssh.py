@@ -1,4 +1,5 @@
 import gzip
+import stat
 from pathlib import Path
 from typing import Optional
 
@@ -118,14 +119,25 @@ class URRobotSSH:
         Remove files from the remote folder that are downloaded if remove_remote_files is True.
         """
         with self._ssh.open_sftp() as sftp:
-            for remote_file in sftp.listdir(remote_folder_path):
+            for entry in sftp.listdir_attr(remote_folder_path):
+                # Only sync regular files. listdir also returns sub-directories
+                # and special files; calling sftp.get/remove on those makes the
+                # SFTP server reply SSH_FX_FAILURE (paramiko -> OSError: Failure).
+                if entry.st_mode is None or not stat.S_ISREG(entry.st_mode):
+                    continue
+                remote_file = entry.filename
+                remote_file_path = remote_folder_path + "/" + remote_file
                 local_file = Path(local_folder_path) / remote_file
-                if not local_file.exists():
-                    sftp.get(
-                        remote_folder_path + "/" + remote_file, local_file.as_posix()
-                    )
+                if local_file.exists():
+                    continue
+                try:
+                    sftp.get(remote_file_path, local_file.as_posix())
                     if remove_remote_files:
-                        sftp.remove(remote_folder_path + "/" + remote_file)
+                        sftp.remove(remote_file_path)
+                except OSError:
+                    # Don't let a single problematic file (e.g. one still being
+                    # written/locked by the robot) abort the whole sync.
+                    continue
 
     def close(self):
         self._ssh.close()

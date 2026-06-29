@@ -91,78 +91,66 @@ class Shaker(BaseArduinoDevice):
         """
         Close the gripper to hold the container
         """
-
-        def _close_gripper():
+        state = self.get_state()
+        logger.info("Gripping the container")
+        self.send_request(
+            self.ENDPOINTS["close gripper"],
+            suppress_error=False,
+            timeout=10,
+            max_retries=3,
+        )
+        while not (GripperState(state["gripper_status"]) == GripperState.CLOSE):
             state = self.get_state()
-            logger.info("Gripping the container")
-            self.send_request(
-                self.ENDPOINTS["close gripper"],
-                suppress_error=False,
-                timeout=10,
-                max_retries=3,
-            )
-            while not (GripperState(state["gripper_status"]) == GripperState.CLOSE):
-                state = self.get_state()
-                if SystemState(state["system_status"]) == SystemState.ERROR:
-                    raise ShakerError(
-                        "Shaker machine is in error state. Failed to grip."
-                    )
-                time.sleep(1)
-
-            final_state = self.get_state()
-            if int(final_state["force_reading"]) > 200:
-                raise ShakerError("Gripper is not fully closed or has lost grip.")
-
-        for i in range(3):
-            try:
-                _close_gripper()
-                break
-            except ShakerError as e:
-                time.sleep(3)
-                logger.error(f"Attempt {i + 1} failed: {e}")
-                self.open_gripper()
-                if i == 1:
-                    raise ShakerError("Failed to close gripper after 3 attempts.")
-                time.sleep(3)
+            if SystemState(state["system_status"]) == SystemState.ERROR:
+                raise ShakerError(
+                    "Shaker machine is in error state. Failed to grip."
+                )
+            if (SystemState(state["system_status"]) == SystemState.IDLE) and (GripperState(state["gripper_status"]) != GripperState.CLOSE):
+                # try sending close command again if not running, as it might be a missed command issue
+                self.send_request(
+                    self.ENDPOINTS["close gripper"],
+                    suppress_error=False,
+                    timeout=10,
+                    max_retries=3,
+                )
+            time.sleep(1)
+        final_state = self.get_state()
+        if int(final_state["force_reading"]) > 200:
+            raise ShakerError("Gripper is not fully closed or has lost grip.")
 
     def open_gripper(self):
         """
         Open the gripper to release the container
         """
-
-        def _open_gripper():
+        state = self.get_state()
+        logger.info("Releasing the gripper")
+        self.send_request(
+            self.ENDPOINTS["open gripper"],
+            suppress_error=False,
+            timeout=10,
+            max_retries=3,
+        )
+        while not (GripperState(state["gripper_status"]) == GripperState.OPEN):
             state = self.get_state()
-            logger.info("Releasing the gripper")
-            self.send_request(
-                self.ENDPOINTS["open gripper"],
-                suppress_error=False,
-                timeout=10,
-                max_retries=3,
-            )
-            while not (GripperState(state["gripper_status"]) == GripperState.OPEN):
-                state = self.get_state()
-                if SystemState(state["system_status"]) == SystemState.ERROR:
-                    raise ShakerError(
-                        "Shaker machine is in error state. Failed to release."
-                    )
-                time.sleep(1)
-
-            final_state = self.get_state()
-            if int(final_state["force_reading"]) < 200:
+            if SystemState(state["system_status"]) == SystemState.ERROR:
                 raise ShakerError(
-                    "Gripper is not fully open or something is attached to the upper part."
+                    "Shaker machine is in error state. Failed to release."
                 )
+            if (SystemState(state["system_status"]) == SystemState.IDLE) and (GripperState(state["gripper_status"]) != GripperState.OPEN):
+                # try sending open command again if not running, as it might be a missed command issue
+                self.send_request(
+                    self.ENDPOINTS["open gripper"],
+                    suppress_error=False,
+                    timeout=10,
+                    max_retries=3,
+                )
+            time.sleep(1)
 
-        for i in range(3):
-            try:
-                _open_gripper()
-                break
-            except ShakerError as e:
-                time.sleep(3)
-                logger.error(f"Attempt {i + 1} failed: {e}")
-                if i == 1:
-                    raise ShakerError("Failed to open gripper after 3 attempts.")
-                time.sleep(3)
+        final_state = self.get_state()
+        if int(final_state["force_reading"]) < 200:
+            raise ShakerError(
+                "Gripper is not fully open or something is attached to the upper part."
+            )
 
     def shaking(self, duration_sec: float):
         """

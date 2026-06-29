@@ -22,6 +22,24 @@ class OhausScale:
     def set_unit_to_mg(self):
         self.send_command("0U")
 
+    def tare(self):
+        """Tare (zero) the scale at its current load.
+
+        After taring, ``get_mass_in_mg`` reports the change in mass relative to the load that was
+        present when this was called (so removing mass reads negative).
+        """
+        retry = 0
+        while retry < self.max_retries:
+            try:
+                self.send_command("T")
+                # give the balance a moment to settle on the new zero point
+                time.sleep(1)
+                return
+            except (socket.timeout, OSError, TimeoutError):
+                retry += 1
+                time.sleep(0.5)
+        raise TimeoutError("Failed to tare the scale.")
+
     def get_mass_in_mg(self):
         retry = 0
         mass_string = None
@@ -40,7 +58,11 @@ class OhausScale:
         if mass_string is None:
             raise TimeoutError("Failed to get mass from scale.")
         else:
-            return int(re.search(r"\d+", mass_string).group())
+            # capture an optional leading minus sign so a tared reading (mass removed) is negative
+            match = re.search(r"-?\d+", mass_string)
+            if match is None:
+                raise TimeoutError(f"Could not parse mass from scale response: {mass_string!r}")
+            return int(match.group())
 
 
 if __name__ == "__main__":
