@@ -50,9 +50,16 @@ class ShakerWMC(BaseArduinoDevice):
     ENDPOINTS = {
         "close gripper": "/gripper-close",
         "open gripper": "/gripper-open",
+        "set gripper": "/gripper-set",
         "state": "/state",
         "reset": "/reset",
     }
+
+    # Default OPEN height in actuator pulse-width microseconds (firmware
+    # INITIAL_MAG). Larger us => more open on this gripper.
+    DEFAULT_OPEN_US = 1600
+    OPEN_US_MIN = 1200
+    OPEN_US_MAX = 2000
 
     def __init__(self, ip_address: str, port: int = 80):
         super().__init__(ip_address, port)
@@ -70,6 +77,15 @@ class ShakerWMC(BaseArduinoDevice):
         time.sleep(1)
         return response
 
+    # Firmware open/close definitions (v2_uno_gpss):
+    #   OPEN  = actuator pulse width at INITIAL_MAG (1600 us), jaws retracted.
+    #           Success flag is gripper_status=OPEN after the open sweep.
+    #   CLOSE = sweep pulse width down toward MAG_MIN (1200 us) until the FSR
+    #           reads < 100 (grip detected). Empty jaws -> ERROR.
+    # force_reading thresholds used by this driver (ADC counts, not newtons):
+    FORCE_OPEN_MIN = 200  # after open, force below this => still pressed/jammed
+    FORCE_CLOSE_MAX = 200  # after close, force above this => no grip
+
     def is_gripper_closed(self) -> bool:
         """
         Check if the gripper is closed
@@ -79,51 +95,176 @@ class ShakerWMC(BaseArduinoDevice):
             return True
         return False
 
+    def _poll_state(self) -> dict:
+        """Read /state without the extra 1s sleep in get_state()."""
+        return self.send_request(
+            self.ENDPOINTS["state"], suppress_error=True, timeout=10, max_retries=3
+        )
+
+    def _wait_gripper_motion(
+        self,
+        *,
+        target_gripper: GripperWMCState,
+        timeout_sec: float,
+        allow_error: bool,
+        initial_state: dict | None = None,
+    ) -> dict:
+        """Wait for a gripper command to finish.
+
+        Important: do NOT treat a pre-existing gripper_status as completion.
+        The firmware may already report OPEN/CLOSE from a previous command;
+        we must observe RUNNING for *this* command, then IDLE (or ERROR).
+
+        A previous bug accepted IDLE+target after 3s even if RUNNING was never
+        seen -- that falsely reported success when the flag was already OPEN
+        and the new command never actually ran.
+        """
+        start = time.time()
+        deadline = start + timeout_sec
+        saw_running = False
+        state: dict = initial_state or {}
+
+        if state:
+            try:
+                if SystemState(state.get("system_status")) == SystemState.RUNNING:
+                    saw_running = True
+            except ValueError:
+                pass
+
+        while time.time() < deadline:
+            state = self._poll_state()
+            try:
+                system = SystemState(state["system_status"])
+                gripper = GripperWMCState(state["gripper_status"])
+            except (KeyError, ValueError) as exc:
+                raise ShakerWMCError(f"Invalid /state payload: {state}") from exc
+
+            if system == SystemState.RUNNING:
+                saw_running = True
+
+            # Only treat ERROR as this command's result after we've seen it run.
+            if system == SystemState.ERROR:
+                if not saw_running:
+                    time.sleep(0.2)
+                    continue
+                if allow_error:
+                    return state
+                raise ShakerWMCError(
+                    "Shaker machine is in error state during gripper motion."
+                )
+
+            # Success: this command ran (RUNNING) and finished IDLE at target.
+            if (
+                saw_running
+                and system == SystemState.IDLE
+                and gripper == target_gripper
+            ):
+                return state
+
+            time.sleep(0.2)
+
+        raise ShakerWMCError(
+            f"Timed out waiting for gripper to reach {target_gripper.value} "
+            f"(saw_running={saw_running}, "
+            f"last state: system={state.get('system_status')}, "
+            f"gripper={state.get('gripper_status')}, "
+            f"force={state.get('force_reading')}, "
+            f"actuator_us={state.get('actuator_us')})"
+        )
+
     def close_gripper(self):
         """
-        Close the gripper to hold the container
+        Close the gripper to hold the container.
+
+        Firmware definition: sweep actuator toward closed until FSR detects a
+        grip (force_reading < 100). Raises if the controller trips ERROR
+        (typical when jaws are empty) or if force stays high after CLOSE.
         """
-        state = self.get_state()
         print(f"{self.get_current_time()} Gripping the container")
-        self.send_request(
+        close_reply = self.send_request(
             self.ENDPOINTS["close gripper"],
             suppress_error=True,
             timeout=10,
             max_retries=3,
         )
-        while not (GripperWMCState(state["gripper_status"]) == GripperWMCState.CLOSE):
-            state = self.get_state()
-            if SystemState(state["system_status"]) == SystemState.ERROR:
-                raise ShakerWMCError(
-                    "Shaker machine is in error state. Failed to grip."
-                )
-            time.sleep(1)
-        if int(state["force_reading"]) > 200:
+        # Close sweep can take several seconds (1600->1200 in steps of 25).
+        state = self._wait_gripper_motion(
+            target_gripper=GripperWMCState.CLOSE,
+            timeout_sec=30,
+            allow_error=True,
+            initial_state=close_reply if isinstance(close_reply, dict) else None,
+        )
+        if SystemState(state["system_status"]) == SystemState.ERROR:
+            raise ShakerWMCError(
+                "Shaker machine is in error state. Failed to grip."
+            )
+        if int(state["force_reading"]) > self.FORCE_CLOSE_MAX:
             raise ShakerWMCError("Gripper is not fully closed or has lost grip.")
 
-    def open_gripper(self):
+    def open_gripper(self, open_us: int | None = None):
         """
-        Open the gripper to release the container
+        Open the gripper to a specific height.
+
+        Args:
+            open_us: Actuator pulse width in microseconds (firmware open
+                "height"). Defaults to DEFAULT_OPEN_US (1600). Valid range
+                OPEN_US_MIN..OPEN_US_MAX (1200..2000). Larger => more open.
+
+        Firmware drives the servo to that setpoint, holds it, then sets
+        gripper_status=OPEN. Always waits for this command's motion cycle --
+        does not return early just because the flag was already OPEN.
         """
-        state = self.get_state()
-        print(f"{self.get_current_time()} Releasing the gripper")
-        self.send_request(
-            self.ENDPOINTS["open gripper"],
+        target_us = self.DEFAULT_OPEN_US if open_us is None else int(open_us)
+        if not self.OPEN_US_MIN <= target_us <= self.OPEN_US_MAX:
+            raise ValueError(
+                f"open_us must be between {self.OPEN_US_MIN} and "
+                f"{self.OPEN_US_MAX}, got {target_us}"
+            )
+
+        print(
+            f"{self.get_current_time()} Opening gripper to height "
+            f"us={target_us}"
+        )
+        # New firmware: /gripper-open?us=NNNN. Old firmware ignores the query
+        # string and still opens to its built-in 1600 us setpoint.
+        open_reply = self.send_request(
+            f"{self.ENDPOINTS['open gripper']}?us={target_us}",
             suppress_error=True,
             timeout=10,
             max_retries=3,
         )
-        while not (GripperWMCState(state["gripper_status"]) == GripperWMCState.OPEN):
-            state = self.get_state()
-            if SystemState(state["system_status"]) == SystemState.ERROR:
-                raise ShakerWMCError(
-                    "Shaker machine is in error state. Failed to release."
-                )
-            time.sleep(1)
-        if int(state["force_reading"]) < 200:
+        if (
+            isinstance(open_reply, dict)
+            and open_reply.get("communication_status") not in (None, "SUCCESS")
+        ):
+            raise ShakerWMCError(
+                f"Open command rejected: {open_reply.get('communication_status')} "
+                f"({open_reply.get('reason')})"
+            )
+        state = self._wait_gripper_motion(
+            target_gripper=GripperWMCState.OPEN,
+            timeout_sec=20,
+            allow_error=False,
+            initial_state=open_reply if isinstance(open_reply, dict) else None,
+        )
+        if int(state["force_reading"]) < self.FORCE_OPEN_MIN:
             raise ShakerWMCError(
                 "Gripper is not fully open or something is attached to the upper part."
             )
+        # After firmware reflash, /state reports actuator_us -- require it to
+        # match the commanded open height (within one step).
+        if "actuator_us" in state:
+            try:
+                actual = int(state["actuator_us"])
+            except (TypeError, ValueError) as exc:
+                raise ShakerWMCError(
+                    f"Invalid actuator_us in state: {state.get('actuator_us')}"
+                ) from exc
+            if abs(actual - target_us) > 25:
+                raise ShakerWMCError(
+                    f"Open did not reach target height: commanded us={target_us}, "
+                    f"actuator_us={actual}"
+                )
 
     def shaking(self, duration_sec: float, frequency: int = FREQUENCY):
         """

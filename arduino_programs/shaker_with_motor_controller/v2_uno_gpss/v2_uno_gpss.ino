@@ -1,8 +1,16 @@
 #include <Arduino.h>
 // System parameters
-#define INITIAL_MAG 1600 //initial position of the actuator
-#define MAG_MIN 1200 //minimum position of the actuator
-#define MAG_DELTA 25 //delta value for the actuator
+// Actuator PWM pulse width (microseconds):
+//   OPEN  = INITIAL_MAG (1600) -- jaws retracted
+//   CLOSE = toward MAG_MIN (1200) -- jaws clamped; steps by MAG_DELTA
+#define INITIAL_MAG 1600 // default OPEN height (actuator pulse width, us)
+#define MAG_MIN 1200 // fully-closed end of travel
+#define MAG_MAX 2000 // hard cap for commanded open height (us)
+#define MAG_DELTA 25 // step size for open/close sweeps
+// After reaching the open setpoint, keep re-commanding it this many times
+// so a flaky actuator connection still gets multiple open pulses (mirrors
+// how close repeatedly writes while sweeping).
+#define OPEN_HOLD_PULSES 8
 
 // Coroutine framework
 #include <AceRoutine.h>
@@ -15,6 +23,7 @@ static byte mymac[] = { 0x74, 0x69, 0x30, 0x2F, 0x22, 0x33 }; // MAC address of 
 static byte Ethernet::buffer[400]; // Buffer for Ethernet
 BufferFiller bfill; // Buffer for the response
 // Array of string to list the possible commands
+// Index: 0=open, 1=close, 2=reset  (MUST match gripperOpen/Close/resetSystem)
 const char* commands[] = { 
   "open gripper",
   "close gripper",
@@ -27,10 +36,28 @@ const char* commands[] = {
 #define output5 9 //PWM for actuator
 Servo actuator; //create a servo object for the actuators
 bool gripper_detect = false; //flag to detect if the object is in the gripper
-int mag = INITIAL_MAG; //position of the actuator
+int mag = INITIAL_MAG; //commanded actuator position (us)
+int openTargetUs = INITIAL_MAG; // OPEN height setpoint for the current open command
 int force_reading; //to capture force reading from the force sensing resistor
+int openHoldPulses = 0; // remaining open re-commands at openTargetUs
 unsigned long gripperTime, gripperTimePrev; //for periodic state checking for the gripper
 const long gripperCheckDuration = 400; //time in milliseconds to check the gripper state
+
+// Parse ?us=NNNN from an HTTP request line. Clamps to [MAG_MIN, MAG_MAX].
+int parseUsParam(const char* data, int defaultUs) {
+  const char* p = strstr(data, "us=");
+  if (p == NULL) {
+    return defaultUs;
+  }
+  int v = atoi(p + 3);
+  if (v < MAG_MIN) {
+    v = MAG_MIN;
+  }
+  if (v > MAG_MAX) {
+    v = MAG_MAX;
+  }
+  return v;
+}
 enum GripperState {
   OPEN,
   CLOSE
@@ -52,6 +79,7 @@ void readForceSensor() {
   force_reading = analogRead(analogIn);
   Serial.print("Analog reading:");
   Serial.println(force_reading);
+  // FSR pressed hard enough to count as a grip (used only by CLOSE).
   if (force_reading < 100) {
     gripper_detect = true;
     Serial.println("detected something");
@@ -99,8 +127,13 @@ static void sendHTTPJSONReply(int httpStatusCode, const char* communicationStatu
   response["communication_status"] = communicationStatus;
   response["reason"] = reason;
   response["system_status"] = systemStateToString(systemState);
+  // gripper_status is the last commanded/completed gripper state flag.
+  // It is NOT a measured jaw position. Use actuator_us for the commanded
+  // servo pulse width, and force_reading for the FSR.
   response["gripper_status"] = gripperStateToString(gripperState);
   response["force_reading"] = String(force_reading);
+  response["actuator_us"] = mag;
+  response["open_target_us"] = openTargetUs;
 
   if (httpStatusCode == 200){ 
     buf.emit_p(PSTR(
@@ -127,16 +160,54 @@ COROUTINE(gripper) {
     COROUTINE_DELAY(30);
     readForceSensor();
     COROUTINE_DELAY(30);
+    // OPEN: drive actuator pulse width to openTargetUs (the open "height")
+    // and hold it with repeated commands. openTargetUs defaults to INITIAL_MAG
+    // (1600) and can be overridden via GET /gripper-open?us=NNNN.
     if (systemState == RUNNING && command == commands[0]) {
-      Serial.println(F("opening gripper."));
-      mag = 1600;
-      actuator.writeMicroseconds(mag);
-      COROUTINE_DELAY(3000);
-      Serial.println(F("opened."));
-      gripper_detect = false;
-      gripperState = OPEN;
-      resetSystemState();
+      gripperTime = millis();
+      if ((gripperTime - gripperTimePrev) > gripperCheckDuration) {
+        gripperTimePrev = gripperTime;
+        if (mag < openTargetUs) {
+          mag = mag + MAG_DELTA;
+          if (mag > openTargetUs) {
+            mag = openTargetUs;
+          }
+          Serial.print(F("opening to "));
+          Serial.print(openTargetUs);
+          Serial.print(F(" us, mag="));
+          Serial.println(mag);
+          actuator.writeMicroseconds(mag);
+        } else if (mag > openTargetUs) {
+          // Coming from a wider-than-target command: step down to the height.
+          mag = mag - MAG_DELTA;
+          if (mag < openTargetUs) {
+            mag = openTargetUs;
+          }
+          Serial.print(F("adjusting open height to "));
+          Serial.print(openTargetUs);
+          Serial.print(F(" us, mag="));
+          Serial.println(mag);
+          actuator.writeMicroseconds(mag);
+        } else {
+          // At open height setpoint: keep pulsing so the servo holds it.
+          mag = openTargetUs;
+          actuator.writeMicroseconds(mag);
+          openHoldPulses--;
+          Serial.print(F("open hold at "));
+          Serial.print(openTargetUs);
+          Serial.print(F(" us, remaining="));
+          Serial.println(openHoldPulses);
+          if (openHoldPulses <= 0) {
+            Serial.println(F("opened to target height."));
+            gripper_detect = false;
+            gripperState = OPEN;
+            resetSystemState();
+          }
+        }
+      }
     }
+    // CLOSE: step actuator pulse width DOWN toward MAG_MIN until FSR detects
+    // a grip (force < 100) or travel is exhausted (ERROR, empty/no grip).
     else if (systemState == RUNNING && command == commands[1]) {
       gripperTime = millis();
       if ((gripperTime - gripperTimePrev) > gripperCheckDuration) {
@@ -155,22 +226,40 @@ COROUTINE(gripper) {
           Serial.println(F("closed to maximum but program failed to detect the object."));
           gripperState = CLOSE;
           systemState = ERROR;
+          command = "none"; // stop the close sweep; leave mag at closed end
         }
       }
     }
   }
 }
 
-void gripperOpen() {
-  Serial.println("Opening the gripper");
+void gripperOpenTo(int targetUs) {
+  openTargetUs = targetUs;
+  if (openTargetUs < MAG_MIN) {
+    openTargetUs = MAG_MIN;
+  }
+  if (openTargetUs > MAG_MAX) {
+    openTargetUs = MAG_MAX;
+  }
+  Serial.print(F("Opening the gripper to height us="));
+  Serial.println(openTargetUs);
   systemState = RUNNING;
   gripperTime = millis();
   gripperTimePrev = gripperTime;
+  gripper_detect = false;
+  // Always run a sweep + hold to the target height, even if flag says OPEN.
+  openHoldPulses = OPEN_HOLD_PULSES;
   command = commands[0];
 }
 
+void gripperOpen() {
+  gripperOpenTo(INITIAL_MAG);
+}
+
 static void gripperOpen(const char* data, BufferFiller& buf) {
-  gripperOpen();
+  // Optional: GET /gripper-open?us=1600  (open to a specific height)
+  int targetUs = parseUsParam(data, INITIAL_MAG);
+  gripperOpenTo(targetUs);
   sendHTTPJSONReply(200, "SUCCESS", "Communication with the device is successful.", buf);
 }
 
@@ -179,6 +268,11 @@ void gripperClose() {
   systemState = RUNNING;
   gripperTime = millis();
   gripperTimePrev = gripperTime;
+  gripper_detect = false;
+  // Start close from the open end so a previous failed close (mag at MAG_MIN)
+  // does not immediately re-trip ERROR without moving.
+  mag = INITIAL_MAG;
+  actuator.writeMicroseconds(mag);
   command = commands[1];
 }
 
@@ -190,14 +284,19 @@ static void gripperClose(const char* data, BufferFiller& buf) {
 COROUTINE(reset) {
   COROUTINE_LOOP() {
     COROUTINE_DELAY(30);
-    if (systemState==RUNNING && command==commands[-1]) {
+    // commands[2] == "reset system" (was incorrectly commands[-1])
+    if (systemState==RUNNING && command==commands[2]) {
       resetTime = millis();
       if ((resetTime - resetTimePrev) > resetDuration) {
         resetTimePrev = resetTime;
         gripperState = OPEN;
         mag = INITIAL_MAG;
+        openHoldPulses = 0;
+        gripper_detect = false;
         actuator.writeMicroseconds(mag);
         COROUTINE_DELAY(3000);
+        // Keep commanding open during the settle window.
+        actuator.writeMicroseconds(mag);
         resetSystemState();
       }
     }
@@ -209,7 +308,7 @@ void resetSystem() {
   systemState = RUNNING;
   resetTime = millis();
   resetTimePrev = resetTime;
-  command = commands[-1];
+  command = commands[2]; // "reset system"
 }
 
 static void resetSystem(const char* data, BufferFiller& buf) {
@@ -232,6 +331,10 @@ COROUTINE(handleRemoteRequest) {
         getState(data, bfill);
       }
       else if (strncmp("GET /gripper-open", data, 17) == 0) {
+        gripperOpen(data, bfill);
+      }
+      else if (strncmp("GET /gripper-set", data, 16) == 0) {
+        // Alias: GET /gripper-set?us=1600 -- same as open to a height.
         gripperOpen(data, bfill);
       }
       else if (strncmp("GET /gripper-close", data, 18) == 0) {
