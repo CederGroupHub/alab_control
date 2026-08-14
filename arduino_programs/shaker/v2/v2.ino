@@ -2,13 +2,14 @@
 // System parameters
 #define INITIAL_MAG 1600 //initial position of the actuator
 #define MAG_MIN 1200 //minimum position of the actuator
-#define MAG_DELTA 25 //delta value for the actuator
+#define MAG_DELTA 15 //delta value for the actuator
 
 // Coroutine framework
 #include <AceRoutine.h>
 using namespace ace_routine;
 
 // Communication configuration
+#define USE_ETHERNET 0 // 0 = USB serial commands only (no Ethernet cable needed)
 #include <EtherCard.h>
 #include <ArduinoJson.h>
 #define serialwaitingtime 5 //time in seconds to wait for the serial connection to be stablished, or it will be canceled
@@ -26,7 +27,7 @@ const char* commands[] = {
 
 // Gripper
 #include <Servo.h>
-#define analogIn 18 //Force sensing resistor
+#define analogIn A0 //Force sensing resistor
 #define output5 9 //PWM for actuator
 #define outputRelay5V 3 // For relay power
 #define outputPower 2 // For power cutoff
@@ -34,8 +35,14 @@ Servo actuator; //create a servo object for the actuators
 bool gripper_detect = false; //flag to detect if the object is in the gripper
 int mag = INITIAL_MAG; //position of the actuator
 int force_reading; //to capture force reading from the force sensing resistor
+int force_baseline = 1023; //FSR reading at start of close (unloaded / free motion)
 unsigned long gripperTime, gripperTimePrev; //for periodic state checking for the gripper
-const long gripperCheckDuration = 400; //time in milliseconds to check the gripper state
+unsigned long closeStartTime; //when the current close command began
+const long gripperCheckDuration = 500; //time in milliseconds between close steps
+// Quasi force-sensing (FSR + pull-up: lower reading => higher force)
+#define FORCE_HARD_LIMIT 150 //absolute stop threshold
+#define FORCE_DROP_DELTA 40 //stop if reading drops this much from close baseline
+#define CLOSE_MAX_MS 25000 //abort close if it takes longer than this
 enum GripperState {
   OPEN,
   CLOSE
@@ -57,10 +64,32 @@ void readForceSensor() {
   force_reading = analogRead(analogIn);
   Serial.print("Analog reading:");
   Serial.println(force_reading);
-  if (force_reading < 100) {
-    gripper_detect = true;
-    Serial.println("detected something");
+}
+
+// Returns true when grip resistance exceeds the tuned limit.
+// Uses absolute threshold + rise relative to the free-motion baseline at close start.
+bool resistanceTooHigh() {
+  if (force_reading < FORCE_HARD_LIMIT) {
+    return true;
   }
+  if ((force_baseline - force_reading) >= FORCE_DROP_DELTA) {
+    return true;
+  }
+  return false;
+}
+
+void holdGripperPosition() {
+  actuator.writeMicroseconds(mag);
+}
+
+void stopCloseOnResistance(const __FlashStringHelper* reason) {
+  holdGripperPosition();
+  gripper_detect = true;
+  gripperState = CLOSE;
+  Serial.println(reason);
+  Serial.print(F("holding mag="));
+  Serial.println(mag);
+  resetSystemState();
 }
 
 // Shaker
@@ -237,24 +266,37 @@ COROUTINE(gripper) {
     }
     else if (systemState == RUNNING && command == commands[3]) {
       gripperTime = millis();
-      if ((gripperTime - gripperTimePrev) > gripperCheckDuration) {
+      // Timeout: do not keep fighting a jammed/overloaded grip forever
+      if ((gripperTime - closeStartTime) > CLOSE_MAX_MS) {
+        Serial.println(F("close timed out; stopping retraction."));
+        gripperState = CLOSE;
+        systemState = ERROR;
+        command = "none";
+      }
+      else if ((gripperTime - gripperTimePrev) > gripperCheckDuration) {
         gripperTimePrev = gripperTime;
-        if (gripper_detect) {
-          Serial.println(F("closed properly"));
-          gripperState = CLOSE;
-          resetSystemState();
+        readForceSensor();
+
+        if (resistanceTooHigh()) {
+          stopCloseOnResistance(F("resistance limit reached; stopped closing."));
         }
-        else if (mag >= MAG_MIN && !gripper_detect) {
+        else if (mag >= MAG_MIN) {
+          // One small retract step; next cycle re-checks after settle time
           mag = mag - MAG_DELTA;
           actuator.writeMicroseconds(mag);
-          readForceSensor();
+          Serial.print(F("close step mag="));
+          Serial.println(mag);
         }
-        else if (mag < MAG_MIN) {
+        else {
           Serial.println(F("closed to maximum but program failed to detect the object."));
           gripperState = CLOSE;
           systemState = ERROR;
+          command = "none";
         }
       }
+    }
+    else if (gripperState == CLOSE) {
+      holdGripperPosition();
     }
   }
 }
@@ -273,10 +315,17 @@ static void gripperOpen(const char* data, BufferFiller& buf) {
 }
 
 void gripperClose() {
-  Serial.print(F("Close function called: "));
+  Serial.println(F("Close function called"));
   systemState = RUNNING;
+  gripper_detect = false;
   gripperTime = millis();
   gripperTimePrev = gripperTime;
+  closeStartTime = gripperTime;
+  // Capture unloaded baseline so relative force rise can stop the close early
+  readForceSensor();
+  force_baseline = force_reading;
+  Serial.print(F("Close force baseline: "));
+  Serial.println(force_baseline);
   command = commands[3];
 }
 
@@ -317,9 +366,61 @@ static void resetSystem(const char* data, BufferFiller& buf) {
   sendHTTPJSONReply(200, "SUCCESS", "Communication with the device is successful.", buf);
 }
 
+void applySerialCommand(char* line) {
+  for (char* p = line; *p; p++) {
+    if (*p >= 'A' && *p <= 'Z') {
+      *p = *p - 'A' + 'a';
+    }
+  }
+  if (strcmp(line, "open") == 0) {
+    gripperOpen();
+  } else if (strcmp(line, "close") == 0) {
+    gripperClose();
+  } else if (strcmp(line, "start") == 0) {
+    shakerStart();
+  } else if (strcmp(line, "stop") == 0) {
+    shakerStop();
+  } else if (strcmp(line, "reset") == 0) {
+    resetSystem();
+  } else if (strcmp(line, "state") == 0) {
+    Serial.print(F("system="));
+    Serial.print(systemStateToString(systemState));
+    Serial.print(F(" gripper="));
+    Serial.print(gripperStateToString(gripperState));
+    Serial.print(F(" shaker="));
+    Serial.print(shakerStateToString(shakerState));
+    Serial.print(F(" force="));
+    Serial.println(force_reading);
+  } else if (line[0] != '\0') {
+    Serial.println(F("commands: open, close, start, stop, reset, state"));
+  }
+}
+
+COROUTINE(handleSerialCommand) {
+  COROUTINE_LOOP() {
+    COROUTINE_DELAY(30);
+    static char buf[32];
+    static uint8_t idx = 0;
+    while (Serial.available()) {
+      char c = Serial.read();
+      if (c == '\r') {
+        continue;
+      }
+      if (c == '\n') {
+        buf[idx] = '\0';
+        idx = 0;
+        applySerialCommand(buf);
+      } else if (idx < sizeof(buf) - 1) {
+        buf[idx++] = c;
+      }
+    }
+  }
+}
+
 COROUTINE(handleRemoteRequest) {
   COROUTINE_LOOP() {
     COROUTINE_DELAY(30);
+#if USE_ETHERNET
     word len = ether.packetReceive();
     word pos = ether.packetLoop(len);
 
@@ -351,6 +452,7 @@ COROUTINE(handleRemoteRequest) {
       }
       ether.httpServerReply(bfill.position()); // send web page data
     }
+#endif
   }
 }
 
@@ -360,11 +462,16 @@ void setup()
   //  while (!Serial) ;
 
   Serial.println(F("Micro turned on."));
+  Serial.println(F("USB commands: open, close, start, stop, reset, state"));
 
+#if USE_ETHERNET
   if (ether.begin(sizeof Ethernet::buffer, mymac) == 0)
     Serial.println(F("Failed to access Ethernet controller"));
-
-  ether.dhcpSetup();
+  else
+    ether.dhcpSetup();
+#else
+  Serial.println(F("Ethernet disabled; using USB serial."));
+#endif
   actuator.attach(output5); // attach the actuator to Arduino pin output5 (PWM)
   pinMode(analogIn, INPUT_PULLUP);
   pinMode(output1, OUTPUT);
@@ -390,6 +497,7 @@ void setup()
 void loop()
 {
   digitalWrite(outputRelay5V,HIGH);
+  handleSerialCommand.runCoroutine();
   handleRemoteRequest.runCoroutine();
   gripper.runCoroutine();
   shaker.runCoroutine();
