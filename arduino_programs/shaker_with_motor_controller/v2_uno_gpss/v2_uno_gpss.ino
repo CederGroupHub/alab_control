@@ -22,6 +22,7 @@ using namespace ace_routine;
 static byte mymac[] = { 0x74, 0x69, 0x30, 0x2F, 0x22, 0x33 }; // MAC address of the device
 static byte Ethernet::buffer[400]; // Buffer for Ethernet
 BufferFiller bfill; // Buffer for the response
+bool ethernetReady = false;
 // Array of string to list the possible commands
 // Index: 0=open, 1=close, 2=reset  (MUST match gripperOpen/Close/resetSystem)
 const char* commands[] = { 
@@ -80,7 +81,9 @@ void readForceSensor() {
   Serial.print("Analog reading:");
   Serial.println(force_reading);
   // FSR pressed hard enough to count as a grip (used only by CLOSE).
-  if (force_reading < 100) {
+  // With INPUT_PULLUP, pressing the FSR lowers the reading; a higher
+  // threshold (150 vs 100) triggers sooner and stops with lighter force.
+  if (force_reading < 150) {
     gripper_detect = true;
     Serial.println("detected something");
   }
@@ -207,7 +210,7 @@ COROUTINE(gripper) {
       }
     }
     // CLOSE: step actuator pulse width DOWN toward MAG_MIN until FSR detects
-    // a grip (force < 100) or travel is exhausted (ERROR, empty/no grip).
+    // a grip (force < 150) or travel is exhausted (ERROR, empty/no grip).
     else if (systemState == RUNNING && command == commands[1]) {
       gripperTime = millis();
       if ((gripperTime - gripperTimePrev) > gripperCheckDuration) {
@@ -319,6 +322,9 @@ static void resetSystem(const char* data, BufferFiller& buf) {
 COROUTINE(handleRemoteRequest) {
   COROUTINE_LOOP() {
     COROUTINE_DELAY(30);
+    if (!ethernetReady) {
+      continue;
+    }
     word len = ether.packetReceive();
     word pos = ether.packetLoop(len);
 
@@ -351,12 +357,34 @@ COROUTINE(handleRemoteRequest) {
   }
 }
 
+// USB serial commands (9600 baud): close / open / reset
+COROUTINE(handleSerialRequest) {
+  COROUTINE_LOOP() {
+    COROUTINE_DELAY(30);
+    if (Serial.available() != 0) {
+      String text = Serial.readStringUntil('\n');
+      text.trim();
+      if (text == "close" || text == "close gripper") {
+        gripperClose();
+        Serial.println(F("close command accepted"));
+      } else if (text == "open" || text == "open gripper") {
+        gripperOpen();
+        Serial.println(F("open command accepted"));
+      } else if (text == "reset") {
+        resetSystem();
+        Serial.println(F("reset command accepted"));
+      } else if (text.length() > 0) {
+        Serial.print(F("Unknown command: "));
+        Serial.println(text);
+      }
+    }
+  }
+}
+
 void setup()
 {
   Serial.begin(9600);
-  if (ether.begin(sizeof Ethernet::buffer, mymac) == 0)
-    Serial.println(F("Failed to access Ethernet controller"));
-  ether.dhcpSetup();
+  Serial.setTimeout(200);
   actuator.attach(output5); // attach the actuator to Arduino pin output5 (PWM)
   pinMode(analogIn, INPUT_PULLUP);
   actuator.writeMicroseconds(mag);
@@ -367,11 +395,28 @@ void setup()
   resetTime = millis();
   resetTimePrev = millis();
   readForceSensor();
+
+  // USB serial close/open must work even if the ENC28J60 is absent.
+  // Set ENABLE_ETHERNET to 1 when the EtherCard shield is attached.
+#define ENABLE_ETHERNET 0
+#if ENABLE_ETHERNET
+  if (ether.begin(sizeof Ethernet::buffer, mymac) == 0) {
+    Serial.println(F("Failed to access Ethernet controller"));
+    ethernetReady = false;
+  } else {
+    ethernetReady = true;
+    Serial.println(F("Ethernet controller found."));
+  }
+#else
+  ethernetReady = false;
+  Serial.println(F("Ethernet disabled; USB serial commands active."));
+#endif
 }
 
 void loop()
 {
   handleRemoteRequest.runCoroutine();
+  handleSerialRequest.runCoroutine();
   gripper.runCoroutine();
   reset.runCoroutine();
 }

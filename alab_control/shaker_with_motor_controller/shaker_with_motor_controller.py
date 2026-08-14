@@ -81,7 +81,7 @@ class ShakerWMC(BaseArduinoDevice):
     #   OPEN  = actuator pulse width at INITIAL_MAG (1600 us), jaws retracted.
     #           Success flag is gripper_status=OPEN after the open sweep.
     #   CLOSE = sweep pulse width down toward MAG_MIN (1200 us) until the FSR
-    #           reads < 100 (grip detected). Empty jaws -> ERROR.
+    #           reads < 150 (grip detected). Empty jaws -> ERROR.
     # force_reading thresholds used by this driver (ADC counts, not newtons):
     FORCE_OPEN_MIN = 200  # after open, force below this => still pressed/jammed
     FORCE_CLOSE_MAX = 200  # after close, force above this => no grip
@@ -177,7 +177,7 @@ class ShakerWMC(BaseArduinoDevice):
         Close the gripper to hold the container.
 
         Firmware definition: sweep actuator toward closed until FSR detects a
-        grip (force_reading < 100). Raises if the controller trips ERROR
+        grip (force_reading < 150). Raises if the controller trips ERROR
         (typical when jaws are empty) or if force stays high after CLOSE.
         """
         print(f"{self.get_current_time()} Gripping the container")
