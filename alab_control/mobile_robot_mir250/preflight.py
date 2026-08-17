@@ -400,22 +400,28 @@ def preflight(
     )
 
     if require_arm_parked:
+        parked = report.robot_pose == ARM_PARKED_POSE
         add(
             Check(
                 "arm_parked",
-                report.robot_pose == ARM_PARKED_POSE,
-                f"RobotPose is {report.robot_pose!r}, not {ARM_PARKED_POSE!r}. The arm is "
-                "not parked, and there is no safe-home interlock on this cell to fall back "
-                "on, so no base move may be commanded",
+                parked,
+                f"RobotPose is {ARM_PARKED_POSE!r}, so the arm is parked"
+                if parked
+                else f"RobotPose is {report.robot_pose!r}, not {ARM_PARKED_POSE!r}. The arm "
+                "is not parked, and there is no safe-home interlock on this cell to fall "
+                "back on, so no base move may be commanded",
             )
         )
 
     if expect_base_position is not None:
+        as_expected = report.base_position == expect_base_position
         add(
             Check(
                 "base_position_expected",
-                report.base_position == expect_base_position,
-                f"Main believes the base is at {report.base_position!r}, not "
+                as_expected,
+                f"Main believes the base is at {expect_base_position!r}, as expected"
+                if as_expected
+                else f"Main believes the base is at {report.base_position!r}, not "
                 f"{expect_base_position!r}. BaseHandler picks its retreat path from this "
                 "variable, so continuing would drive the wrong path out of a station the "
                 "robot is not in",
