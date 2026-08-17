@@ -1,0 +1,271 @@
+# The mobile robot's map of the A-Lab, as data.
+#
+# Everything the driver knows about where it can go and what it can reach lives here.
+# Adding a station or a route is an edit to this file plus a taught approach function in
+# Ability -- no Python change. registry.py validates every field on load and, when it can
+# reach the robot, cross-checks the MiR GUIDs and the Ability function names against the
+# live controller, so a typo fails at `alabos setup` rather than in front of a furnace.
+#
+# Three tables:
+#   [station.X]  a base position Main can drive to
+#   [region.X]   a place the arm can pick from or place into, addressed as Main's
+#                (region, slot) argument pair
+#   [[route]]    a source/destination pair the planner is allowed to serve, and how
+#
+# Station names are Main's BasePosition values verbatim. Region names are Main's region
+# argument values verbatim. Do not rename them here to something prettier: they are sent
+# to the controller as-is.
+
+schema_version = 1
+
+[defaults]
+# Retries before a leg is declared failed. Approach retries re-drive; calibration retries
+# re-run the marker detection from the taught camera pose.
+approach_attempts = 3
+calibration_attempts = 2
+# How far the base may sit from its recorded pose before preflight refuses to work here.
+pose_tolerance_m = 0.25
+pose_tolerance_deg = 8.0
+# The marker type every station calibrates with, and the projection error most of them
+# accept. Read out of Main; override per station where Main is stricter.
+marker = "CH3"
+max_projection_error = 1.0
+
+
+# ---------------------------------------------------------------------------
+# Stations
+# ---------------------------------------------------------------------------
+
+[station.Home]
+kind = "waypoint"
+description = "The parking spot in the middle of the floor. Every mission starts and ends here, and every recovery drives here first."
+approach_function = "HomeBase"
+mir_position = "Home"
+mir_position_guid = "dc92fc8a-fbd5-11ef-8c1a-000e8eb687a3"
+
+[station.Charging]
+kind = "charger"
+description = "The 48 V dock. This approach blocks inside Ability until the battery reaches its target, so only use it when waiting is the point."
+approach_function = "Charging"
+retreat_function = "HomeBase"
+mir_charging_station = "MiR Charge 48V"
+mir_charging_station_guid = "ff3bacf1-fb55-11ef-8c1a-000e8eb687a3"
+waits_for_charge = true
+
+[station.ChargingNoWait]
+kind = "charger"
+description = "The same dock, without Ability waiting for the battery. This is what the battery guard uses so Python keeps control of when to resume."
+approach_function = "Charging"
+retreat_function = "HomeBase"
+mir_charging_station = "MiR Charge 48V"
+mir_charging_station_guid = "ff3bacf1-fb55-11ef-8c1a-000e8eb687a3"
+waits_for_charge = false
+
+[station.LABMAN]
+kind = "workstation"
+description = "Labman powder dosing. Subracks of crucibles are handed over four at a time, one quadrant at a time."
+approach_function = "Go to Labman"
+retreat_function = "Out from Labman"
+mir_position = "Infront of LABMAN deep"
+mir_position_guid = "e370c663-bad6-11f0-9abb-000e8eb687a3"
+# Labman's handover is the tightest in the cell, so Main demands a much better fit here
+# than anywhere else before it will reach in.
+calibration_reference = "LabmanTag"
+max_projection_error = 0.3
+mutes_protective_fields = true
+
+[station.BFT]
+kind = "workstation"
+description = "Box furnace tending. Crucibles go one at a time into the sixteen slots of the input rack."
+approach_function = "Go To Furnace Station"
+retreat_function = "Out From Furnace Station"
+mir_position = "Furnace Station"
+mir_position_guid = "a9646ced-fbed-11ef-8c1a-000e8eb687a3"
+calibration_reference = "FurnaceStationTag"
+mutes_protective_fields = true
+
+[station.DASH]
+kind = "workstation"
+description = "Dry automated solid handling. Crucibles go one at a time into the sixteen slots of the input rack."
+approach_function = "Go To DASH"
+retreat_function = "OutFromDASH_New"
+mir_position = "DASH_new"
+mir_position_guid = "ba6b1b7c-bb88-11f0-9abb-000e8eb687a3"
+calibration_reference = "DASHTag"
+mutes_protective_fields = true
+
+[station.SRS]
+kind = "workstation"
+description = "Subrack storage. Where empty subracks are borrowed from when the payload does not start at Labman. Not tracked as an AlabOS device."
+approach_function = "Go To SubRackStorage Station"
+retreat_function = "Out From SubRackStorageStation"
+mir_position = "SubRackStorage"
+mir_position_guid = "c961a47f-fbed-11ef-8c1a-000e8eb687a3"
+calibration_reference = "SubRackStationTag"
+mutes_protective_fields = true
+
+# The two stations below are taught and reachable but carry no AlabOS positions yet, so no
+# route names them. They are here so preflight and the dashboard can still describe the
+# robot when someone drives it there by hand, and so adding a route later is a two-line
+# edit to [[route]] rather than new Python.
+[station.IXRD]
+kind = "workstation"
+description = "In-situ XRD. Taught and reachable; no AlabOS sample positions defined yet."
+approach_function = "GoToIXRDStation"
+retreat_function = "Out from IXRD"
+mir_position = "IXRD_1"
+mir_position_guid = "45ea8397-060f-11f1-a35f-000e8eb687a3"
+calibration_reference = "IXRDTag"
+mutes_protective_fields = true
+
+[station.SEMEDS]
+kind = "workstation"
+description = "SEM/EDS. Taught and reachable; no AlabOS sample positions defined yet."
+approach_function = "GoToSEMEDS"
+retreat_function = "Out from SEMEDS"
+mir_position = "SEMEDS"
+mir_position_guid = "b90416ec-61d5-11f0-92aa-000e8eb687a3"
+calibration_reference = "PrometheusTag"
+mutes_protective_fields = true
+
+
+# ---------------------------------------------------------------------------
+# Regions
+# ---------------------------------------------------------------------------
+#
+# A region plus a slot is exactly what Main takes as source_region/source_slot and
+# destination_region/destination_slot. `alabos_position` maps each slot onto the AlabOS
+# sample position that holds the same thing, which is what lets the dashboard say
+# "crucible from LABMAN_quadrant_1/crucible/SubRackA/2".
+#
+# `resources` are the AlabOS devices that own those positions and must be booked before
+# the arm reaches in. Where a region has several (Labman's four quadrants), the resource is
+# part of the position name and the planner books only the ones it touches.
+#
+# When a region has a `child_region`, the things sitting inside each slot are individually
+# reachable: the subracks on the base hold four crucibles each, and Main addresses them as
+# region "ROBOT_BASE/SubRackA", slot "2". Where there is no `child_region` -- Labman -- the
+# crucibles ride inside the subrack and only the whole subrack can be moved.
+
+[region.ROBOT_BASE]
+station = "*"                     # travels with the robot; reachable from anywhere
+carrier = "subrack"
+description = "The four subrack seats on the robot's own base."
+slots = ["SubRackA", "SubRackB", "SubRackC", "SubRackD"]
+resources = ["MOBILE_arm_ALFRED"]
+alabos_position = "{resource}/{slot}"
+child_slots = ["1", "2", "3", "4"]
+child_region = "ROBOT_BASE/{slot}"
+child_alabos_position = "{resource}/{slot}/{child}"
+
+# The four crucible-level views of the base seats. Main needs these as region arguments to
+# reach a single crucible inside a subrack that is already on the base. They own no AlabOS
+# positions of their own -- ROBOT_BASE above maps those -- they only make the argument
+# legal and checkable.
+[region."ROBOT_BASE/SubRackA"]
+station = "*"
+carrier = "crucible"
+description = "The four crucible seats inside subrack A on the base."
+slots = ["1", "2", "3", "4"]
+
+[region."ROBOT_BASE/SubRackB"]
+station = "*"
+carrier = "crucible"
+description = "The four crucible seats inside subrack B on the base."
+slots = ["1", "2", "3", "4"]
+
+[region."ROBOT_BASE/SubRackC"]
+station = "*"
+carrier = "crucible"
+description = "The four crucible seats inside subrack C on the base."
+slots = ["1", "2", "3", "4"]
+
+[region."ROBOT_BASE/SubRackD"]
+station = "*"
+carrier = "crucible"
+description = "The four crucible seats inside subrack D on the base."
+slots = ["1", "2", "3", "4"]
+
+[region.LABMAN]
+station = "LABMAN"
+carrier = "subrack"
+description = "The subrack seats inside the four Labman quadrants."
+slots = ["SubRackA", "SubRackB", "SubRackC", "SubRackD"]
+resources = [
+    "LABMAN_quadrant_1",
+    "LABMAN_quadrant_2",
+    "LABMAN_quadrant_3",
+    "LABMAN_quadrant_4",
+]
+alabos_position = "{resource}/crucible/{slot}"
+child_slots = ["1", "2", "3", "4"]
+child_alabos_position = "{resource}/crucible/{slot}/{child}"
+# Labman hands over whole subracks only, so there is deliberately no child_region: a
+# crucible inside a Labman subrack cannot be picked on its own.
+requires_take_control = true
+
+[region.SRS]
+station = "SRS"
+carrier = "subrack"
+description = "The subrack seats in storage. Empty subracks are borrowed from here."
+slots = ["SubRackA", "SubRackB", "SubRackC", "SubRackD"]
+resources = []
+# Subracks taken from storage sit vertically on the base, so the base slot Main is given
+# gains this suffix. Nothing else in the cell does this.
+base_slot_suffix = "Vertical"
+
+[region.BFT]
+station = "BFT"
+carrier = "crucible"
+description = "The sixteen crucible slots of the box furnace tending input rack."
+slots = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"]
+resources = ["BFT_input_rack"]
+# "slot" is the name of the position group on the TransferRack device, not a placeholder.
+alabos_position = "{resource}/slot/{slot}"
+
+[region.DASH]
+station = "DASH"
+carrier = "crucible"
+description = "The sixteen crucible slots of the characterization input rack."
+slots = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16"]
+resources = ["DASH_input_rack"]
+alabos_position = "{resource}/slot/{slot}"
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+#
+# A route says the planner may serve requests from `source` to `destination`, and how the
+# payload is carried. Anything not listed here is refused at request time, which is how a
+# request for a move nobody has taught is caught before the robot moves.
+#
+#   max_samples   samples one mission may carry
+#   max_carriers  subracks the base can hold at once
+#   carrier_from  where empty subracks are borrowed when the source cannot supply them
+#   return_carrier_to  where the subracks are put back before the robot goes home
+
+[[route]]
+source = "LABMAN"
+destination = "BFT"
+description = "Dosed crucibles from Labman to the furnaces, carried in their own Labman subracks."
+max_samples = 16
+max_carriers = 4
+return_carrier_to = "LABMAN"
+
+[[route]]
+source = "LABMAN"
+destination = "DASH"
+description = "Dosed crucibles from Labman straight to characterization, carried in their own Labman subracks."
+max_samples = 16
+max_carriers = 4
+return_carrier_to = "LABMAN"
+
+[[route]]
+source = "BFT"
+destination = "DASH"
+description = "Fired crucibles from the furnaces to characterization. Labman has no part in this, so the subracks are borrowed from storage."
+max_samples = 16
+max_carriers = 4
+carrier_from = "SRS"
+return_carrier_to = "SRS"

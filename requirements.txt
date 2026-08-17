@@ -35,3 +35,8 @@ scipy
 numpy
 
 pydantic>=1.10.2
+
+# mobile_robot_mir250: the Ability rosbridge websocket, and TOML reading on Python < 3.11
+# (tomllib is stdlib from 3.11 and the registry prefers it when available).
+websocket-client>=1.5.0
+tomli>=2.0.1; python_version < "3.11"

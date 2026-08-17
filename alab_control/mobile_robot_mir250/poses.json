@@ -1,0 +1,26 @@
+{
+  "_comment": "Recorded pose truth for the MiR250 cell, used to reconcile Ability's persisted BasePosition against where the robot physically is. Each station record was written when a Main(<station>) leg completed with BasePosition matching the requested target, so the evidence field says why the record is believed. The charger record is the pose read while the MiR reported it was charging, and is the reference for the 'is it actually docked' check. This file is the committed baseline; runtime observations are written to a separate mutable file (MIR250_POSES_FILE) and take precedence over these.",
+  "stations": {
+    "Charging": {
+      "evidence": "Main(Charging) completed with BasePosition=Charging",
+      "recorded_at": "2026-08-15T17:59:39-07:00",
+      "x": -4.365540888555207,
+      "y": -2.1963576304796986,
+      "yaw_deg": 35.42743682861328
+    },
+    "LABMAN": {
+      "evidence": "Main(LABMAN) completed with BasePosition=LABMAN",
+      "recorded_at": "2026-08-15T17:57:54-07:00",
+      "x": -4.894994761521551,
+      "y": -6.268767973842132,
+      "yaw_deg": 32.935489654541016
+    }
+  },
+  "charger": {
+    "evidence": "Charging ... Waiting for new mission ...",
+    "recorded_at": "2026-08-15T17:23:52-07:00",
+    "x": -4.31789610362093,
+    "y": -2.1728757184234597,
+    "yaw_deg": 34.94430160522462
+  }
+}
