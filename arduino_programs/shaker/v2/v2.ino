@@ -9,11 +9,13 @@
 using namespace ace_routine;
 
 // Communication configuration
-#define USE_ETHERNET 0 // 0 = USB serial commands only (no Ethernet cable needed)
+#define USE_ETHERNET 1 // 1 = HTTP on port 80 (AlabOS driver); 0 = USB serial only
 #include <EtherCard.h>
 #include <ArduinoJson.h>
 #define serialwaitingtime 5 //time in seconds to wait for the serial connection to be stablished, or it will be canceled
+#define NIP 192, 168, 1, 189
 static byte mymac[] = { 0x74, 0x69, 0x30, 0x2F, 0x22, 0x31 }; // MAC address of the device
+static byte myip[] = { NIP };
 static byte Ethernet::buffer[400]; // Buffer for Ethernet
 BufferFiller bfill; // Buffer for the response
 // Array of string to list the possible commands
@@ -62,8 +64,13 @@ String gripperStateToString(GripperState state) {
 
 void readForceSensor() {
   force_reading = analogRead(analogIn);
-  Serial.print("Analog reading:");
-  Serial.println(force_reading);
+  static unsigned long lastPrintMs = 0;
+  unsigned long now = millis();
+  if ((now - lastPrintMs) >= 5000) {
+    lastPrintMs = now;
+    Serial.print(F("Analog reading:"));
+    Serial.println(force_reading);
+  }
 }
 
 // Returns true when grip resistance exceeds the tuned limit.
@@ -467,8 +474,19 @@ void setup()
 #if USE_ETHERNET
   if (ether.begin(sizeof Ethernet::buffer, mymac) == 0)
     Serial.println(F("Failed to access Ethernet controller"));
-  else
-    ether.dhcpSetup();
+  else {
+    ether.staticSetup(myip);
+    Serial.print(F("IP was set to: "));
+    for (int i = 0; i < 4; i++) {
+      Serial.print(String(myip[i]));
+      if (i < 3) {
+        Serial.print(".");
+      } else {
+        Serial.println("");
+      }
+    }
+    Serial.println(F("HTTP: GET /start /stop /state /gripper-open /gripper-close /reset"));
+  }
 #else
   Serial.println(F("Ethernet disabled; using USB serial."));
 #endif
