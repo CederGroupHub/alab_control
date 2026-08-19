@@ -5,7 +5,8 @@ Three things live here because they must be true regardless of what the robot is
 **The battery policy.** One place that decides when the robot may start, when it must stop,
 and when it may resume. The numbers are policy, not magic: 80% is the floor for taking on
 work of any kind including waiting on another instrument, 90% is where a suspended mission
-resumes, and 20% is a hard refusal because below that the robot may not make it to the dock.
+resumes, 50% is where being low means the charging policy itself has failed and somebody is
+told, and 20% is a hard refusal because below that the robot may not make it to the dock.
 
 **The protective-field mute.** Reaching into Labman requires suppressing the MiR's safety
 scanners. A mute that outlives the code that set it leaves the robot driving blind, and we
@@ -58,12 +59,21 @@ class BatteryPolicy:
     working_floor: float = 80.0
     resume_at: float = 90.0
     hard_floor: float = 20.0
+    #: Where being low stops being a policy decision and becomes evidence that charging is
+    #: broken. The robot should have docked at `working_floor`, so reaching this while not
+    #: charging means something prevented it, and somebody needs to be told.
+    alarm_at: float = 50.0
 
     def __post_init__(self) -> None:
         if not self.hard_floor < self.working_floor <= self.resume_at:
             raise ValueError(
                 f"battery policy must satisfy hard_floor < working_floor <= resume_at, "
                 f"got {self.hard_floor} / {self.working_floor} / {self.resume_at}"
+            )
+        if not self.hard_floor <= self.alarm_at < self.working_floor:
+            raise ValueError(
+                f"battery policy must satisfy hard_floor <= alarm_at < working_floor, "
+                f"got {self.hard_floor} / {self.alarm_at} / {self.working_floor}"
             )
 
     def may_start(self, battery: float | None) -> bool:
@@ -89,6 +99,16 @@ class BatteryPolicy:
     def below_hard_floor(self, battery: float | None) -> bool:
         return battery is not None and battery < self.hard_floor
 
+    def should_alarm(self, battery: float | None, *, charging: bool | None = False) -> bool:
+        """Whether being this low is worth waking somebody up about.
+
+        A charging robot below the alarm level is the policy working: it noticed, it docked,
+        it is filling up. A robot that is this low and *not* charging got here despite the
+        policy, and that is what the alarm is for. An unreadable battery is not answered here
+        -- the caller knows whether it has a reading and how old it is.
+        """
+        return battery is not None and battery < self.alarm_at and not charging
+
     def suspend_reason(self, battery: float) -> str:
         return (
             f"battery is {battery:.0f}%, below the {self.working_floor:.0f}% working floor; "
@@ -100,6 +120,7 @@ class BatteryPolicy:
             "working_floor": self.working_floor,
             "resume_at": self.resume_at,
             "hard_floor": self.hard_floor,
+            "alarm_at": self.alarm_at,
         }
 
 
@@ -121,6 +142,78 @@ def set_mute(ros: AbilityRosClient, muted: bool) -> None:
             f"{MUTE_SERVICE} refused mute={muted}: {reply.get('error_message')}",
             url=MUTE_SERVICE,
         )
+
+
+def persist_mute(mir: MirClient, muted: bool) -> None:
+    """Write MiR setting 2137. No-op if the client cannot authenticate."""
+    writer = getattr(mir, "set_protective_fields_muted", None)
+    if writer is None:
+        raise RobotApiError(
+            "this MiR client cannot write the protective-field setting",
+            url="/settings/2137",
+        )
+    writer(bool(muted))
+
+
+def ensure_fields_unmuted(
+    ros: AbilityRosClient,
+    mir: MirClient,
+    *,
+    settle: float = MUTE_SETTLE_S,
+    log: Callable[[str], None] | None = None,
+    reason: str = "with no work in progress",
+) -> None:
+    """Clear a leftover mute, including the persisted MiR setting ROS unmute misses.
+
+    Order: ROS unmute, then PUT setting 2137 if the MiR still reports muted, then
+    verify ``safety_system_muted`` is false. Raises :class:`MaintenanceRequired` if
+    it cannot be verified. A cell that is already unmuted returns immediately.
+    """
+    say = log or logger.info
+    if fields_muted(mir) is False:
+        return
+
+    say(f"protective fields are muted {reason}; clearing the leftover mute")
+    try:
+        set_mute(ros, False)
+    except RobotApiError as error:
+        say(f"ROS unmute was refused ({error}); trying the persisted MiR setting")
+
+    if settle:
+        time.sleep(settle)
+    if fields_muted(mir) is False:
+        say("protective fields are live after the ROS unmute")
+        return
+
+    try:
+        persist_mute(mir, False)
+    except RobotApiError as error:
+        raise MaintenanceRequired(
+            f"could not unmute the MiR protective fields: {error}",
+            prompt=(
+                "The mobile robot's safety scanners are muted and nothing is using them. "
+                "ROS unmute did not clear them, and writing MiR setting 2137 failed "
+                f"({error}).\n\n"
+                "Run recover.py --unmute --execute, or clear the mute from the MiR web "
+                "interface, confirm safety_system_muted is false, then mark this as "
+                "completed."
+            ),
+        ) from error
+
+    if settle:
+        time.sleep(settle)
+    state = fields_muted(mir)
+    if state:
+        raise MaintenanceRequired(
+            "the MiR protective fields are still muted after ROS unmute and setting 2137",
+            prompt=(
+                "The mobile robot's safety scanners are still muted after software "
+                "unmute (ROS plus MiR setting 2137).\n\n"
+                "Clear the mute from the MiR web interface, confirm safety_system_muted "
+                "is false, then mark this as completed."
+            ),
+        )
+    say("protective fields are live after writing MiR setting 2137")
 
 
 class MuteGuard:
@@ -179,7 +272,15 @@ class MuteGuard:
         if not self.taken:
             return
         try:
-            set_mute(self.ros, False)
+            ensure_fields_unmuted(
+                self.ros,
+                self.mir,
+                settle=self.settle if self.verify else 0.0,
+                log=self.log,
+                reason=f"after working at {self.station or 'a station'}",
+            )
+        except MaintenanceRequired:
+            raise
         except RobotApiError as error:
             raise MaintenanceRequired(
                 f"could not unmute the MiR protective fields after working at "
@@ -188,31 +289,13 @@ class MuteGuard:
                     "The mobile robot's safety scanners were muted to reach into "
                     f"{self.station or 'a station'} and the unmute command failed. The robot "
                     "must not move until they are back on.\n\n"
-                    "Unmute the protective fields from the MiR web interface, confirm "
-                    "safety_system_muted is false, then mark this as completed."
+                    "Run recover.py --unmute --execute, or unmute from the MiR web "
+                    "interface, confirm safety_system_muted is false, then mark this as "
+                    "completed."
                 ),
             ) from error
-        if not self.verify:
-            return
-        time.sleep(self.settle)
-        state = fields_muted(self.mir)
-        if state is None:
-            self.log(
-                "unmuted the protective fields but could not read the MiR back to confirm "
-                "it; MiR credentials are needed for that check"
-            )
-            return
-        if state:
-            raise MaintenanceRequired(
-                "the MiR protective fields are still muted after the unmute command",
-                prompt=(
-                    "The mobile robot's safety scanners are still muted after working at "
-                    f"{self.station or 'a station'}. It must not move.\n\n"
-                    "Clear the mute from the MiR web interface, confirm "
-                    "safety_system_muted is false, then mark this as completed."
-                ),
-            )
-        self.log(f"protective fields back on after {self.station or 'the reach'}")
+        if self.verify and fields_muted(self.mir) is False:
+            self.log(f"protective fields back on after {self.station or 'the reach'}")
 
 
 def assert_fields_unmuted(mir: MirClient) -> None:
@@ -291,12 +374,28 @@ def emergency_stop(
                 report.failures.append(f"ROS stop failed: {error}")
 
         # The scanners matter more than the stop: a stopped robot with muted fields is one
-        # command away from moving blind.
+        # command away from moving blind. Always command the unmute; skip only the
+        # persisted-setting fallback when the MiR already reads live.
         try:
             set_mute(ros, False)
             report.actions.append("protective fields unmuted")
         except RobotApiError as error:
             report.failures.append(f"could not unmute the protective fields: {error}")
+
+        if mir is not None and fields_muted(mir):
+            try:
+                persist_mute(mir, False)
+                if not fields_muted(mir):
+                    report.actions.append("protective fields unmuted via MiR setting 2137")
+                    report.failures[:] = [
+                        item
+                        for item in report.failures
+                        if "unmute the protective fields" not in item
+                    ]
+            except RobotApiError as error:
+                report.failures.append(
+                    f"could not write MiR setting 2137 to unmute: {error}"
+                )
 
     if mir is not None and fields_muted(mir):
         report.failures.append(
@@ -312,13 +411,25 @@ def emergency_stop(
     return report
 
 
-def mir_is_wedged(ability_state: str, mir_reachable: bool) -> bool:
+def mir_is_wedged(
+    ability_state: str,
+    mir_reachable: bool,
+    ability_message: str = "",
+) -> bool:
     """The one failure with no software recovery: Ability faulted and the MiR is gone.
 
     Clearing the latch does not bring the MiR back, and the next command faults again, so
     recognising this specifically is what stops a retry loop from running all night.
+
+    A manipulator healthcheck latch with a reachable MiR is *not* this: that is a stale
+    Ability entity error, which recovery can try to restart.
     """
-    return ability_state == "Entity Error Active" and not mir_reachable
+    if ability_state != "Entity Error Active" or mir_reachable:
+        return False
+    message = (ability_message or "").lower()
+    if "manipulator" in message:
+        return False
+    return True
 
 
 def wedge_prompt(detail: str = "") -> str:

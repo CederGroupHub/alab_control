@@ -13,6 +13,10 @@ station routing, safety, battery policy, cancellation and observability all live
 - :mod:`engine` -- runs a mission leg by leg, with every blocking wait interruptible by
   cancellation or the battery policy.
 - :mod:`preflight` -- the gate that refuses to move when the cell is not in a safe state.
+- :mod:`obstruction` -- watches the base while it drives and stops it when it stops getting
+  closer to where it is going, which is the only obstacle signal this cell exposes.
+- :mod:`hold` -- the on-disk record of a mission parked because something was in the way, and
+  the handshake by which a person says it has been moved.
 - :mod:`driver` -- :class:`MiR250MobileManipulator`, the surface an AlabOS device uses.
 - :mod:`mock` -- :class:`MockMiR250`, the same driver with an in-memory cell underneath, for
   the tests and for AlabOS simulation mode.
@@ -44,13 +48,27 @@ from .clients import (
 )
 from .errors import (
     BatterySuspend,
+    CollisionStop,
     LegFailed,
     MaintenanceRequired,
     MissionCancelled,
     MissionInterrupted,
     MobileRobotError,
+    ObstructionDetected,
+    ObstructionHold,
     PreflightFailed,
     RegistryError,
+)
+from .hold import HOLD_FILE_ENV, ObstructionHoldRecord
+from .obstruction import (
+    DEFAULT_OBSTRUCTION_SETTINGS,
+    MotionSample,
+    Obstruction,
+    ObstructionSettings,
+    ObstructionWatch,
+    hard_stop,
+    sample_from_status,
+    stop_base,
 )
 from .driver import (
     CHARGER_NO_WAIT,
@@ -70,7 +88,9 @@ from .engine import (
 from .mission import Leg, LegKind, Mission, SampleMove, dock, transfer, travel
 from .mock import FakeAbility, FakeMir, FakeRos, MockMiR250
 from .poses import StationPoses, pose_dict, pose_sources_disagree
+from .pendant import Pendant, PendantAction
 from .preflight import Check, PreflightReport, preflight
+from .recovery import RecoveryReport, recover_cell
 from .safety import (
     DEFAULT_BATTERY_POLICY,
     BatteryPolicy,
@@ -78,6 +98,7 @@ from .safety import (
     StopReport,
     assert_fields_unmuted,
     emergency_stop,
+    ensure_fields_unmuted,
     fields_muted,
     mir_is_wedged,
     wedge_prompt,
@@ -110,9 +131,12 @@ __all__ = [
     "CHARGER_NO_WAIT",
     "CHARGER_WAIT",
     "Check",
+    "CollisionStop",
     "DEFAULT_BATTERY_POLICY",
+    "DEFAULT_OBSTRUCTION_SETTINGS",
     "DEFAULT_REGISTRY",
     "ERROR_STATES",
+    "HOLD_FILE_ENV",
     "FakeAbility",
     "FakeMir",
     "FakeRos",
@@ -132,17 +156,27 @@ __all__ = [
     "MissionResult",
     "MobileRobotError",
     "MockMiR250",
+    "MotionSample",
     "MuteGuard",
     "ON_BOARD",
+    "Obstruction",
+    "ObstructionDetected",
+    "ObstructionHold",
+    "ObstructionHoldRecord",
+    "ObstructionSettings",
+    "ObstructionWatch",
     "PARKING_STATION",
     "Placement",
     "Pose",
+    "Pendant",
+    "PendantAction",
     "PreflightFailed",
     "PreflightReport",
     "ProgrammingSession",
     "PyBridge",
     "RETREAT",
     "RUNNING_STATES",
+    "RecoveryReport",
     "Region",
     "Registry",
     "RegistryError",
@@ -160,8 +194,10 @@ __all__ = [
     "dock",
     "dock_mission",
     "emergency_stop",
+    "ensure_fields_unmuted",
     "fields_muted",
     "go_home_mission",
+    "hard_stop",
     "is_error_state",
     "legs_summary",
     "load_registry",
@@ -172,8 +208,11 @@ __all__ = [
     "pose_dict",
     "pose_sources_disagree",
     "preflight",
+    "recover_cell",
     "registry",
+    "sample_from_status",
     "settle_on_charge",
+    "stop_base",
     "transfer",
     "travel",
     "wedge_prompt",

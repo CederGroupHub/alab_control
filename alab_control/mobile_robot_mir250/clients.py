@@ -454,11 +454,21 @@ class AbilityClient(_JsonClient):
         return self._request("GET", "/help/datatypes")
 
 
+#: MiR persistent setting that latches the protective-field mute. ROS unmute can
+#: report success while this stays ``true``, which is why recovery writes it directly.
+MIR_MUTE_SETTING_ID = 2137
+
+#: Position type 0, "Robot position", from GET /position_types. What a plain marker on the
+#: map is, as opposed to a cart or charger entry.
+MIR_ROBOT_POSITION_TYPE = 0
+
+
 class MirClient(_JsonClient):
     """MiR250 REST v2.0.0.
 
     GET /status needs no credentials. Everything else returns 401; supply a
-    username and password to reach positions, missions and the mission queue.
+    username and password to reach positions, missions, settings and the
+    mission queue.
     """
 
     def __init__(
@@ -509,6 +519,94 @@ class MirClient(_JsonClient):
         """Resolve a positions or missions GUID to its record. Requires credentials."""
         return self._request("GET", f"/{kind}/{guid}", headers=self._headers)
 
+    def _require_auth(self, what: str) -> None:
+        if not self.authenticated:
+            raise RobotApiError(
+                f"{what} needs MiR credentials (MIR_USERNAME / MIR_PASSWORD)",
+                url=f"{self.base_url}/settings",
+            )
+
+    def setting(self, setting_id: int) -> dict[str, Any]:
+        """One MiR setting record. Requires credentials."""
+        self._require_auth("reading a MiR setting")
+        result = self._request(
+            "GET", f"/settings/{setting_id}", headers=self._headers
+        )
+        return result if isinstance(result, dict) else {}
+
+    def put_setting(self, setting_id: int, value: str) -> Any:
+        """Write a MiR setting. Requires credentials.
+
+        The body is ``{"value": ...}`` as a string, matching the GET shape.
+        """
+        self._require_auth("writing a MiR setting")
+        return self._request(
+            "PUT",
+            f"/settings/{setting_id}",
+            json={"value": value},
+            headers=self._headers,
+        )
+
+    def set_protective_fields_muted(self, muted: bool) -> None:
+        """Enable or disable the MiR *feature* for reducing protective fields (setting 2137).
+
+        This is not the live ``safety_system_muted`` latch; ROS
+        ``/mobile/mute_protective_fields`` drives that. Recovery still writes 2137
+        because some cells persist mute there, then verifies ``GET /status``.
+        """
+        self.put_setting(MIR_MUTE_SETTING_ID, "true" if muted else "false")
+
+    def resume_ready(self) -> dict[str, Any]:
+        """Clear a harmful MiR pause (e.g. ``Aborted - User Request``).
+
+        Puts the base in ``Ready`` and drops a stuck mission queue entry so
+        redock and charging can proceed. Requires credentials.
+        """
+        self._require_auth("resuming the MiR from a harmful pause")
+        return self._request(
+            "PUT",
+            "/status",
+            json={"state_id": 3},
+            headers=self._headers,
+        )
+
+    def create_position(
+        self,
+        name: str,
+        x: float,
+        y: float,
+        orientation: float = 0.0,
+        *,
+        map_id: str | None = None,
+        type_id: int = MIR_ROBOT_POSITION_TYPE,
+    ) -> dict[str, Any]:
+        """Put a named marker on the MiR map. Requires credentials.
+
+        Used to pin where an obstruction was found, so it appears on the same map the
+        operator is already looking at rather than only in a log file. The map defaults to
+        whichever one is loaded, since a marker on an unloaded map helps nobody.
+        """
+        self._require_auth("creating a MiR map position")
+        target_map = map_id or str(self.status().get("map_id") or "")
+        if not target_map:
+            raise RobotApiError(
+                "the MiR did not report which map is loaded, so a position cannot be placed",
+                url=f"{self.base_url}/positions",
+            )
+        return self._request(
+            "POST",
+            "/positions",
+            json={
+                "name": name,
+                "pos_x": float(x),
+                "pos_y": float(y),
+                "orientation": float(orientation),
+                "type_id": int(type_id),
+                "map_id": target_map,
+            },
+            headers=self._headers,
+        )
+
 
 class AbilityRosClient:
     """Ability's ROS interface over the rosbridge websocket on port 9090.
@@ -538,6 +636,69 @@ class AbilityRosClient:
         self.host = host
         self.url = f"ws://{host}:{port}"
         self.timeout = timeout
+
+    def service_type(self, service: str) -> str:
+        """ROS message type of a service, via rosapi. Read-only."""
+        return str(
+            self.call_service("/rosapi/service_type", {"service": service}).get(
+                "type", ""
+            )
+        )
+
+    def topic_type(self, topic: str) -> str:
+        """ROS message type of a topic, via rosapi. Read-only."""
+        return str(
+            self.call_service("/rosapi/topic_type", {"topic": topic}).get("type", "")
+        )
+
+    def healthcheck(self, name: str) -> dict[str, Any]:
+        """Call ``/{name}/healthcheck``. Used to see whether a latched entity error is stale."""
+        path = name if name.startswith("/") else f"/{name}/healthcheck"
+        return self.call_service(path)
+
+    def docker_modules(self, timeout: float = 5.0) -> list[str]:
+        """Names of Ability docker modules, from the latched ``/docker_backend/modules`` topic."""
+        for message in self.topic_messages(
+            "/docker_backend/modules", count=1, timeout=timeout
+        ):
+            return _docker_module_names(message)
+        return []
+
+    def restart_docker_module(self, name: str) -> dict[str, Any]:
+        """Restart one Ability docker module. Never call ``restart_all`` from here."""
+        return self.call_service(
+            "/docker_backend/restart_module", {"request": name}
+        )
+
+    def publish(
+        self,
+        topic: str,
+        message: Mapping[str, Any],
+        *,
+        type_name: str,
+    ) -> None:
+        """Advertise, publish one message, and unadvertise. For jogging with a deadman."""
+        try:
+            import websocket
+        except ImportError as exc:  # pragma: no cover
+            raise RobotApiError(
+                "the websocket-client package is required for the ROS interface: "
+                "pip install websocket-client"
+            ) from exc
+
+        connection = websocket.create_connection(self.url, timeout=self.timeout)
+        try:
+            connection.send(
+                json.dumps(
+                    {"op": "advertise", "topic": topic, "type": type_name}
+                )
+            )
+            connection.send(
+                json.dumps({"op": "publish", "topic": topic, "msg": dict(message)})
+            )
+            connection.send(json.dumps({"op": "unadvertise", "topic": topic}))
+        finally:
+            connection.close()
 
     def call_service(
         self, service: str, args: dict[str, Any] | None = None
@@ -838,6 +999,37 @@ def settle_on_charge(
                 break
             time.sleep(3.0)
     return ros.is_charging() and not mir_pause_reason(mir.status())
+
+
+def _docker_module_names(message: Any) -> list[str]:
+    """Pull module names out of whatever shape ``/docker_backend/modules`` publishes."""
+    items: Any = message
+    if isinstance(message, dict):
+        items = (
+            message.get("modules")
+            or message.get("data")
+            or message.get("names")
+            or message.get("response")
+            or []
+        )
+        if isinstance(items, dict):
+            items = items.get("data") or list(items.values())
+    names: list[str] = []
+    if isinstance(items, list):
+        for item in items:
+            if isinstance(item, str) and item:
+                names.append(item)
+            elif isinstance(item, dict):
+                name = (
+                    item.get("name")
+                    or item.get("id")
+                    or item.get("module")
+                    or item.get("a")
+                    or ""
+                )
+                if name:
+                    names.append(str(name))
+    return names
 
 
 def _mir_basic_auth(username: str, password: str) -> str:

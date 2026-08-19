@@ -32,6 +32,90 @@ marker = "CH3"
 max_projection_error = 1.0
 
 
+[obstruction]
+# When to conclude that something is in the way. The base is watched once per poll for the
+# whole of every drive, and the evidence is progress rather than motion: a robot leaning on
+# a box still reports wheel velocity, but distance_to_next_target stops falling.
+#
+# There are two tiers, and the difference is what the robot may do next.
+#
+# The patient tier, below: the drive is getting nowhere but nothing suggests contact. Stopped
+# gently, retried, and the MiR's own planner gets a chance to route around whatever it sees.
+# stall_grace_s is a trade -- the MiR needs a few seconds to replan, and this is also how long
+# the robot keeps trying before Python reacts. Set it from a logged approach
+# (watch_state.py --motion), not from taste.
+stall_grace_s = 20.0
+progress_epsilon_m = 0.05
+# A jump this big in distance_to_next_target is a new waypoint or a replan, so the progress
+# clock starts again. Without it, every waypoint the MiR passes would read as a stalled drive.
+target_jump_m = 0.5
+# /ability_backend/mobile_device_blocked is corroboration, not the primary signal: it
+# publishes on change, so a poll can miss an edge. Hence its own, shorter, grace.
+blocked_grace_s = 8.0
+# Re-approaches after an obstruction before the mission goes on hold and asks for a person.
+max_attempts = 2
+# Where a second attempt routes through, so the approach starts from a different heading and
+# the MiR plans a fresh path instead of retrying the one that failed.
+detour_via = "Home"
+# Every Nth poll also reads the two ROS signals. Each read opens a websocket, so this is
+# kept well below the MiR status rate it corroborates.
+ros_poll_every = 4
+# MiR mission_text fragments that mean the path is not clear. Deliberately empty: these are
+# cell-specific prose and a wrong entry here would stop missions for no reason. Fill it in
+# from an instrumented run.
+mission_text_needles = []
+
+# The hard tier: evidence that the base has hit something, or that something appeared in
+# front of it. The controller is emergency-stopped, the mission goes on hold immediately with
+# no retry, and the robot stays where it is until a person resets it at the robot. That costs
+# somebody a walk to the cell, which is the right price for not leaning on whatever it found.
+#
+# If this fires on something innocent, soften the number that fired and say why in the session
+# report. Do not turn hard_stop off to make a test pass.
+hard_stop = true
+# Reported speed at or above which the base counts as driving. A parked MiR250 measures about
+# 0.0002 m/s linear and 0.05 rad/s angular, so both floors below clear the noise comfortably.
+moving_speed_mps = 0.05
+stopped_speed_mps = 0.02
+# Wheels turning this fast while the target stops getting closer, for this long, is contact:
+# either pushing something or slipping against it. Deliberately much shorter than
+# stall_grace_s, because indecision can wait and contact cannot. The detector arms itself only
+# after the drive has been seen to get closer to its target at least once, so Ability backing
+# the base out of a station first cannot trip it.
+impact_grace_s = 4.0
+# A base that was driving and then stopped dead, with this much distance still to go, for this
+# long: something appeared in front of it. This is the one most likely to need softening on a
+# cell that pauses legitimately mid-path, so it has its own switch.
+hard_stop_on_sudden_stop = true
+sudden_confirm_s = 3.0
+arrival_epsilon_m = 0.3
+# ...but only while the protective fields are muted. With the fields live, a base stopping
+# short of something is the MiR's safety system working, and what follows is the MiR replanning
+# around the obstacle -- the recovery that actually works. Latching there would trade that away
+# and turn every stray box into a walk to the cell with a reset key. With the fields muted
+# nothing is watching and nothing will replan, so the same reading means it found something the
+# hard way.
+sudden_stop_needs_muted_fields = true
+# Turning on the spot is motion, not a stop. Above this angular speed the base is lining up
+# with a marker, which happens in every approach.
+turning_speed_radps = 0.15
+# The MiR saying it stopped itself. state_id 10 is its emergency-stop state: a robot in it
+# cannot move until somebody resets it, so retrying is not an option whatever put it there.
+# Not yet confirmed on this cell: whether a protective-field trip also reports 10 and clears
+# itself. If test 2.8 shows it does, take 10 out of this list -- a self-clearing stop belongs to
+# the patient tier.
+#
+# The needles are matched case-insensitively against state_text, the MiR error list and
+# /mobile/status.error_msg -- deliberately NOT against mission_text, which holds the name of the
+# mission being attempted rather than what happened. Two of them are narrower than they look:
+# "collision detected" rather than "collision", because Ability's approaches are named
+# `Forward 1.45m without collision detection` and the shorter needle would latch the robot on
+# every station approach; and "protective stop" is absent, for the same reason as
+# sudden_stop_needs_muted_fields above.
+hard_stop_state_ids = [10]
+hard_stop_needles = ["emergency", "collision detected", "bumper"]
+
+
 # ---------------------------------------------------------------------------
 # Stations
 # ---------------------------------------------------------------------------
@@ -51,6 +135,14 @@ retreat_function = "HomeBase"
 mir_charging_station = "MiR Charge 48V"
 mir_charging_station_guid = "ff3bacf1-fb55-11ef-8c1a-000e8eb687a3"
 waits_for_charge = true
+# Docking legitimately sits still while it lines up on the dock's marker, and this approach
+# then blocks inside Ability waiting for the battery. Neither is an obstruction, so the
+# stall grace here is long enough not to mistake either for one.
+obstruction_stall_grace_s = 90.0
+# Docking is the one manoeuvre where driving into something is the intention: the base has to
+# push onto the charging contacts. The impact detector already stands down inside
+# arrival_epsilon_m, and this gives the approach to the dock room on top of that.
+obstruction_impact_grace_s = 30.0
 
 [station.ChargingNoWait]
 kind = "charger"
@@ -60,6 +152,10 @@ retreat_function = "HomeBase"
 mir_charging_station = "MiR Charge 48V"
 mir_charging_station_guid = "ff3bacf1-fb55-11ef-8c1a-000e8eb687a3"
 waits_for_charge = false
+# Lining up on the dock marker looks like a stall, and pushing onto the contacts looks like
+# an impact. See [station.Charging].
+obstruction_stall_grace_s = 45.0
+obstruction_impact_grace_s = 30.0
 
 [station.LABMAN]
 kind = "workstation"

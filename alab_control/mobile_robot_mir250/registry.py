@@ -19,6 +19,7 @@ map file one exception at a time is miserable.
 
 from __future__ import annotations
 
+import dataclasses
 import re
 from dataclasses import dataclass
 from functools import lru_cache
@@ -29,6 +30,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from .clients import BASE_POSITIONS
 from .errors import RegistryError
+from .obstruction import DEFAULT_OBSTRUCTION_SETTINGS, ObstructionSettings
 from .session import APPROACH, RETREAT
 
 try:  # tomllib is stdlib from 3.11; tomli is the identical backport below that.
@@ -85,6 +87,21 @@ class Station(_Strict):
     calibration_attempts: int = Field(ge=1)
     pose_tolerance_m: float = Field(gt=0)
     pose_tolerance_deg: float = Field(gt=0)
+
+    #: How long the base may make no progress on the way here before it is called an
+    #: obstruction. A station whose approach includes a slow docking manoeuvre needs longer
+    #: than a straight run down a corridor, which is the whole reason this is per station.
+    obstruction_stall_grace_s: float | None = Field(default=None, gt=0)
+    #: Re-approach attempts after an obstruction before the mission goes on hold.
+    obstruction_attempts: int | None = Field(default=None, ge=1)
+    #: How long the wheels may turn without the target getting closer before the drive is
+    #: called a collision and the controller is latched. Per station because a station whose
+    #: approach shuffles the base into place legitimately makes no progress for a moment.
+    obstruction_impact_grace_s: float | None = Field(default=None, gt=0)
+    #: Set false to take a station out of the hard-stop tier entirely, leaving it only the
+    #: patient, retryable stall detector. For a dock where nudging something is expected --
+    #: the charger contacts -- not for a station somebody merely finds it inconvenient at.
+    obstruction_hard_stop: bool | None = None
 
     @property
     def is_charger(self) -> bool:
@@ -202,10 +219,12 @@ class Registry:
         regions: Mapping[str, Region],
         routes: Sequence[Route],
         source: Path | None = None,
+        obstruction: ObstructionSettings = DEFAULT_OBSTRUCTION_SETTINGS,
     ) -> None:
         self.stations: dict[str, Station] = dict(stations)
         self.regions: dict[str, Region] = dict(regions)
         self.routes: tuple[Route, ...] = tuple(routes)
+        self.obstruction = obstruction
         self.source = source
         self._placements: dict[str, Placement] = {}
         # Templates are checked before they are used, so a wrong placeholder is a readable
@@ -452,6 +471,29 @@ class Registry:
                 f"{', '.join(sorted(self.regions))}"
             ) from None
 
+    def obstruction_settings(self, station: str | None = None) -> ObstructionSettings:
+        """The obstruction thresholds for a drive to `station`, overrides applied.
+
+        An unknown station gets the cell-wide defaults rather than an error: this is
+        consulted on every base move, including recovery moves to stations the caller may
+        have spelled loosely, and refusing to watch is worse than watching with defaults.
+        """
+        declared = self.stations.get(station or "")
+        if declared is None:
+            return self.obstruction
+        changes: dict[str, Any] = {}
+        if declared.obstruction_stall_grace_s is not None:
+            changes["stall_grace_s"] = declared.obstruction_stall_grace_s
+        if declared.obstruction_attempts is not None:
+            changes["max_attempts"] = declared.obstruction_attempts
+        if declared.obstruction_impact_grace_s is not None:
+            changes["impact_grace_s"] = declared.obstruction_impact_grace_s
+        if declared.obstruction_hard_stop is not None:
+            changes["hard_stop"] = declared.obstruction_hard_stop
+        if not changes:
+            return self.obstruction
+        return dataclasses.replace(self.obstruction, **changes)
+
     def regions_at(self, station: str) -> list[Region]:
         """Regions the arm can reach while parked at `station`, on-board ones included."""
         return [
@@ -606,8 +648,8 @@ class Registry:
     def _check_map(self, ros: Any) -> list[str]:
         problems: list[str] = []
         try:
-            positions = ros.positions()
-            chargers = ros.charging_stations()
+            positions = self._name_to_guid_map(ros.positions())
+            chargers = self._name_to_guid_map(ros.charging_stations())
         except Exception as error:  # noqa: BLE001 - the reason is the useful part
             return [f"could not read the MiR map from Ability: {error}"]
         problems += self._match_guids(positions, "mir_position", "mir_position_guid")
@@ -615,6 +657,16 @@ class Registry:
             chargers, "mir_charging_station", "mir_charging_station_guid"
         )
         return problems
+
+    @staticmethod
+    def _name_to_guid_map(live: Mapping[str, str]) -> dict[str, str]:
+        """Ability returns guid->name; registry matching needs name->guid."""
+        if not live:
+            return {}
+        sample = next(iter(live))
+        if "-" in sample and len(sample) > 20:
+            return {name: guid for guid, name in live.items() if name}
+        return dict(live)
 
     def _match_guids(
         self, live: Mapping[str, str], name_field: str, guid_field: str
@@ -771,6 +823,7 @@ def load_registry(path: Path | str | None = None) -> Registry:
             for name, body in (raw.get("region") or {}).items()
         }
         routes = [Route(**body) for body in (raw.get("route") or [])]
+        obstruction = _obstruction_settings(raw.get("obstruction") or {})
     except RegistryError:
         raise
     except Exception as error:  # pydantic ValidationError, mostly
@@ -779,7 +832,24 @@ def load_registry(path: Path | str | None = None) -> Registry:
     if not stations:
         raise RegistryError(f"{resolved} declares no stations")
 
-    return Registry(stations, regions, routes, source=resolved)
+    return Registry(stations, regions, routes, source=resolved, obstruction=obstruction)
+
+
+def _obstruction_settings(raw: Mapping[str, Any]) -> ObstructionSettings:
+    known = {field.name for field in dataclasses.fields(ObstructionSettings)}
+    unknown = sorted(set(raw) - known)
+    if unknown:
+        raise RegistryError(
+            f"[obstruction] does not understand {unknown}; valid keys are {sorted(known)}"
+        )
+    values = dict(raw)
+    # TOML has arrays where the settings have tuples, and a mutable default in a frozen
+    # dataclass would be a bug waiting to happen, so every sequence is converted here rather
+    # than each caller remembering to.
+    for name in ("mission_text_needles", "hard_stop_needles", "hard_stop_state_ids"):
+        if name in values:
+            values[name] = tuple(values[name])
+    return dataclasses.replace(DEFAULT_OBSTRUCTION_SETTINGS, **values)
 
 
 @lru_cache(maxsize=4)

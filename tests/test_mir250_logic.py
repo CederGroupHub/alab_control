@@ -752,6 +752,7 @@ def test_the_snapshot_describes_a_running_mission(tmp_path: Path) -> None:
         "working_floor": 80.0,
         "resume_at": 90.0,
         "hard_floor": 20.0,
+        "alarm_at": 50.0,
     }
     assert snapshot["stations"]["LABMAN"]["recorded_pose"]["x"] == pytest.approx(
         -4.895, abs=1e-3
@@ -875,6 +876,24 @@ def test_an_unknown_battery_never_starts_work_but_never_aborts_a_leg() -> None:
 def test_an_incoherent_policy_is_rejected_at_construction() -> None:
     with pytest.raises(ValueError, match="hard_floor < working_floor"):
         BatteryPolicy(working_floor=95.0, resume_at=90.0)
+    with pytest.raises(ValueError, match="alarm_at < working_floor"):
+        BatteryPolicy(alarm_at=85.0)
+
+
+def test_being_low_only_alarms_when_the_robot_is_not_charging() -> None:
+    """The alarm level says charging failed, not that the battery is low.
+
+    A robot at 45% on the dock is the policy working. A robot at 45% off the dock got there
+    despite the policy, which is the thing worth reporting.
+    """
+    policy = BatteryPolicy()
+    assert policy.alarm_at == 50.0
+    assert policy.should_alarm(49.9)
+    assert not policy.should_alarm(50.0)
+    assert not policy.should_alarm(45.0, charging=True)
+    # Unknown is not answered here: the caller knows whether its reading is merely old.
+    assert not policy.should_alarm(None)
+    assert policy.to_dict()["alarm_at"] == 50.0
 
 
 # -- the emergency stop ---------------------------------------------------
@@ -979,3 +998,929 @@ def test_a_synthetic_function_block_has_the_fields_the_controller_demands() -> N
 def test_leg_kinds_render_as_the_words_the_dashboard_shows() -> None:
     assert str(LegKind.TRAVEL) == "travel"
     assert travel("Home", "x").to_dict()["kind"] == "travel"
+
+
+# -- recovery: unmute via setting 2137, stale entity error, leftover programs --
+
+
+def test_ros_unmute_that_leaves_setting_2137_on_is_cleared_by_the_mi_r_write() -> None:
+    """The live cell: ROS unmute returns success, safety_system_muted stays true."""
+    from alab_control.mobile_robot_mir250.mock import FakeMir, FakeRos
+    from alab_control.mobile_robot_mir250.safety import ensure_fields_unmuted, fields_muted
+
+    ros = FakeRos()
+    mir = FakeMir(ros=ros)
+    mir.setting_2137 = True
+    ensure_fields_unmuted(ros, mir, settle=0)
+    assert mir.setting_2137 is False
+    assert fields_muted(mir) is False
+    assert False in ros.mute_calls
+    assert mir.setting_writes == [(2137, "false")]
+
+
+def test_preflight_clears_a_leftover_mute_instead_of_just_refusing(
+    tmp_path: Path,
+) -> None:
+    robot = MockMiR250(tmp_path=tmp_path)
+    robot.mir.setting_2137 = True
+    report = robot.preflight()
+    assert robot.mir.setting_2137 is False
+    assert report.fields_muted is False
+    live = next(c for c in report.checks if c.name == "protective_fields_live")
+    assert live.ok
+
+
+def test_a_manipulator_entity_error_is_not_the_mi_r_wedge() -> None:
+    from alab_control.mobile_robot_mir250.safety import mir_is_wedged
+
+    assert mir_is_wedged(
+        "Entity Error Active", False, "MobileDevice failed critical healthcheck."
+    )
+    assert not mir_is_wedged(
+        "Entity Error Active", False, "Manipulator failed critical healthcheck."
+    )
+    assert not mir_is_wedged(
+        "Entity Error Active", True, "MobileDevice failed critical healthcheck."
+    )
+
+
+def test_recover_clears_a_stale_manipulator_entity_error_by_restarting_the_module() -> None:
+    from alab_control.mobile_robot_mir250.mock import FakeAbility, FakeMir, FakeRos
+    from alab_control.mobile_robot_mir250.recovery import recover_cell
+
+    ability = FakeAbility()
+    ability.state_name = "Entity Error Active"
+    ability.message = "Manipulator failed critical healthcheck."
+    ros = FakeRos()
+    ros.ability = ability
+    mir = FakeMir(ros=ros)
+    report = recover_cell(
+        ability, ros, mir, unmute_settle=0, restart_wait=0, log=lambda _m: None
+    )
+    assert "manipulator" in ros.restarted
+    assert ability.state_name == "Idle"
+    assert report.ok, report.summary()
+
+
+def test_recover_does_not_restart_ability_when_the_mi_r_is_wedged() -> None:
+    from alab_control.mobile_robot_mir250.mock import FakeAbility, FakeMir, FakeRos
+    from alab_control.mobile_robot_mir250.recovery import recover_cell
+
+    ability = FakeAbility()
+    ability.state_name = "Entity Error Active"
+    ability.message = "MobileDevice failed critical healthcheck."
+    ros = FakeRos()
+    ros.ability = ability
+    mir = FakeMir(ros=ros)
+    mir.reachable = False
+    report = recover_cell(
+        ability, ros, mir, unmute_settle=0, restart_wait=0, log=lambda _m: None
+    )
+    assert report.wedged
+    assert ros.restarted == []
+    assert not report.ok
+
+
+def test_recover_deletes_leftover_pyauthored_programs() -> None:
+    from alab_control.mobile_robot_mir250.mock import FakeAbility, FakeMir, FakeRos
+    from alab_control.mobile_robot_mir250.recovery import leftover_programs, recover_cell
+
+    ability = FakeAbility()
+    ability.program_list = ["PyAuthoredWait", "PyAuthoredCall", "Main"]
+    ros = FakeRos()
+    ros.ability = ability
+    mir = FakeMir(ros=ros)
+    report = recover_cell(
+        ability, ros, mir, unmute_settle=0, restart_wait=0, log=lambda _m: None
+    )
+    assert report.ok, report.summary()
+    assert leftover_programs(ability) == []
+    assert "PyAuthoredWait" in ros.deleted_programs
+    assert ability.loaded["name"] == "Main"
+
+
+def test_match_docker_module_prefers_a_name_from_the_live_list() -> None:
+    from alab_control.mobile_robot_mir250.recovery import match_docker_module
+
+    assert match_docker_module("manipulator", ["er_hwl_mobile", "ur_manipulator"]) == (
+        "ur_manipulator"
+    )
+    assert match_docker_module("mobile", ["er_hwl_mobile", "ur_manipulator"]) == (
+        "er_hwl_mobile"
+    )
+    assert match_docker_module("manipulator", []) == "manipulator"
+
+
+def test_pendant_freedrive_and_a_dry_run_jog_do_not_need_the_robot() -> None:
+    from alab_control.mobile_robot_mir250.mock import FakeRos
+    from alab_control.mobile_robot_mir250.pendant import Pendant
+
+    ros = FakeRos()
+    pendant = Pendant(ros, log=lambda _m: None)
+    assert pendant.start_teach_mode().ok
+    assert ros.teach_active and ros.manual_mode
+    assert pendant.end_teach_mode().ok
+    assert not ros.teach_active
+    dry = pendant.jog_arm_axes([0.5, 0, 0, 0, 0, 0], duration=0.1, execute=False)
+    assert dry.ok and "dry run" in dry.detail
+    assert ros.published == []
+    live = pendant.jog_arm_axes([0.5, 0, 0, 0, 0, 0], duration=0.05, execute=True)
+    assert live.ok
+    assert ros.published[-1][1]["dq"] == [0.0] * 6
+
+
+# ==========================================================================
+# Obstructions: stopping a drive that is getting nowhere
+# ==========================================================================
+
+
+class FakeClock:
+    """A clock that only moves when a test says so.
+
+    The detector is all about grace periods, and a test that waited twenty real seconds to
+    check a twenty-second grace period would be deleted within a week.
+    """
+
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+    def tick(self, seconds: float) -> None:
+        self.now += seconds
+
+
+def _watch(clock: FakeClock, **overrides: object) -> object:
+    from alab_control.mobile_robot_mir250.obstruction import (
+        DEFAULT_OBSTRUCTION_SETTINGS,
+        ObstructionWatch,
+    )
+    import dataclasses
+
+    return ObstructionWatch(
+        mir=None,
+        ros=None,
+        station="BFT",
+        leg_index=2,
+        settings=dataclasses.replace(DEFAULT_OBSTRUCTION_SETTINGS, **overrides),
+        log=lambda _m: None,
+        clock=clock,
+    )
+
+
+def _driving(clock: FakeClock, distance: float, **extra: object) -> object:
+    """A reading of a base that is executing a mission with a target ahead of it."""
+    from alab_control.mobile_robot_mir250.obstruction import MotionSample
+
+    fields: dict[str, object] = {
+        "at": clock.now,
+        "mir_state": "Executing",
+        "distance_to_next_target": distance,
+        "x": 1.0,
+        "y": 2.0,
+        "orientation_deg": 0.0,
+    }
+    fields.update(extra)
+    return MotionSample(**fields)
+
+
+def test_a_stalled_drive_is_called_an_obstruction_once_the_grace_expires() -> None:
+    clock = FakeClock()
+    watch = _watch(clock, stall_grace_s=20.0)
+    assert watch.judge(_driving(clock, 3.0)) is None
+    for _ in range(19):
+        clock.tick(1.0)
+        assert watch.judge(_driving(clock, 3.0)) is None, "fired before the grace expired"
+    clock.tick(1.0)
+    found = watch.judge(_driving(clock, 3.0))
+    assert found is not None
+    assert "stopped making progress" in found.reason
+    assert found.station == "BFT" and found.leg_index == 2
+    assert found.stalled_for_s == pytest.approx(20.0)
+
+
+def test_progress_toward_the_target_resets_the_stall_timer() -> None:
+    """Otherwise a long drive would be called an obstruction just for taking a while."""
+    clock = FakeClock()
+    watch = _watch(clock, stall_grace_s=10.0, progress_epsilon_m=0.05)
+    distance = 8.0
+    for _ in range(60):
+        clock.tick(1.0)
+        distance -= 0.2
+        assert watch.judge(_driving(clock, distance)) is None
+
+
+def test_creeping_slower_than_the_epsilon_still_counts_as_stalled() -> None:
+    """A robot leaning on a box inches forward. That is not progress toward anything."""
+    clock = FakeClock()
+    watch = _watch(clock, stall_grace_s=10.0, progress_epsilon_m=0.05)
+    distance = 4.0
+    found = None
+    for _ in range(15):
+        clock.tick(1.0)
+        distance -= 0.001
+        found = watch.judge(_driving(clock, distance))
+        if found:
+            break
+    assert found is not None
+
+
+def test_a_parked_or_charging_robot_is_never_an_obstruction() -> None:
+    """The live MiR reports state_text 'Executing' while it sits on the charger, with
+    distance_to_next_target 0.0. Without the no-target guard this would fire every night."""
+    from alab_control.mobile_robot_mir250.obstruction import sample_from_status
+
+    clock = FakeClock()
+    watch = _watch(clock, stall_grace_s=5.0)
+    charging = {
+        "state_text": "Executing",
+        "mission_text": "Charging ... Waiting for new mission ...",
+        "distance_to_next_target": 0.0,
+        "velocity": {"linear": 0.0, "angular": 0.0},
+        "position": {"x": -4.1, "y": -2.0, "orientation": 34.3},
+        "errors": [],
+    }
+    for _ in range(30):
+        clock.tick(1.0)
+        assert watch.judge(sample_from_status(charging, at=clock.now)) is None
+
+
+def test_a_drive_between_missions_starts_the_stall_history_fresh() -> None:
+    """A leg that finishes and a new one that starts must not share a stall timer."""
+    clock = FakeClock()
+    watch = _watch(clock, stall_grace_s=5.0)
+    for _ in range(4):
+        clock.tick(1.0)
+        watch.judge(_driving(clock, 3.0))
+    clock.tick(1.0)
+    assert watch.judge(_driving(clock, 0.0, mir_state="Ready")) is None
+    for _ in range(4):
+        clock.tick(1.0)
+        assert watch.judge(_driving(clock, 3.0)) is None, "inherited the previous stall"
+
+
+def test_the_blocked_topic_needs_its_own_grace_and_a_false_clears_it() -> None:
+    clock = FakeClock()
+    watch = _watch(clock, blocked_grace_s=8.0, stall_grace_s=999.0)
+    assert watch.judge(_driving(clock, 3.0, blocked=True)) is None
+    clock.tick(4.0)
+    assert watch.judge(_driving(clock, 3.0, blocked=True)) is None
+    clock.tick(1.0)
+    # The topic went quiet, which is not the same as saying the robot is free.
+    assert watch.judge(_driving(clock, 3.0, blocked=None)) is None
+    clock.tick(1.0)
+    assert watch.judge(_driving(clock, 3.0, blocked=False)) is None
+    clock.tick(20.0)
+    assert watch.judge(_driving(clock, 3.0, blocked=False)) is None, "a False must reset it"
+    assert watch.judge(_driving(clock, 3.0, blocked=True)) is None
+    clock.tick(9.0)
+    found = watch.judge(_driving(clock, 3.0, blocked=True))
+    assert found is not None and "blocked" in found.reason
+
+
+def test_a_mir_error_mid_drive_is_reported_immediately() -> None:
+    clock = FakeClock()
+    watch = _watch(clock)
+    found = watch.judge(
+        _driving(clock, 3.0, errors=("Motor controller 1 overload",))
+    )
+    assert found is not None
+    assert "Motor controller 1 overload" in found.signal
+
+
+def test_the_mute_is_recorded_but_never_fires_on_its_own() -> None:
+    """Ability's own drive blocks mute the fields. That has to appear in the record without
+    stopping a leg on its own, or every station approach would be an obstruction."""
+    clock = FakeClock()
+    watch = _watch(clock, stall_grace_s=999.0)
+    assert watch.judge(_driving(clock, 3.0, muted=True)) is None
+    assert watch.saw_mute
+
+
+def test_the_obstruction_point_is_the_front_of_the_base_along_its_heading() -> None:
+    from alab_control.mobile_robot_mir250.obstruction import (
+        MotionSample,
+        parse_footprint,
+    )
+
+    footprint = parse_footprint("[[0.54,-0.38],[0.54,0.38],[-0.54,0.38],[-0.54,-0.38]]")
+    assert len(footprint) == 4
+
+    for heading, expected in (
+        (0.0, (10.54, 20.0)),
+        (90.0, (10.0, 20.54)),
+        (180.0, (9.46, 20.0)),
+        (-90.0, (10.0, 19.46)),
+    ):
+        sample = MotionSample(
+            at=0.0, x=10.0, y=20.0, orientation_deg=heading, footprint=footprint
+        )
+        point = sample.front_edge()
+        assert point is not None
+        assert point[0] == pytest.approx(expected[0], abs=1e-6)
+        assert point[1] == pytest.approx(expected[1], abs=1e-6)
+
+
+def test_a_missing_position_gives_no_obstruction_point_rather_than_a_wrong_one() -> None:
+    from alab_control.mobile_robot_mir250.obstruction import MotionSample, Obstruction
+
+    found = Obstruction(
+        reason="stalled", signal="", station="BFT", leg_index=0, sample=MotionSample(at=0.0)
+    )
+    assert found.obstruction_point is None
+    assert found.robot_pose is None
+    assert "not known" in found.where()
+
+
+# -- the hard stop: contact, and something appearing ------------------------
+#
+# Every test below is about the same trade. A latch strands the robot and costs somebody a
+# walk to the cell, so the signals that fire it have to be right, and the ones that must not
+# fire it are worth as many tests as the ones that must.
+
+
+def test_wheels_turning_while_the_target_stops_getting_closer_is_a_collision() -> None:
+    """The signature of pushing something, and the thing this tier was written for.
+
+    Identical to a stall in `distance_to_next_target`. The only difference is the reported
+    speed, and the difference in what to do about it is total: this one latches.
+    """
+    clock = FakeClock()
+    watch = _watch(clock, impact_grace_s=4.0, stall_grace_s=999.0)
+    # Closing on the target first, which is what arms the detector.
+    for distance in (5.0, 4.0, 3.0):
+        clock.tick(1.0)
+        assert watch.judge(_driving(clock, distance, velocity_linear=0.2)) is None
+    for _ in range(4):
+        clock.tick(1.0)
+        found = watch.judge(_driving(clock, 3.0, velocity_linear=0.2))
+        if found is not None:
+            break
+    assert found is not None
+    assert found.hard, "a collision must not be handed to the retry policy"
+    assert "driving into something" in found.reason
+    assert "0.20 m/s" in found.signal
+
+
+def test_a_drive_that_never_got_going_is_not_called_a_collision() -> None:
+    """No progress and no motion is the MiR refusing to plan, and a retry is the right answer.
+    Latching on it would strand the robot for something a re-approach fixes."""
+    clock = FakeClock()
+    watch = _watch(clock, impact_grace_s=4.0, stall_grace_s=20.0)
+    assert watch.judge(_driving(clock, 3.0, velocity_linear=0.0)) is None
+    for _ in range(19):
+        clock.tick(1.0)
+        found = watch.judge(_driving(clock, 3.0, velocity_linear=0.0))
+        assert found is None, "the patient tier fired before its grace expired"
+    clock.tick(1.0)
+    found = watch.judge(_driving(clock, 3.0, velocity_linear=0.0))
+    assert found is not None and not found.hard
+
+
+def test_backing_out_of_a_station_is_not_a_collision() -> None:
+    """Ability retreats before it drives anywhere, and during the retreat the wheels turn while
+    the distance to the next target grows. Without the arming rule that is a false latch at the
+    start of every single leg."""
+    clock = FakeClock()
+    watch = _watch(clock, impact_grace_s=4.0, stall_grace_s=999.0)
+    distance = 2.0
+    for _ in range(15):
+        clock.tick(1.0)
+        distance += 0.1  # driving away from the target, on purpose
+        assert watch.judge(_driving(clock, distance, velocity_linear=0.2)) is None
+
+
+def test_a_new_waypoint_restarts_the_progress_clock() -> None:
+    """`distance_to_next_target` jumps up when the MiR passes a waypoint or replans. Reading
+    that as a failure to make progress would fire on every multi-waypoint route."""
+    clock = FakeClock()
+    watch = _watch(clock, impact_grace_s=4.0, stall_grace_s=10.0, target_jump_m=0.5)
+    for distance in (5.0, 4.0, 3.0):
+        clock.tick(1.0)
+        assert watch.judge(_driving(clock, distance, velocity_linear=0.2)) is None
+    # The next waypoint is 6 m away. Three seconds of driving toward it is not a collision.
+    for _ in range(3):
+        clock.tick(1.0)
+        assert watch.judge(_driving(clock, 6.0, velocity_linear=0.2)) is None
+
+
+def test_shuffling_into_place_at_the_target_is_not_a_collision() -> None:
+    """Inside the arrival radius the base is lining up on a marker or pushing onto a dock, and
+    whatever it touches there is the station. The patient detector still covers this."""
+    clock = FakeClock()
+    watch = _watch(clock, impact_grace_s=2.0, stall_grace_s=999.0, arrival_epsilon_m=0.3)
+    for distance in (2.0, 1.0, 0.2):
+        clock.tick(1.0)
+        assert watch.judge(_driving(clock, distance, velocity_linear=0.2)) is None
+    for _ in range(10):
+        clock.tick(1.0)
+        assert watch.judge(_driving(clock, 0.2, velocity_linear=0.2)) is None
+
+
+def test_a_base_stopping_dead_inside_a_muted_approach_is_a_sudden_stop() -> None:
+    """Something appeared in front of it during the window where nothing is watching. Ability's
+    approach missions switch collision detection off, so in there a base that stops dead was
+    stopped by something rather than by anything that will replan around it."""
+    clock = FakeClock()
+    watch = _watch(clock, sudden_confirm_s=3.0, stall_grace_s=999.0, impact_grace_s=999.0)
+    for distance in (5.0, 4.0, 3.0):
+        clock.tick(1.0)
+        assert watch.judge(_driving(clock, distance, velocity_linear=0.3, muted=True)) is None
+    found = None
+    for _ in range(5):
+        clock.tick(1.0)
+        found = watch.judge(_driving(clock, 3.0, velocity_linear=0.0, muted=True))
+        if found is not None:
+            break
+    assert found is not None and found.hard
+    assert "stopped dead" in found.reason
+
+
+def test_the_same_stop_with_the_fields_live_stays_patient() -> None:
+    """With the scanners in charge, a base stopping short of something is the safety system
+    working, and what follows is the MiR routing around it -- the recovery that actually works.
+    Latching here would trade that away and make every stray box a walk to the cell."""
+    clock = FakeClock()
+    watch = _watch(clock, sudden_confirm_s=2.0, stall_grace_s=999.0, impact_grace_s=999.0)
+    for distance in (5.0, 4.0, 3.0):
+        clock.tick(1.0)
+        assert watch.judge(_driving(clock, distance, velocity_linear=0.3, muted=False)) is None
+    for _ in range(10):
+        clock.tick(1.0)
+        assert watch.judge(_driving(clock, 3.0, velocity_linear=0.0, muted=False)) is None
+
+
+def test_turning_on_the_spot_is_not_a_sudden_stop() -> None:
+    """Every approach rotates to line up with a marker, and the linear speed of a base doing
+    that is zero. Calling it a sudden stop would latch mid-approach, every time."""
+    clock = FakeClock()
+    watch = _watch(clock, sudden_confirm_s=2.0, stall_grace_s=999.0, impact_grace_s=999.0)
+    clock.tick(1.0)
+    assert watch.judge(_driving(clock, 3.0, velocity_linear=0.3, muted=True)) is None
+    for _ in range(10):
+        clock.tick(1.0)
+        reading = _driving(
+            clock, 3.0, velocity_linear=0.0, velocity_angular=0.4, muted=True
+        )
+        assert watch.judge(reading) is None
+
+
+def test_arriving_is_not_a_sudden_stop() -> None:
+    """A drive that stops because it got there is the normal end of every leg."""
+    clock = FakeClock()
+    watch = _watch(clock, sudden_confirm_s=2.0, stall_grace_s=999.0, impact_grace_s=999.0)
+    for distance in (3.0, 2.0, 1.0):
+        clock.tick(1.0)
+        assert watch.judge(_driving(clock, distance, velocity_linear=0.3, muted=True)) is None
+    for _ in range(10):
+        clock.tick(1.0)
+        assert watch.judge(_driving(clock, 0.1, velocity_linear=0.0, muted=True)) is None
+
+
+def test_the_parked_charging_robot_never_trips_the_hard_stop() -> None:
+    """The measured reading from the live cell: Executing, no target, and enough angular noise
+    to matter. This is what runs all night, so a false latch here would be found by a person
+    arriving to a stopped lab."""
+    from alab_control.mobile_robot_mir250.obstruction import sample_from_status
+
+    clock = FakeClock()
+    watch = _watch(clock, impact_grace_s=1.0, sudden_confirm_s=1.0, stall_grace_s=5.0)
+    charging = {
+        "state_id": 5,
+        "state_text": "Executing",
+        "mission_text": "Charging ... Waiting for new mission ...",
+        "distance_to_next_target": 0.0,
+        "velocity": {"linear": 0.0001863616780610755, "angular": -0.05299125239253044},
+        "position": {"x": -4.1, "y": -2.0, "orientation": 34.3},
+        "errors": [],
+    }
+    for _ in range(30):
+        clock.tick(1.0)
+        assert watch.judge(sample_from_status(charging, at=clock.now)) is None
+
+
+def test_the_mir_reporting_its_own_emergency_stop_is_a_hard_stop() -> None:
+    """Both the numeric state and the prose, because firmware changes the wording and not the
+    number, and because the same words turn up in the error list and on /mobile/status."""
+    clock = FakeClock()
+
+    by_id = _watch(clock).judge(
+        _driving(clock, 3.0, mir_state_id=10, mir_state="EmergencyStop")
+    )
+    assert by_id is not None and by_id.hard
+
+    by_text = _watch(clock).judge(_driving(clock, 3.0, mir_state="Emergency stop"))
+    assert by_text is not None and by_text.hard
+
+    by_error = _watch(clock).judge(
+        _driving(clock, 3.0, errors=("Safety Collision detected on front scanner",))
+    )
+    assert by_error is not None and by_error.hard
+
+    # And an ordinary MiR error is still the patient kind, so a motor warning does not strand
+    # the robot in the aisle.
+    ordinary = _watch(clock).judge(_driving(clock, 3.0, errors=("Motor controller 1 overload",)))
+    assert ordinary is not None and not ordinary.hard
+
+
+def test_abilitys_own_mission_names_do_not_latch_the_robot() -> None:
+    """The trap this nearly fell into. Ability drives station approaches with MiR missions named
+    `Forward 1.45m without collision detection`, and the MiR puts that in `mission_text`. A
+    needle of `collision`, matched against mission text, would emergency-stop the robot on every
+    station approach it ever made."""
+    clock = FakeClock()
+    watch = _watch(clock, stall_grace_s=999.0)
+    approach = _driving(
+        clock,
+        1.4,
+        mir_state="Executing",
+        mission_text="Forward 1.45m without collision detection",
+        velocity_linear=0.1,
+        muted=True,
+    )
+    assert watch.judge(approach) is None
+
+    # The same word in an error, which is the MiR saying what happened rather than what it is
+    # attempting, is a hard stop.
+    hit = _watch(clock).judge(_driving(clock, 1.4, errors=("Collision detected",)))
+    assert hit is not None and hit.hard
+
+
+def test_the_hard_stop_can_be_turned_off_per_station() -> None:
+    """A cell that trips this on something innocent has to be able to soften it from config.
+    The switch exists so nobody edits the detector to make a test pass."""
+    clock = FakeClock()
+    watch = _watch(clock, hard_stop=False, impact_grace_s=1.0, stall_grace_s=999.0)
+    for distance in (5.0, 4.0, 3.0):
+        clock.tick(1.0)
+        assert watch.judge(_driving(clock, distance, velocity_linear=0.2)) is None
+    for _ in range(10):
+        clock.tick(1.0)
+        assert watch.judge(_driving(clock, 3.0, velocity_linear=0.2)) is None
+
+
+def test_hard_stop_stops_the_wheels_then_latches_the_controller() -> None:
+    """Order matters: the base is in contact with something and the latch takes a second or
+    two, so the one call that acts immediately goes first."""
+    from alab_control.mobile_robot_mir250.mock import FakeAbility, FakeMir, FakeRos
+    from alab_control.mobile_robot_mir250.obstruction import hard_stop
+
+    ability = FakeAbility()
+    ability.state_name = "Executing"
+    ros = FakeRos()
+    ros.ability = ability
+    ros.muted = True
+    mir = FakeMir(ros=ros)
+
+    steps = hard_stop(ros, ability, mir, log=lambda _m: None)
+    assert [step.name for step in steps] == ["base_stopped", "controller_latched"]
+    assert all(step.ok for step in steps), [s.detail for s in steps if not s.ok]
+    assert ros.base_stops == 1
+    assert ability.stops == 1 and ros.stops == 1
+    # The scanners come back even here. A stopped robot with muted fields is one command away
+    # from moving blind, and somebody is about to walk up to this one.
+    assert not ros.muted
+
+
+def test_stop_base_stops_the_wheels_first_and_never_latches_the_controller() -> None:
+    from alab_control.mobile_robot_mir250.mock import FakeAbility, FakeMir, FakeRos
+    from alab_control.mobile_robot_mir250.obstruction import stop_base
+
+    ability = FakeAbility()
+    ability.state_name = "Executing"
+    ros = FakeRos()
+    ros.ability = ability
+    ros.muted = True
+    mir = FakeMir(ros=ros)
+
+    steps = stop_base(ros, ability, mir, settle=0.0, log=lambda _m: None)
+    assert [step.name for step in steps] == [
+        "base_stopped",
+        "program_stopped",
+        "fields_live",
+    ]
+    assert all(step.ok for step in steps), [s.detail for s in steps if not s.ok]
+    assert ros.base_stops == 1
+    assert ability.state_name == "Idle"
+    assert not ros.muted
+    # An emergency stop would have latched the controller and left the robot unable to drive
+    # itself to the charger, which is the whole reason this path exists.
+    assert ability.state_name not in ("Emergency Stop Active", "Safeguard Stop Active")
+
+
+def test_an_obstruction_message_is_classified_as_an_obstruction() -> None:
+    from alab_control.mobile_robot_mir250.driver import OBSTRUCTION_STOPPED
+
+    assert classify_failure(f"{OBSTRUCTION_STOPPED} on the way to BFT: stalled") == (
+        "obstruction"
+    )
+    # Ability's own timeout stays a plain blocked path: it is recovered by waiting, not by
+    # holding the mission and calling somebody.
+    assert classify_failure("The Move action timed out after being blocked") == "blocked"
+
+
+def test_an_obstructed_drive_escalates_then_holds_the_mission(tmp_path: Path) -> None:
+    """The promise made to the user, end to end: stop, try again, try from somewhere else,
+    then mark the spot, dock, and wait for a person."""
+    from alab_control.mobile_robot_mir250 import ObstructionHold
+
+    robot = MockMiR250(
+        tmp_path=tmp_path, base_position="Home", stall_at={"BFT"}, log=lambda _m: None
+    )
+    mission = Mission.build([travel("BFT", "going to the furnaces")], route="-> BFT")
+
+    with pytest.raises(ObstructionHold) as raised:
+        robot.run_mission(mission, skip_preflight=True)
+    held = raised.value
+    assert held.leg_index == 0
+    assert robot.mission_status == "held"
+
+    # Two attempts at BFT, and the second one went via Home first so the MiR planned a fresh
+    # path in rather than retrying the one that failed.
+    targets = [started.get("target_base_position") for started in robot.legs_started]
+    assert targets == ["BFT", "BFT", "Home", "BFT"]
+    # The wheels were stopped every time, before Ability was asked to stop.
+    assert robot.ros.base_stops == 3
+
+    record = robot.hold()
+    assert record is not None and not record.cleared
+    assert record.station == "BFT" and record.leg_index == 0
+    assert record.attempts == 2
+    assert record.obstruction["obstruction_point"]["x"] == pytest.approx(-3.6478, abs=1e-3)
+    # Marked where people are already looking, not only in a file they have to be told about.
+    assert robot.mir.created_positions[-1]["name"].startswith("OBSTRUCTION ")
+
+
+def test_a_collision_latches_the_robot_and_never_retries(tmp_path: Path) -> None:
+    """The other half of the promise: something the robot drove into is not something to have
+    another go at. One attempt, an emergency stop, and it stays where it stopped."""
+    from alab_control.mobile_robot_mir250 import CollisionStop
+
+    robot = MockMiR250(
+        tmp_path=tmp_path, base_position="Home", collide_at={"BFT"}, log=lambda _m: None
+    )
+    mission = Mission.build([travel("BFT", "going to the furnaces")], route="-> BFT")
+
+    with pytest.raises(CollisionStop) as raised:
+        robot.run_mission(mission, skip_preflight=True)
+    collided = raised.value
+    assert collided.latched
+    assert robot.mission_status == "held"
+
+    # One attempt, where an obstruction would have had three. Nothing about a collision gets
+    # better by driving into it again.
+    targets = [started.get("target_base_position") for started in robot.legs_started]
+    assert targets == ["BFT"]
+    # Wheels first, then the controller: both stop paths were used, unlike the gentle one.
+    assert robot.ros.base_stops == 1
+    assert robot.ability.stops == 1 and robot.ros.stops == 1
+
+    record = robot.hold()
+    assert record is not None and record.latched and record.attempts == 0
+    assert "EMERGENCY-STOPPED" in record.describe()
+    assert "reset the emergency stop" in record.prompt()
+    assert robot.mir.created_positions[-1]["name"].startswith("OBSTRUCTION ")
+
+
+def test_a_latched_robot_is_not_sent_to_the_charger(tmp_path: Path) -> None:
+    """It could not go anyway, and asking it to would mean driving back past whatever it hit."""
+    from alab_control.mobile_robot_mir250 import CollisionStop
+
+    robot = MockMiR250(
+        tmp_path=tmp_path, base_position="Home", collide_at={"BFT"}, log=lambda _m: None
+    )
+    mission = Mission.build([travel("BFT", "going to the furnaces")], route="-> BFT")
+    with pytest.raises(CollisionStop) as raised:
+        robot.run_mission(mission, skip_preflight=True)
+
+    before = list(robot.legs_started)
+    robot.park_for_obstruction(raised.value)
+    assert robot.legs_started == before, "a latched robot was commanded to drive"
+    assert robot.ros.dock_calls == []
+    assert robot.mission_status == "held"
+
+
+def test_a_collision_during_a_recovery_drive_latches_instead_of_carrying_on(
+    tmp_path: Path,
+) -> None:
+    """A stall can escalate into a collision: the re-approach is exactly where the robot meets
+    the thing it stopped short of. When it does, the escalation stops dead rather than spending
+    its remaining attempts driving into it."""
+    from alab_control.mobile_robot_mir250 import CollisionStop
+
+    robot = MockMiR250(
+        tmp_path=tmp_path,
+        base_position="Home",
+        stall_at={"BFT"},
+        collide_at={"Home"},
+        log=lambda _m: None,
+    )
+    mission = Mission.build([travel("BFT", "going to the furnaces")], route="-> BFT")
+
+    with pytest.raises(CollisionStop) as raised:
+        robot.run_mission(mission, skip_preflight=True)
+    assert raised.value.latched
+    record = robot.hold()
+    assert record is not None and record.latched
+    # It stopped on the way back to Home rather than trying BFT a third time.
+    targets = [started.get("target_base_position") for started in robot.legs_started]
+    assert targets[-1] == "Home"
+
+
+def test_an_obstruction_hold_still_docks(tmp_path: Path) -> None:
+    """The contrast that makes the latch meaningful: an ordinary obstruction leaves the robot
+    on the charger, ready to carry on the moment somebody moves the box."""
+    from alab_control.mobile_robot_mir250 import ObstructionHold
+
+    robot = MockMiR250(
+        tmp_path=tmp_path, base_position="Home", stall_at={"BFT"}, log=lambda _m: None
+    )
+    mission = Mission.build([travel("BFT", "going to the furnaces")], route="-> BFT")
+    with pytest.raises(ObstructionHold) as raised:
+        robot.run_mission(mission, skip_preflight=True)
+    assert not raised.value.latched
+
+    robot.ability.stall_at.clear()
+    robot.park_for_obstruction(raised.value)
+    assert any(
+        str(started.get("target_base_position", "")).startswith("Charging")
+        for started in robot.legs_started
+    )
+
+
+def test_docking_after_a_hold_does_not_report_the_delivery_as_finished(
+    tmp_path: Path,
+) -> None:
+    """The drive to the charger is itself a one-leg mission, and it must not be the one the
+    driver goes on to report. A delivery that stopped part-way with a sample still on the robot
+    reading 'completed' is how an operator comes to believe there is nothing to go and look at.
+    """
+    from alab_control.mobile_robot_mir250 import ObstructionHold
+
+    robot = MockMiR250(
+        tmp_path=tmp_path, base_position="Home", stall_at={"DASH"}, log=lambda _m: None
+    )
+    mission = Mission.build(
+        [
+            travel("BFT", "going to the furnaces"),
+            travel("DASH", "carrying the crucible to characterization"),
+        ],
+        route="BFT -> DASH",
+    )
+    with pytest.raises(ObstructionHold) as raised:
+        robot.run_mission(mission, skip_preflight=True)
+
+    robot.ability.stall_at.clear()
+    robot.park_for_obstruction(raised.value)
+
+    assert robot.mission_status == "held"
+    assert robot.mission_detail == str(raised.value)
+    # The nine-leg delivery, held at its second leg -- not the single leg that reached the
+    # charger, which is what the dashboard would otherwise draw.
+    assert robot.mission is mission
+    assert robot.legs_completed == 1
+    assert not robot.is_running()
+
+
+def test_docking_after_a_cancellation_still_reports_the_cancellation(
+    tmp_path: Path,
+) -> None:
+    """The same clobbering, on the cancellation path."""
+    robot = MockMiR250(tmp_path=tmp_path, base_position="Home", log=lambda _m: None)
+    mission = Mission.build([travel("BFT", "going to the furnaces")], route="-> BFT")
+    robot.run_mission(mission, skip_preflight=True)
+
+    robot.park_after_cancellation("the operator stopped the task")
+
+    assert robot.mission_status == "cancelled"
+    assert robot.mission_detail == "the operator stopped the task"
+    assert robot.mission is mission
+
+
+def test_a_held_mission_refuses_to_resume_until_a_person_says_it_is_clear(
+    tmp_path: Path,
+) -> None:
+    """The safety property the whole feature exists for. Without it, any retry drives the
+    robot straight back into the thing it stopped for."""
+    from alab_control.mobile_robot_mir250 import ObstructionHold, PreflightFailed
+    from alab_control.mobile_robot_mir250 import hold as hold_record
+
+    robot = MockMiR250(
+        tmp_path=tmp_path, base_position="Home", stall_at={"BFT"}, log=lambda _m: None
+    )
+    mission = Mission.build([travel("BFT", "going to the furnaces")], route="-> BFT")
+    with pytest.raises(ObstructionHold):
+        robot.run_mission(mission, skip_preflight=True)
+
+    assert not robot.obstruction_cleared()
+    with pytest.raises(PreflightFailed, match="has not been cleared"):
+        robot.resume_after_obstruction(mission)
+
+    # A person moves the box and says so. Both halves matter: clearing the record without
+    # moving the object is exactly the mistake this makes visible.
+    robot.ability.stall_at.clear()
+    hold_record.mark_cleared(by="a tester", note="a pallet", path=robot.hold_path)
+    assert robot.obstruction_cleared()
+
+    result = robot.resume_after_obstruction(mission)
+    assert result.legs_completed == 1
+    # Cleared before the resume starts, so a fresh obstruction writes a new record instead of
+    # finding this one already there.
+    assert robot.hold() is None
+
+
+def test_a_hold_record_round_trips_through_the_file(tmp_path: Path) -> None:
+    from alab_control.mobile_robot_mir250 import hold as hold_record
+    from alab_control.mobile_robot_mir250 import ObstructionHoldRecord
+
+    path = tmp_path / "hold.json"
+    written = ObstructionHoldRecord(
+        reason="the base stopped making progress",
+        station="DASH",
+        leg_index=4,
+        legs_total=9,
+        attempts=2,
+        obstruction={"obstruction_point": {"x": 1.5, "y": -2.5}, "where": "by the door"},
+        sample_positions={"S1": "MOBILE_arm_ALFRED/SubRackA/1"},
+    )
+    hold_record.save(written, path)
+    read = hold_record.load(path)
+    assert read is not None
+    assert read.to_dict() == written.to_dict()
+    assert hold_record.active(path) is not None
+
+    hold_record.mark_cleared(by="a tester", note="a pallet", path=path)
+    cleared = hold_record.load(path)
+    assert cleared is not None and cleared.cleared and cleared.cleared_by == "a tester"
+    assert hold_record.active(path) is None, "a cleared hold is no longer waiting on anybody"
+
+    hold_record.clear(path)
+    assert hold_record.load(path) is None
+
+
+def test_a_rehearsal_keeps_its_hold_out_of_the_real_record(tmp_path: Path) -> None:
+    """An imaginary robot must not park the real cell, but a rehearsal of the operator's side
+    needs a hold a second process can read, which is what the override is for."""
+    scratch = tmp_path / "named" / "hold.json"
+    default = MockMiR250(tmp_path=tmp_path, log=lambda _m: None)
+    named = MockMiR250(tmp_path=tmp_path, hold_path=scratch, log=lambda _m: None)
+
+    assert default.hold_path == tmp_path / "hold.json"
+    assert named.hold_path == scratch
+
+
+def test_an_unreadable_hold_file_reads_as_no_hold(tmp_path: Path) -> None:
+    """A corrupt scratch file that blocked every mission until someone deleted it by hand
+    would be a worse failure than losing one record."""
+    from alab_control.mobile_robot_mir250 import hold as hold_record
+
+    path = tmp_path / "hold.json"
+    path.write_text("{not json", encoding="utf-8")
+    assert hold_record.load(path) is None
+    assert hold_record.mark_cleared(by="nobody", path=path) is None
+
+
+def test_a_recovery_drive_is_watched_too(tmp_path: Path) -> None:
+    """The move made after something already went wrong is the most likely to meet the same
+    obstruction, so it must not be the one move nothing is looking at."""
+    from alab_control.mobile_robot_mir250 import ObstructionHold
+
+    robot = MockMiR250(
+        tmp_path=tmp_path,
+        base_position="BFT",
+        stall_at={"BFT", "Home"},
+        log=lambda _m: None,
+    )
+    mission = Mission.build([travel("BFT", "going to the furnaces")], route="-> BFT")
+    with pytest.raises(ObstructionHold):
+        robot.run_mission(mission, skip_preflight=True)
+    # It reached the via-Home attempt, and that drive was stopped as well rather than run
+    # blind and timing out minutes later.
+    assert "Home" in [
+        started.get("target_base_position") for started in robot.legs_started
+    ]
+    assert robot.hold() is not None
+
+
+def test_the_charger_gets_a_longer_stall_grace_than_a_corridor() -> None:
+    """Docking legitimately sits still while it lines up on the dock marker. Judging it by
+    the corridor threshold would put the robot on hold every time it went to charge."""
+    table = registry()
+    corridor = table.obstruction_settings("BFT").stall_grace_s
+    docking = table.obstruction_settings("Charging").stall_grace_s
+    assert docking > corridor
+    # An unknown station gets the defaults rather than an error: this is consulted on every
+    # base move, including recovery moves to loosely-spelled stations.
+    assert table.obstruction_settings("nowhere").stall_grace_s == corridor
+
+
+def test_an_unknown_obstruction_setting_is_a_readable_complaint(tmp_path: Path) -> None:
+    source = DEFAULT_REGISTRY.read_text(encoding="utf-8").replace(
+        "stall_grace_s = 20.0", "stall_grase_s = 20.0"
+    )
+    path = tmp_path / "stations.toml"
+    path.write_text(source, encoding="utf-8")
+    with pytest.raises(RegistryError, match="stall_grase_s"):
+        load_registry(path)
+

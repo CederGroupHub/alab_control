@@ -62,11 +62,25 @@ def deploy(session: ProgrammingSession, name: str, er_xml: str) -> None:
     )
 
 
-def undeploy(session: ProgrammingSession, names: list[str]) -> None:
-    """Remove authored programs. A loaded program cannot be deleted, so close it first."""
-    session.checked(
-        "/ability_backend/program/close_program", {"token_id": session.token}
-    )
+def undeploy(
+    session: ProgrammingSession,
+    names: list[str],
+    *,
+    close_first: bool = True,
+) -> None:
+    """Remove authored programs.
+
+    When ``Main`` is already loaded in ``Idle``, ``close_program`` is refused; skip it
+    and delete the leftover archives directly.
+    """
+    if close_first:
+        try:
+            session.checked(
+                "/ability_backend/program/close_program", {"token_id": session.token}
+            )
+        except BridgeError as error:
+            if "UnloadProgram" not in str(error):
+                raise
     for name in names:
         session.checked(
             "/ability_backend/program/delete_program",

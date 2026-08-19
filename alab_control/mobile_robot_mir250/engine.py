@@ -39,6 +39,7 @@ from .errors import (
     MissionCancelled,
     MissionInterrupted,
     MobileRobotError,
+    ObstructionHold,
 )
 from .mission import Leg, Mission, SampleMove
 
@@ -54,6 +55,19 @@ POLL_INTERVAL = 0.5
 START_GRACE = 8.0
 
 Reason = Callable[[], "bool | str"]
+
+
+def interrupted_status(interruption: MissionInterrupted) -> str:
+    """The mission status that goes with an interruption.
+
+    Named rather than inlined because three places have to agree on it: the result the
+    engine attaches, the driver's own `mission_status`, and the dashboard reading both.
+    """
+    if isinstance(interruption, MissionCancelled):
+        return "cancelled"
+    if isinstance(interruption, ObstructionHold):
+        return "held"
+    return "suspended"
 
 
 def _reason(callback: Reason | None, default: str) -> str:
@@ -168,6 +182,10 @@ class MissionEngine:
         #: `Main` invocation below. Kept as a hook rather than a subclass so the ordering and
         #: interruption logic has exactly one implementation.
         self.leg_runner: Callable[[Leg], None] = leg_runner or self.run_leg
+        #: Called once per poll while a leg is in flight, and expected to raise if the leg
+        #: must not continue. The driver puts its obstruction watch here. Left unset by
+        #: default so a bare engine behaves exactly as it always did.
+        self.mid_leg_check: Callable[[Leg], None] | None = None
         #: Set while a leg is in flight, so an interruption arriving now is deferred rather
         #: than dropped. Read by the dashboard to explain why cancel has not taken effect yet.
         self.pending: str = ""
@@ -388,9 +406,7 @@ class MissionEngine:
             interruption.result = MissionResult(
                 mission=mission,
                 legs_completed=done,
-                status="cancelled"
-                if isinstance(interruption, MissionCancelled)
-                else "suspended",
+                status=interrupted_status(interruption),
                 detail=str(interruption),
                 moves=tuple(performed),
             )
@@ -461,9 +477,15 @@ class MissionEngine:
     def run_leg(self, leg: Leg) -> None:
         """Load `Main` with this leg's arguments, start it, and wait for it to finish.
 
-        Deliberately uninterruptible. The whole design rests on `Main` running to the end of
+        Uninterruptible by request. The whole design rests on `Main` running to the end of
         a leg so the gripper is empty when it stops; a caller wanting to stop sooner is
         served by the boundary checks around this call, not by cutting it short.
+
+        `mid_leg_check` is the one exception, and only for a leg that moves the base. There
+        the arm is parked and the payload is sitting on the robot's own rack, so stopping
+        part way leaves the cell in a state that is just as known as a leg boundary --
+        whereas cutting off an arm that is inside a furnace does not. The driver is
+        responsible for only installing the check on those legs.
         """
         arguments = leg.main_arguments()
         self.log(f"  leg {leg.index + 1}: {leg} -- {leg.reason}")
@@ -485,6 +507,10 @@ class MissionEngine:
         moved = False
         last = ""
         while time.monotonic() < deadline:
+            if self.mid_leg_check is not None:
+                # Before reading Ability, because Ability reports a blocked drive only once
+                # its own move times out, which on the cell is minutes of pushing later.
+                self.mid_leg_check(leg)
             status = self.ability.status()
             state = str(status.get("state", ""))
             message = str(status.get("message") or "")

@@ -21,16 +21,18 @@ The checks, in the order they run and roughly in order of how cheap they are:
    in ``Pause`` after every drive block and resumes it itself, so refusing all pauses
    blocks work for no reason.
 7. The protective fields are not muted. A mute outlives the process that set it, so one
-   found here was left behind by a run that died, and moving now means moving with the
-   safety scanners suppressed.
+   found here was left behind by a run that died. Preflight clears it (ROS unmute, then
+   MiR setting 2137) and only fails if the MiR still reports muted afterwards.
 8. ``RobotPose`` is ``Home``. There is no safe-home interlock on this cell, so this
    variable plus recorded-pose agreement is the only gate on the arm being parked.
 9. ``BasePosition`` agrees with a pose recorded at that station, cross-checked between two
    independent pose sources. A mismatch aborts rather than moves.
 10. The battery is above the floor for the work about to be done.
 
-Nothing here commands motion. The only side effects are the two documented recoveries:
-releasing a stranded token, and clearing a latched error.
+Nothing here commands motion. Side effects are the documented recoveries: releasing a
+stranded token, clearing a latched execution error, and unmuting leftover protective
+fields. Restarting an Ability docker module to clear a stale entity error is
+:func:`recovery.recover_cell`, not this gate.
 """
 
 from __future__ import annotations
@@ -56,6 +58,8 @@ from .poses import StationPoses, pose_sources_disagree
 from .safety import (
     DEFAULT_BATTERY_POLICY,
     MUTE_FIELD,
+    MUTE_SETTLE_S,
+    ensure_fields_unmuted,
     mir_is_wedged,
     wedge_prompt,
 )
@@ -168,6 +172,8 @@ def preflight(
     require_arm_parked: bool = True,
     clear_recovery: bool = True,
     clear_latched_error: bool = True,
+    unmute_leftover_fields: bool = True,
+    unmute_settle: float = MUTE_SETTLE_S,
     log: Callable[[str], None] | None = None,
 ) -> PreflightReport:
     """Gather every safety precondition. Returns a report; never raises on a failed check.
@@ -253,7 +259,7 @@ def preflight(
         # Entity Error Active together with an unreachable MiR is the API wedge. There is
         # no software recovery for it: clearing the latch does not restore the MiR, and
         # the next command faults again.
-        if mir_is_wedged(state, mir_reachable):
+        if mir_is_wedged(state, mir_reachable, str(status.get("message") or "")):
             add(
                 Check(
                     "ability_error_cleared",
@@ -341,20 +347,52 @@ def preflight(
             )
         )
         # A mute survives the process that set it, so a mute we find here was left behind by
-        # something that died. Moving now means moving with the safety scanners suppressed.
+        # something that died. Clear it before refusing; fail only if it will not go.
         muted = mir_status.get(MUTE_FIELD)
-        add(
-            Check(
-                "protective_fields_live",
-                not muted,
-                "the MiR protective fields are muted and no work is in progress, so a "
-                "previous run left them suppressed. Clear the mute from the MiR web "
-                "interface before the robot moves"
-                if muted
-                else "the MiR protective fields are active",
-                needs_maintenance=bool(muted),
+        if muted and unmute_leftover_fields:
+            try:
+                ensure_fields_unmuted(
+                    ros, mir, settle=unmute_settle, log=say
+                )
+                mir_status = mir.status()
+                report.mir_status = mir_status
+                muted = mir_status.get(MUTE_FIELD)
+                add(
+                    Check(
+                        "protective_fields_live",
+                        not muted,
+                        "cleared a leftover mute; the MiR protective fields are active"
+                        if not muted
+                        else (
+                            "the MiR protective fields are still muted after ROS unmute "
+                            "and MiR setting 2137"
+                        ),
+                        needs_maintenance=bool(muted),
+                    )
+                )
+            except MaintenanceRequired as exc:
+                add(
+                    Check(
+                        "protective_fields_live",
+                        False,
+                        str(exc),
+                        needs_maintenance=True,
+                    )
+                )
+                muted = True
+        else:
+            add(
+                Check(
+                    "protective_fields_live",
+                    not muted,
+                    "the MiR protective fields are muted and no work is in progress, so a "
+                    "previous run left them suppressed. Run recover.py --unmute --execute "
+                    "before the robot moves"
+                    if muted
+                    else "the MiR protective fields are active",
+                    needs_maintenance=bool(muted),
+                )
             )
-        )
         report.fields_muted = bool(muted) if muted is not None else None
         report.battery = _as_float(mir_status.get("battery_percentage"))
 
