@@ -42,7 +42,7 @@ class ShakerWMCError(Exception):
 
 class ShakerWMC(BaseArduinoDevice):
     """
-    Shaker machine for ball milling
+    DASH vertical shaker: Arduino gripper over Ethernet, mill motor over Phidget USB.
     """
 
     FREQUENCY = 25  # the frequency of the shaker

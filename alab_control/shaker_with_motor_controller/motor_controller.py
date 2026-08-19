@@ -13,6 +13,9 @@ from Phidget22.Devices.DCMotor import DCMotor
 from Phidget22.Devices.Encoder import Encoder
 from scipy.signal import find_peaks
 
+# DASH mill: PhidgetMotorControl 1-Motor over USB (serial from lab attach test).
+PHIDGET_SERIAL_NUMBER = 662113
+
 
 class PIDController:
     """
@@ -230,6 +233,7 @@ class Motor:
     def start(self) -> None:
         if not self.running:
             self.dcMotor = DCMotor()
+            self.dcMotor.setDeviceSerialNumber(PHIDGET_SERIAL_NUMBER)
             self.dcMotor.openWaitForAttachment(5000)
             self.dcMotor.setAcceleration(3)
             self.running = True
@@ -244,6 +248,7 @@ class Motor:
             self.running = False
         except:
             self.dcMotor = DCMotor()
+            self.dcMotor.setDeviceSerialNumber(PHIDGET_SERIAL_NUMBER)
             self.dcMotor.openWaitForAttachment(1000)
             self.dcMotor.setTargetVelocity(0)
             self.dcMotor.close()
@@ -384,6 +389,7 @@ class SpeedSensor:
         """
         Starts the sensor.
         """
+        self.encoder.setDeviceSerialNumber(PHIDGET_SERIAL_NUMBER)
         self.encoder.openWaitForAttachment(5000)
         self.encoder.setDataInterval(self.sampling_interval)
         self.running = True
