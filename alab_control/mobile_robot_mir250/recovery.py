@@ -213,7 +213,7 @@ def recover_cell(
     _recover_mir_pause(mir, report, log=say)
 
     if unmute:
-        _recover_mute(ros, mir, report, settle=unmute_settle, log=say)
+        _recover_mute(ros, mir, report, ability=ability, settle=unmute_settle, log=say)
 
     if cleanup_programs and report.ability_state in (STATE_IDLE, "No Program"):
         _cleanup_programs(ability, ros, report, log=say)
@@ -290,11 +290,12 @@ def _recover_mute(
     mir: MirClient,
     report: RecoveryReport,
     *,
+    ability: AbilityClient,
     settle: float,
     log: Callable[[str], None],
 ) -> None:
     try:
-        ensure_fields_unmuted(ros, mir, settle=settle, log=log)
+        ensure_fields_unmuted(ros, mir, ability=ability, settle=settle, log=log)
     except MaintenanceRequired as exc:
         report.actions.append(
             RecoveryAction("unmute", False, str(exc))

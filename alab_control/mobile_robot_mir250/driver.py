@@ -539,6 +539,7 @@ class MiR250MobileManipulator:
         with MuteGuard(
             self.ros,
             self.mir,
+            ability=self.ability,
             station=leg.station,
             log=self.log,
             settle=self.mute_settle,
@@ -664,6 +665,7 @@ class MiR250MobileManipulator:
         ensure_fields_unmuted(
             self.ros,
             self.mir,
+            ability=self.ability,
             settle=self.mute_settle,
             log=self.log,
             reason="before retrying a drive that was obstructed",

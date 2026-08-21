@@ -902,7 +902,12 @@ def stop_base(
 
     try:
         ensure_fields_unmuted(
-            ros, mir, settle=settle, log=say, reason="after stopping for an obstruction"
+            ros,
+            mir,
+            ability=ability,
+            settle=settle,
+            log=say,
+            reason="after stopping for an obstruction",
         )
         steps.append(StopStep("fields_live", True, "protective fields are live again"))
     except Exception as error:  # noqa: BLE001

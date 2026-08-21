@@ -352,7 +352,7 @@ def preflight(
         if muted and unmute_leftover_fields:
             try:
                 ensure_fields_unmuted(
-                    ros, mir, settle=unmute_settle, log=say
+                    ros, mir, ability=ability, settle=unmute_settle, log=say
                 )
                 mir_status = mir.status()
                 report.mir_status = mir_status

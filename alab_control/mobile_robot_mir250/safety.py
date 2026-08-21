@@ -15,6 +15,10 @@ taken through :class:`MuteGuard`, which pairs it with an unmute in a `finally` a
 both against the MiR's own `safety_system_muted` -- Ability offers no way to read it back.
 An unmute that cannot be verified is a maintenance stop, not a warning.
 
+Ability's mute service can return ``success: True`` while the MiR still reports muted,
+especially when Ability is latched in an error state. A success reply is therefore only
+meaningful when Ability itself is healthy; otherwise it is ignored and the cell must stop.
+
 **The emergency stop.** The old device set a flag called `connected` to False and called that
 an emergency stop. This one actually commands the controller to stop, clears the mute, and
 reports which of those succeeded, because a stop that quietly failed is worse than none.
@@ -32,6 +36,7 @@ from .clients import (
     AbilityRosClient,
     MirClient,
     RobotApiError,
+    is_error_state,
 )
 from .errors import MaintenanceRequired
 
@@ -45,6 +50,43 @@ MUTE_FIELD = "safety_system_muted"
 
 #: How long the MiR takes to reflect a mute change in its status.
 MUTE_SETTLE_S = 2.0
+
+
+def ability_mute_trustworthy(ability: AbilityClient | None) -> bool:
+    """Whether Ability's mute/unmute ``success`` bit may be believed.
+
+    When Ability is unreachable or in an error state, ``/mobile/mute_protective_fields`` can
+    still answer success without changing the MiR. Callers must then refuse to treat that
+    reply as unmute (or as a successful mute) and stop work until Ability is Idle again.
+
+    ``False`` when ``ability`` is omitted: without a status read there is no basis to trust
+    Ability's mute service, so mute must not be taken. Unmute may still *try* ROS as a
+    best effort and then fall through to MiR setting 2137 and MiR verification.
+    """
+    if ability is None:
+        return False
+    try:
+        state = str(ability.status().get("state", "") or ability.state())
+    except RobotApiError:
+        return False
+    return not is_error_state(state) and state not in (
+        "Emergency Stop Active",
+        "Safeguard Stop Active",
+    )
+
+
+def _ability_unhealthy_detail(ability: AbilityClient | None) -> str:
+    if ability is None:
+        return "Ability was not passed in, so its mute reply cannot be trusted"
+    try:
+        status = ability.status()
+    except RobotApiError as exc:
+        return f"Ability status is unreadable ({exc})"
+    state = str(status.get("state", ""))
+    message = str(status.get("message") or "")
+    if message:
+        return f"Ability is {state!r} ({message!r})"
+    return f"Ability is {state!r}"
 
 
 @dataclass(frozen=True)
@@ -159,21 +201,30 @@ def ensure_fields_unmuted(
     ros: AbilityRosClient,
     mir: MirClient,
     *,
+    ability: AbilityClient | None = None,
     settle: float = MUTE_SETTLE_S,
     log: Callable[[str], None] | None = None,
     reason: str = "with no work in progress",
 ) -> None:
     """Clear a leftover mute, including the persisted MiR setting ROS unmute misses.
 
-    Order: ROS unmute, then PUT setting 2137 if the MiR still reports muted, then
-    verify ``safety_system_muted`` is false. Raises :class:`MaintenanceRequired` if
-    it cannot be verified. A cell that is already unmuted returns immediately.
+    Order: refuse to trust Ability's mute service when Ability is unhealthy, otherwise ROS
+    unmute, then PUT setting 2137 if the MiR still reports muted, then verify
+    ``safety_system_muted`` is false. Raises :class:`MaintenanceRequired` if it cannot be
+    verified. A cell that is already unmuted returns immediately.
     """
     say = log or logger.info
     if fields_muted(mir) is False:
         return
 
     say(f"protective fields are muted {reason}; clearing the leftover mute")
+    ability_known_unhealthy = ability is not None and not ability_mute_trustworthy(ability)
+    if ability_known_unhealthy:
+        say(
+            f"Ability mute replies are not trustworthy right now "
+            f"({_ability_unhealthy_detail(ability)}); will still request unmute, "
+            "but only the MiR reading counts"
+        )
     try:
         set_mute(ros, False)
     except RobotApiError as error:
@@ -188,6 +239,18 @@ def ensure_fields_unmuted(
     try:
         persist_mute(mir, False)
     except RobotApiError as error:
+        if ability_known_unhealthy:
+            raise MaintenanceRequired(
+                f"could not unmute while Ability is unhealthy: {error}",
+                prompt=(
+                    "The mobile robot's safety scanners are muted, and Ability is not healthy "
+                    f"enough for its unmute command to be trusted ({_ability_unhealthy_detail(ability)}). "
+                    f"Writing MiR setting 2137 also failed ({error}).\n\n"
+                    "Clear the Ability Entity Error (HMI Retry or recover.py --clear-errors "
+                    "--execute), then confirm safety_system_muted is false on the MiR, and "
+                    "mark this as completed."
+                ),
+            ) from error
         raise MaintenanceRequired(
             f"could not unmute the MiR protective fields: {error}",
             prompt=(
@@ -204,6 +267,18 @@ def ensure_fields_unmuted(
         time.sleep(settle)
     state = fields_muted(mir)
     if state:
+        if ability_known_unhealthy:
+            raise MaintenanceRequired(
+                "the MiR protective fields are still muted and Ability is not healthy, "
+                "so Ability unmute success cannot be trusted",
+                prompt=(
+                    "The mobile robot's safety scanners are still muted. Ability is "
+                    f"{_ability_unhealthy_detail(ability)}, which is the state where its "
+                    "unmute service can return success without changing the MiR.\n\n"
+                    "Fix Ability first (HMI Retry / recover.py --clear-errors --execute), "
+                    "confirm safety_system_muted is false, then mark this as completed."
+                ),
+            )
         raise MaintenanceRequired(
             "the MiR protective fields are still muted after ROS unmute and setting 2137",
             prompt=(
@@ -226,6 +301,9 @@ class MuteGuard:
 
     A mute that was already on when we arrived is left alone rather than cleared, since
     something else is relying on it; that is reported, not silently reverted.
+
+    Ability must be healthy before a mute is taken: the same error states that make unmute
+    success a lie also make mute success untrustworthy.
     """
 
     def __init__(
@@ -233,6 +311,7 @@ class MuteGuard:
         ros: AbilityRosClient,
         mir: MirClient,
         *,
+        ability: AbilityClient | None = None,
         station: str = "",
         log: Callable[[str], None] | None = None,
         settle: float = MUTE_SETTLE_S,
@@ -240,6 +319,7 @@ class MuteGuard:
     ) -> None:
         self.ros = ros
         self.mir = mir
+        self.ability = ability
         self.station = station
         self.log = log or logger.info
         self.settle = settle
@@ -255,6 +335,17 @@ class MuteGuard:
                 f"{self.station or 'the station'}; leaving that alone"
             )
             return self
+        if not ability_mute_trustworthy(self.ability):
+            raise MaintenanceRequired(
+                "refusing to mute the protective fields while Ability is unhealthy",
+                prompt=(
+                    "The robot needs muted scanners to reach into "
+                    f"{self.station or 'a station'}, but Ability is not healthy "
+                    f"({_ability_unhealthy_detail(self.ability)}), so a mute success "
+                    "from Ability cannot be trusted.\n\n"
+                    "Clear the Ability error first, then retry."
+                ),
+            )
         set_mute(self.ros, True)
         self.taken = True
         if self.verify:
@@ -275,6 +366,7 @@ class MuteGuard:
             ensure_fields_unmuted(
                 self.ros,
                 self.mir,
+                ability=self.ability,
                 settle=self.settle if self.verify else 0.0,
                 log=self.log,
                 reason=f"after working at {self.station or 'a station'}",
@@ -375,10 +467,20 @@ def emergency_stop(
 
         # The scanners matter more than the stop: a stopped robot with muted fields is one
         # command away from moving blind. Always command the unmute; skip only the
-        # persisted-setting fallback when the MiR already reads live.
+        # persisted-setting fallback when the MiR already reads live. Ability's success bit
+        # is ignored when Ability is unhealthy -- only the MiR reading counts.
+        ability_ok = ability_mute_trustworthy(ability)
         try:
             set_mute(ros, False)
-            report.actions.append("protective fields unmuted")
+            if ability_ok and (mir is None or fields_muted(mir) is False):
+                report.actions.append("protective fields unmuted")
+            elif not ability_ok:
+                report.actions.append(
+                    "Ability unmute requested but not trusted "
+                    f"({_ability_unhealthy_detail(ability)})"
+                )
+            else:
+                report.actions.append("Ability unmute requested; MiR still reports muted")
         except RobotApiError as error:
             report.failures.append(f"could not unmute the protective fields: {error}")
 

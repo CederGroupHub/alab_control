@@ -1018,6 +1018,39 @@ def test_ros_unmute_that_leaves_setting_2137_on_is_cleared_by_the_mi_r_write() -
     assert mir.setting_writes == [(2137, "false")]
 
 
+def test_unmute_does_not_trust_ability_success_while_ability_is_unhealthy() -> None:
+    """When Ability is latched, ROS unmute success is ignored; MiR must confirm."""
+    from alab_control.mobile_robot_mir250.mock import FakeAbility, FakeMir, FakeRos
+    from alab_control.mobile_robot_mir250.safety import ensure_fields_unmuted
+
+    ability = FakeAbility()
+    ability.state_name = "Entity Error Active"
+    ability.message = "Manipulator failed critical healthcheck."
+    ros = FakeRos()
+    ros.muted = True
+    # Ability-shaped lie: unmute "succeeds" but does not clear the MiR bit.
+    ros.refuse_unmute = True
+    mir = FakeMir(ros=ros)
+    with pytest.raises(MaintenanceRequired, match="Ability is not healthy"):
+        ensure_fields_unmuted(ros, mir, ability=ability, settle=0)
+    assert mir.status()["safety_system_muted"] is True
+
+
+def test_mute_guard_refuses_to_mute_while_ability_is_unhealthy() -> None:
+    from alab_control.mobile_robot_mir250.mock import FakeAbility, FakeMir, FakeRos
+    from alab_control.mobile_robot_mir250.safety import MuteGuard
+
+    ability = FakeAbility()
+    ability.state_name = "Entity Error Active"
+    ability.message = "Manipulator failed critical healthcheck."
+    ros = FakeRos()
+    mir = FakeMir(ros=ros)
+    with pytest.raises(MaintenanceRequired, match="refusing to mute"):
+        with MuteGuard(ros, mir, ability=ability, settle=0):
+            pass
+    assert ros.mute_calls == []
+
+
 def test_preflight_clears_a_leftover_mute_instead_of_just_refusing(
     tmp_path: Path,
 ) -> None:
