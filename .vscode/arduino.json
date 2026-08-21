@@ -1,5 +1,5 @@
 {
-    "port": "/dev/tty.usbmodem112201",
-    "board": "arduino:avr:micro",
+    "port": "COM34",
+    "board": "arduino:avr:uno",
     "sketch": "arduino_programs/shaker/v2/v2.ino"
 }

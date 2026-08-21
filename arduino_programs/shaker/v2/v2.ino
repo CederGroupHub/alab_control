@@ -45,6 +45,8 @@ const long gripperCheckDuration = 500; //time in milliseconds between close step
 #define FORCE_HARD_LIMIT 150 //absolute stop threshold
 #define FORCE_DROP_DELTA 40 //stop if reading drops this much from close baseline
 #define CLOSE_MAX_MS 25000 //abort close if it takes longer than this
+#define EXTRA_CLOSE_US 8 // production extra squeeze after FSR trip; hold ~27 (MAG_DELTA is 15)
+bool extraClosePending = false;
 enum GripperState {
   OPEN,
   CLOSE
@@ -285,6 +287,14 @@ COROUTINE(gripper) {
         readForceSensor();
 
         if (resistanceTooHigh()) {
+          if (extraClosePending && mag >= (MAG_MIN + EXTRA_CLOSE_US)) {
+            extraClosePending = false;
+            mag = mag - EXTRA_CLOSE_US;
+            actuator.writeMicroseconds(mag);
+            Serial.print(F("extra close mag="));
+            Serial.println(mag);
+          }
+          extraClosePending = false;
           stopCloseOnResistance(F("resistance limit reached; stopped closing."));
         }
         else if (mag >= MAG_MIN) {
@@ -325,6 +335,7 @@ void gripperClose() {
   Serial.println(F("Close function called"));
   systemState = RUNNING;
   gripper_detect = false;
+  extraClosePending = true;
   gripperTime = millis();
   gripperTimePrev = gripperTime;
   closeStartTime = gripperTime;
