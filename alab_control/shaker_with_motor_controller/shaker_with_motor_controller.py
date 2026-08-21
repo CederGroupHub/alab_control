@@ -45,7 +45,7 @@ class ShakerWMC(BaseArduinoDevice):
     DASH vertical shaker: Arduino gripper over Ethernet, mill motor over Phidget USB.
     """
 
-    FREQUENCY = 25  # the frequency of the shaker
+    FREQUENCY = 51  # the frequency of the shaker
 
     ENDPOINTS = {
         "close gripper": "/gripper-close",
@@ -127,8 +127,8 @@ class ShakerWMC(BaseArduinoDevice):
 
     def shaking(self, duration_sec: float, frequency: int = FREQUENCY):
         """
-        Start the shaker machine for a given duration (seconds) and frequency.
-        If the gripper is closed, it will check if the gripper is holding the container.
+        Run the mill for a given duration (seconds) and frequency via Phidget USB.
+        Shakes whether or not an object is detected in the gripper.
 
         Args:
             duration_sec: duration of shaking in seconds.
@@ -152,9 +152,6 @@ class ShakerWMC(BaseArduinoDevice):
                 if self.stop_event.is_set():  # Stop motor if event is set
                     raise KeyboardInterrupt
                 state = self.get_state()
-                if GripperWMCState(state["gripper_status"]) == GripperWMCState.CLOSE:
-                    if int(state["force_reading"]) > 200:
-                        raise ShakerWMCError("Gripper is not closed or has lost grip.")
                 if SystemState(state["system_status"]) == SystemState.ERROR:
                     raise ShakerWMCError("Shaker machine is in error state.")
                 time.sleep(1)

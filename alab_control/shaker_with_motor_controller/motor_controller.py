@@ -208,7 +208,7 @@ class Motor:
     """
 
     def __init__(
-        self, minimum_control_speed: float = 0, maximum_control_speed: float = 0.4
+        self, minimum_control_speed: float = 0, maximum_control_speed: float = 0.8
     ):
         """
         Initializes the Motor with DC motor and encoder
