@@ -1,0 +1,1849 @@
+<?xml version='1.0' encoding='utf-8'?>
+<xml xmlns="https://developers.google.com/blockly/xml" xmlns:html="http://www.w3.org/1999/xhtml">
+  <metadata buildtype="release" robotname="ER-FLEX-20018" softwareversion="2.12.0" scrollx="3614.3887237975723" scrolly="205.85706734770793" />
+  <version Ver="1.1.1" />
+  <variables>
+    <variable type="VAR" id="YYS-|g_37,.!NEIfS[n9">IsIXRDTagCalibrated</variable>
+    <variable type="VAR" id="5q~4,DykK5jvDM,cnoYE">arguments</variable>
+    <variable type="VAR" id="Tv]a}RxLvF8/PMFH@xfx">__var__</variable>
+    <variable type="VAR" id="Q@ASmaU6o_KaiI_%C)uv">slot</variable>
+    <variable type="VAR" id=";R0IspM4wHmF|Z%0!^*[">RobotPose</variable>
+    <variable type="VAR" id="D=XB==Svlr%7,s6iYW[,">isReachable</variable>
+    <variable type="VAR" id="W4NmdV-Uy#Q1NQV2?~Am">temp_slot</variable>
+    <variable type="VAR" id="~eLan,]rkGv~nSo}AIGN">BasePosition</variable>
+    <variable type="VAR" id="KoI~+nlp!oEr`E/6d.=x">ComputedPosition</variable>
+    <variable type="VAR" id="%9H*Y^v.kLf`ZW-#KXz-">LABMAN_pickplace_stage</variable>
+    <variable type="VAR" id="`8Y^M@P1E(]+X/xS-.@`">IsLabmanTagCalibrated</variable>
+    <variable type="VAR" id="F5s/B*bP#fiJAxPE]MSL">CrucibleRackA_Origin</variable>
+    <variable type="VAR" id="v0v2]!*5^jYBIHn.5Pf3">returnVal</variable>
+    <variable type="VAR" id="aQVOLqCH^|32d6QZgQ^i">x_dim</variable>
+    <variable type="VAR" id="r=M+LyK1rh2L{psIMr)a">FurnaceStationTagFromPrometheusTag</variable>
+    <variable type="VAR" id="z6p+(C=f4AQZ{=/wQ|cP">GridOrigin</variable>
+    <variable type="VAR" id="#0JHr^V3|Ph{$SvrVkV,">robot_arm_region</variable>
+    <variable type="VAR" id="#1[Zt+VB5.6;s;yeH[z4">target_base_position</variable>
+    <variable type="VAR" id="Md_!dI:d=4:qR|ih|IDI">rows</variable>
+    <variable type="VAR" id="54TYWvk$XiR]58c465{}">offset_x</variable>
+    <variable type="VAR" id="-B-YyC#gN!n3*.*AvI66">isWaypointUnreachableError</variable>
+    <variable type="VAR" id="}zM*obU+}8mWWsb-o}$d">BFT_Origin</variable>
+    <variable type="VAR" id="{AyRV5hn6+`~87_d#156">DASH_Origin</variable>
+    <variable type="VAR" id="T$5[@69B6!X{h%$Y#,@n">DASHPickPlaceProgression</variable>
+    <variable type="VAR" id="ib*flv_W[|@thXa{{h$I">IsFurnaceStationWorkbenchTagForMovingCalibrated</variable>
+    <variable type="VAR" id="TOMJ2%gN3M/]qpX)kiZf">CrucibleRackB_Origin</variable>
+    <variable type="VAR" id="7~LsFV/HD0T-t{%Yet=|">IsDASHTagCalibrated</variable>
+    <variable type="VAR" id="U#tnVG_T)Ls(P:T)WDGJ">Offset_Crucible_Rack_X</variable>
+    <variable type="VAR" id="WF6#RM*@ZU;v?wEj]qSa">offset_y</variable>
+    <variable type="VAR" id="7#;3Wt]Y=}xpfmIUS4:@">IsSubRackStorageStationTagCalibrated</variable>
+    <variable type="VAR" id="SvyKO-MR8C+.T%iruMt[">IsFurnaceStationWorkbenchTagCalibrated</variable>
+    <variable type="VAR" id="+5HX6b1L8*AFepW)q,u@">IntoSEMEDSCounter</variable>
+    <variable type="VAR" id="_YByk*`;L8p2l.6d);h:">IntoIXRDCounter</variable>
+    <variable type="VAR" id="VAR">not initialized</variable>
+    <variable type="VAR" id="x3Zs~mP7Je$a:Jhub,p{">CrucibleRackC_Origin</variable>
+    <variable type="VAR" id="d`XM,y/KM^zGOpf+Q7I(">CrucibleRackD_Origin</variable>
+    <variable type="VAR" id="405S}KZ5@Ha9_L|5w!0q">columns</variable>
+    <variable type="VAR" id="a-qM6{;z)`wV#}c4@kX%">IntoLabmanCounter</variable>
+    <variable type="VAR" id="8]ZnqE,):LOa2:5?_g=p">rows_counter</variable>
+    <variable type="VAR" id="W?9y.@m{ibtZ:+:qEkD%">Offset_Crucible_Rack_Y</variable>
+    <variable type="VAR" id="{OYev.jj}|bk,-d8H%j`">robot_arm_slot</variable>
+    <variable type="VAR" id=":3gVli8AVh_[Ooc1qZv:">source_region</variable>
+    <variable type="VAR" id="MuWMoEuVk5y+eHk!Kig+">columns_counter</variable>
+    <variable type="VAR" id="a*cS3.JJ/v$JuF(%cslQ">Offset_BFT_X</variable>
+    <variable type="VAR" id="jBC.o]{0s7wnApeNQyXo">Offset_DASH_X</variable>
+    <variable type="VAR" id="OOt8Ewpl=wg@$J!^;OR$">TagCalibrationSuccessful</variable>
+    <variable type="VAR" id="QILSIdy-tb4kaZ~,#CX`">OutFromSEMEDSCounter</variable>
+    <variable type="VAR" id="H3#R)VzOa.$]FIoDk],_">OutFromIXRDCounter</variable>
+    <variable type="VAR" id="zZZ5.^!/J$JDH@;^6X16">TagCalibrationTrialCount</variable>
+    <variable type="VAR" id="(ynvZQ|e=~0$oz}9:^KK">OutFromLabmanCounter</variable>
+    <variable type="VAR" id="0OjLCMqnlb,Y~0][I,2{">IsFurnaceStationPrometheusTagCalibrated</variable>
+    <variable type="VAR" id="iZDH,QI-CLax,G`:~=`~">Offset_BFT_Y</variable>
+    <variable type="VAR" id="Dx,Rn?K3Kwr_|kzPMa{M">Offset_DASH_Y</variable>
+    <variable type="VAR" id="pnyxBS+tPj|S]R~H)d`T">destination_region</variable>
+    <variable type="REF" id="DASHTagForMoving_Toyd7CJwnKwQfpj2">DASHTagForMoving</variable>
+    <variable type="REF" id="LabmanBasePositioning_msx3yv1VQRGV9Qu3">LabmanBasePositioning</variable>
+    <variable type="VAR" id="`-@wq!IVJ#jgPX@cF`H%">source_slot</variable>
+    <variable type="VAR" id="A2Qm]z?=kjb_#jVDvUd%">IsSubRackStorageStationTagForMovingCalibrated</variable>
+    <variable type="REF" id="FurnaceStationWorkbenchTagForMoving_nC0l51ETQSyattb0">FurnaceStationWorkbenchTagForMoving</variable>
+    <variable type="REF" id="SubRackStationTagForMoving_qmKiRQamfhkF05MT">SubRackStationTagForMoving</variable>
+    <variable type="REF" id="DASHTag_5djSQL5cksLzHtWi">DASHTag</variable>
+    <variable type="VAR" id="WO7^K.PZr3Dm83|K~RAR">DASHTag</variable>
+    <variable type="REF" id="IXRDTag_fANdACLQc1hGBNEh">IXRDTag</variable>
+    <variable type="VAR" id="DQ17XL0%Ti37.)o(z]L@">destination_slot</variable>
+    <variable type="REF" id="PrometheusTag_m0B7CQQrniDjCYkm">PrometheusTag</variable>
+    <variable type="REF" id="FurnaceStationWorkbenchTag_qoYe4kLX3i8FcNCN">FurnaceStationTag</variable>
+    <variable type="REF" id="SubRackStationTag_U5AEqShevmM6UlpK">SubRackStationTag</variable>
+    <variable type="VAR" id="HF-0|}%i+%hnmE@~_kvu">IXRDTag</variable>
+    <variable type="REF" id="LabmanTag_7zFZpIEhUJObCuEz">LabmanTag</variable>
+    <variable type="VAR" id="DQ.MY-Tc8@N4ILg9$}+K">FurnaceStationTag</variable>
+    <variable type="VAR" id="h{TYO7D_hj5Qdm=DvpnJ">SubRackStationTag</variable>
+    <variable type="VAR" id="@Wvjr^#|QP`@s)Ee#}f5">LabmanTag</variable>
+    <variable type="VAR" id="Eg(T:9}B6T#}T2;`xGho">BFT_CALIBRATION</variable>
+    <variable type="VAR" id="R($|maIf;Ti3DarVS0a0">int_source_slot</variable>
+    <variable type="VAR" id="X[$6OL(N~clLVT~7epMa">int_destination_slot</variable>
+    <variable type="REF" id="BFT_CALIBRATION_YAmHFYgGteIOED9U">BFT_CALIBRATION</variable>
+    <variable type="VAR" id="fAZm_`e9Mj]cA0i$DlE}">LABMAN_CALIBRATION</variable>
+    <variable type="VAR" id="OR^RWwwK;l-T0(1Ym8c!">robot_arm_job</variable>
+    <variable type="REF" id="LABMAN_CALIBRATION_8NHRsePTDUvdfRSq">LABMAN_CALIBRATION</variable>
+  </variables>
+  <block type="er_function_block" id="Sh%+uTgQ.C8),,SpPK.T" x="40" y="40">
+    <field name="FunctionBlockName">Charging</field>
+    <field name="IsActive">0</field>
+    <field name="Attempts">0</field>
+    <field name="ErrorFunctionName" />
+    <field name="ErrorFunctionUid" />
+    <statement name="INSTRUCTIONS">
+      <block type="er_var_set" id="S60AAcWzW`3h,dPp[uVA">
+        <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+        <field name="IsSafe">1</field>
+        <value name="variable_value">
+          <block type="er_string" id="Z8{XD~WWTY,W8w:euTDZ">
+            <field name="TextInput">Unknown</field>
+          </block>
+        </value>
+        <next>
+          <block type="er_save_variable" id="O.Zy_)w|.Bm`QXON{sh-">
+            <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+            <field name="Global">1</field>
+            <field name="IsSafe">1</field>
+            <next>
+              <block type="er_drive_to_charging_station" id="|-:5[n1}x~fX)aj%vrk1">
+                <field name="Menu_valDrop">ff3bacf1-fb55-11ef-8c1a-000e8eb687a3</field>
+                <field name="IsSafe">1</field>
+                <field name="Menu_val">ff3bacf1-fb55-11ef-8c1a-000e8eb687a3</field>
+                <field name="IsActive">0</field>
+                <field name="Attempts">0</field>
+                <field name="ErrorFunctionName" />
+                <field name="ErrorFunctionUid" />
+                <next>
+                  <block type="er_var_set" id="w1PB;WPUbRiTI4NTk)b#">
+                    <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                    <field name="IsSafe">1</field>
+                    <value name="variable_value">
+                      <block type="er_string" id="t.*3C)F(/RSDWSnm+Y4k">
+                        <field name="TextInput">Charging</field>
+                      </block>
+                    </value>
+                    <next>
+                      <block type="er_save_variable" id="*AR5NjJ2svxgoP!Z{572">
+                        <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                        <field name="Global">1</field>
+                        <field name="IsSafe">1</field>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="er_function_block" id="-}BMr!YD3j,?e`FdG^*w" x="940" y="40">
+    <field name="FunctionBlockName">EnsureCalibratedWithStation</field>
+    <field name="IsActive">0</field>
+    <field name="Attempts">0</field>
+    <field name="ErrorFunctionName" />
+    <field name="ErrorFunctionUid" />
+    <statement name="INSTRUCTIONS">
+      <block type="er_controls_if" id="tL9PtPe_caB6w?S7aO;*">
+        <html:mutation elseif="5" />
+        <value name="IF0">
+          <block type="er_logic_compare" id="zG]LT!vJ^8nS)S*ZMcL]">
+            <field name="OP">EQ</field>
+            <value name="A">
+              <block type="er_var_get" id="U3Fe$}07wMlJpJhI$MdZ">
+                <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                <field name="IsSafe">1</field>
+              </block>
+            </value>
+            <value name="B">
+              <block type="er_string" id=",vf]IqerV`*S*#$/_o/_">
+                <field name="TextInput">BFT</field>
+              </block>
+            </value>
+          </block>
+        </value>
+        <statement name="DO0">
+          <block type="er_call_prog_function_2" id="+WP0Tn`DpYp-|g-X`Sb-">
+            <field name="programNameDrop">Station_BFT</field>
+            <field name="functionUiDDrop">Station_BFT_YHH6#hxf}zu,5%az];`-</field>
+            <field name="programName">Station_BFT</field>
+            <field name="functionUiD">Station_BFT_YHH6#hxf}zu,5%az];`-</field>
+            <field name="IsSafe">1</field>
+            <field name="IsActive">0</field>
+            <field name="Attempts">0</field>
+            <field name="ErrorFunctionName" />
+            <field name="ErrorFunctionUid" />
+            <next>
+              <block type="er_var_set" id="WjD564WRM^[0/hi/2Hun">
+                <field name="VarName" id="}zM*obU+}8mWWsb-o}$d" variabletype="VAR">BFT_Origin</field>
+                <field name="IsSafe">1</field>
+                <value name="variable_value">
+                  <block type="er_current_transform" id="c5_VhV6mu_K7/Sd`5lM9">
+                    <field name="FROM_FRAME">BFT_CALIBRATION_YAmHFYgGteIOED9U</field>
+                    <field name="TO_FRAME">BFT_1_XD6cCK5dl2Bevkcj</field>
+                    <field name="IsSafe">1</field>
+                  </block>
+                </value>
+                <next>
+                  <block type="er_save_variable" id="FR!^TiC;pHKyQFM{u/`v">
+                    <field name="VarName" id="}zM*obU+}8mWWsb-o}$d" variabletype="VAR">BFT_Origin</field>
+                    <field name="Global">1</field>
+                    <field name="IsSafe">1</field>
+                    <next>
+                      <block type="er_var_set" id="iA$^7hDg6%#EJv{*hyR[">
+                        <field name="VarName" id="a*cS3.JJ/v$JuF(%cslQ" variabletype="VAR">Offset_BFT_X</field>
+                        <field name="IsSafe">1</field>
+                        <value name="variable_value">
+                          <block type="er_current_transform" id="MfquYGN=q4a^ZERnPDcv">
+                            <field name="FROM_FRAME">BFT_1_XD6cCK5dl2Bevkcj</field>
+                            <field name="TO_FRAME">BFT_2_URjhkmKVoT7hDhRi</field>
+                            <field name="IsSafe">1</field>
+                          </block>
+                        </value>
+                        <next>
+                          <block type="er_save_variable" id="6vaT+Scygd$3TXdC[w#H">
+                            <field name="VarName" id="a*cS3.JJ/v$JuF(%cslQ" variabletype="VAR">Offset_BFT_X</field>
+                            <field name="Global">1</field>
+                            <field name="IsSafe">1</field>
+                            <next>
+                              <block type="er_var_set" id="SkD8![]4X)6#SGR0waUc">
+                                <field name="VarName" id="iZDH,QI-CLax,G`:~=`~" variabletype="VAR">Offset_BFT_Y</field>
+                                <field name="IsSafe">1</field>
+                                <value name="variable_value">
+                                  <block type="er_current_transform" id="P{A@[L^Xtqat=I6ctpl,">
+                                    <field name="FROM_FRAME">BFT_1_XD6cCK5dl2Bevkcj</field>
+                                    <field name="TO_FRAME">BFT_4_X8Nbsh8tNF7xcJL7</field>
+                                    <field name="IsSafe">1</field>
+                                  </block>
+                                </value>
+                                <next>
+                                  <block type="er_save_variable" id="W=7sMjzeg2cE^x;5,?q_">
+                                    <field name="VarName" id="iZDH,QI-CLax,G`:~=`~" variabletype="VAR">Offset_BFT_Y</field>
+                                    <field name="Global">1</field>
+                                    <field name="IsSafe">1</field>
+                                  </block>
+                                </next>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </statement>
+        <value name="IF1">
+          <block type="er_logic_compare" id="s4U}^*Bk`L|5WSf!_(4c">
+            <field name="OP">EQ</field>
+            <value name="A">
+              <block type="er_var_get" id="[MmNWlfm0?M#=Vh8Rx2G">
+                <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                <field name="IsSafe">1</field>
+              </block>
+            </value>
+            <value name="B">
+              <block type="er_string" id="4cQ4tkqTx6{E2Df]8Q1v">
+                <field name="TextInput">DASH</field>
+              </block>
+            </value>
+          </block>
+        </value>
+        <statement name="DO1">
+          <block type="er_call_prog_function_2" id="{GkV32!-t3eeT`#em;3t">
+            <field name="programNameDrop">Station_DASH</field>
+            <field name="functionUiDDrop">Station_DASH_[[9a^}|zD2j*O$.d,..4</field>
+            <field name="programName">Station_DASH</field>
+            <field name="functionUiD">Station_DASH_[[9a^}|zD2j*O$.d,..4</field>
+            <field name="IsSafe">1</field>
+            <field name="IsActive">0</field>
+            <field name="Attempts">0</field>
+            <field name="ErrorFunctionName" />
+            <field name="ErrorFunctionUid" />
+            <next>
+              <block type="er_var_set" id="SAER6@iFffn)5fOM!=2~">
+                <field name="VarName" id="{AyRV5hn6+`~87_d#156" variabletype="VAR">DASH_Origin</field>
+                <field name="IsSafe">1</field>
+                <value name="variable_value">
+                  <block type="er_current_transform" id="-;~`XXli@8L4@i9;qP:,">
+                    <field name="FROM_FRAME">DASHTag_5djSQL5cksLzHtWi</field>
+                    <field name="TO_FRAME">DASH_1_hSLmeciSxcqaQXdV</field>
+                    <field name="IsSafe">1</field>
+                  </block>
+                </value>
+                <next>
+                  <block type="er_save_variable" id="Fq@7/itK25T}2Tf8Hdf#">
+                    <field name="VarName" id="{AyRV5hn6+`~87_d#156" variabletype="VAR">DASH_Origin</field>
+                    <field name="Global">1</field>
+                    <field name="IsSafe">1</field>
+                    <next>
+                      <block type="er_var_set" id="y0F#(kU8]u~zH6)-Q3nX">
+                        <field name="VarName" id="jBC.o]{0s7wnApeNQyXo" variabletype="VAR">Offset_DASH_X</field>
+                        <field name="IsSafe">1</field>
+                        <value name="variable_value">
+                          <block type="er_current_transform" id="3J^|.rvD/YKpm3BxMF08">
+                            <field name="FROM_FRAME">DASH_1_hSLmeciSxcqaQXdV</field>
+                            <field name="TO_FRAME">DASH_2_BKwbg1COsXN7Otp6</field>
+                            <field name="IsSafe">1</field>
+                          </block>
+                        </value>
+                        <next>
+                          <block type="er_save_variable" id="Aw3tN-[dVHxXJu:aaDyk">
+                            <field name="VarName" id="jBC.o]{0s7wnApeNQyXo" variabletype="VAR">Offset_DASH_X</field>
+                            <field name="Global">1</field>
+                            <field name="IsSafe">1</field>
+                            <next>
+                              <block type="er_var_set" id="$2F%=mRvKwG3Zi$MN?4-">
+                                <field name="VarName" id="Dx,Rn?K3Kwr_|kzPMa{M" variabletype="VAR">Offset_DASH_Y</field>
+                                <field name="IsSafe">1</field>
+                                <value name="variable_value">
+                                  <block type="er_current_transform" id="s@Y)c~/C!bye@6d@UJp%">
+                                    <field name="FROM_FRAME">DASH_1_hSLmeciSxcqaQXdV</field>
+                                    <field name="TO_FRAME">DASH_5_J8qyjZOe9EEZmp5v</field>
+                                    <field name="IsSafe">1</field>
+                                  </block>
+                                </value>
+                                <next>
+                                  <block type="er_save_variable" id="CG_N?KE`c,3kz1EK6%2O">
+                                    <field name="VarName" id="Dx,Rn?K3Kwr_|kzPMa{M" variabletype="VAR">Offset_DASH_Y</field>
+                                    <field name="Global">1</field>
+                                    <field name="IsSafe">1</field>
+                                  </block>
+                                </next>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </statement>
+        <value name="IF2">
+          <block type="er_logic_compare" id="-4I`qLJh+r-I^xRet(jz">
+            <field name="OP">EQ</field>
+            <value name="A">
+              <block type="er_var_get" id="A#6u`+nEHNL4=QRjSbqu">
+                <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                <field name="IsSafe">1</field>
+              </block>
+            </value>
+            <value name="B">
+              <block type="er_string" id="M/_+rD_W[Mrs2[%-fxUw">
+                <field name="TextInput">SRS</field>
+              </block>
+            </value>
+          </block>
+        </value>
+        <statement name="DO2">
+          <block type="er_call_prog_function_2" id="+k=VkqpGluvb0E1S,vhd">
+            <field name="programNameDrop">Station_SRS</field>
+            <field name="functionUiDDrop">Station_SRS_P9Z=a2,P26dVNMW2;uFR</field>
+            <field name="programName">Station_SRS</field>
+            <field name="functionUiD">Station_SRS_P9Z=a2,P26dVNMW2;uFR</field>
+            <field name="IsSafe">1</field>
+            <field name="IsActive">0</field>
+            <field name="Attempts">0</field>
+            <field name="ErrorFunctionName" />
+            <field name="ErrorFunctionUid" />
+          </block>
+        </statement>
+        <value name="IF3">
+          <block type="er_logic_compare" id="kwh8b:SUKz:r5#}$tK37">
+            <field name="OP">EQ</field>
+            <value name="A">
+              <block type="er_var_get" id="/+$!Fla6JnCbf[N_vs%/">
+                <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                <field name="IsSafe">1</field>
+              </block>
+            </value>
+            <value name="B">
+              <block type="er_string" id="cv?z{]GyZw3IM+@a1kU]">
+                <field name="TextInput">LABMAN</field>
+              </block>
+            </value>
+          </block>
+        </value>
+        <statement name="DO3">
+          <block type="er_call_prog_function_2" id="`Y57?798?N@+3qSe/Me4">
+            <field name="programNameDrop">Station_Labman</field>
+            <field name="functionUiDDrop">Station_Labman_@3j.CsJRx~0pNG#x`q9+</field>
+            <field name="programName">Station_Labman</field>
+            <field name="functionUiD">Station_Labman_@3j.CsJRx~0pNG#x`q9+</field>
+            <field name="IsSafe">1</field>
+            <field name="IsActive">0</field>
+            <field name="Attempts">0</field>
+            <field name="ErrorFunctionName" />
+            <field name="ErrorFunctionUid" />
+          </block>
+        </statement>
+        <value name="IF4">
+          <block type="er_logic_compare" id="|TuddQ%y]a*B8M}jIlO7">
+            <field name="OP">EQ</field>
+            <value name="A">
+              <block type="er_var_get" id="sXibKFygpYXbL}4.6T2P">
+                <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                <field name="IsSafe">1</field>
+              </block>
+            </value>
+            <value name="B">
+              <block type="er_string" id="mB6;fDV@Kn@IXI2XSZ;O">
+                <field name="TextInput">IXRD</field>
+              </block>
+            </value>
+          </block>
+        </value>
+        <statement name="DO4">
+          <block type="er_call_prog_function_2" id="?V9yl@+Go]~$|sp[3wv-">
+            <field name="programNameDrop">Station_IXRD</field>
+            <field name="functionUiDDrop">Station_IXRD_UWx[pj,3)dw8/G|OKE2]</field>
+            <field name="programName">Station_IXRD</field>
+            <field name="functionUiD">Station_IXRD_UWx[pj,3)dw8/G|OKE2]</field>
+            <field name="IsSafe">1</field>
+            <field name="IsActive">0</field>
+            <field name="Attempts">0</field>
+            <field name="ErrorFunctionName" />
+            <field name="ErrorFunctionUid" />
+          </block>
+        </statement>
+        <value name="IF5">
+          <block type="er_logic_compare" id="jA-B^XcarzNW=0[~x-=e">
+            <field name="OP">EQ</field>
+            <value name="A">
+              <block type="er_var_get" id="d7pf^b7!]K1m92Z1UoJy">
+                <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                <field name="IsSafe">1</field>
+              </block>
+            </value>
+            <value name="B">
+              <block type="er_string" id="-RaB?U$;?eYEqHuRcV-$">
+                <field name="TextInput">SEMEDS</field>
+              </block>
+            </value>
+          </block>
+        </value>
+      </block>
+    </statement>
+  </block>
+  <block type="er_function_block" id="SF,!~w-@hao8drL#WL-W" x="1840" y="40">
+    <field name="FunctionBlockName">HomeBase</field>
+    <field name="IsActive">0</field>
+    <field name="Attempts">0</field>
+    <field name="ErrorFunctionName" />
+    <field name="ErrorFunctionUid" />
+    <statement name="INSTRUCTIONS">
+      <block type="er_call_function_block" id="m~OnPbqRR3py=$/9a2-U">
+        <field name="FunctionBlockNameDrop">XbSDF+O1Qp_C(|B7XYk)</field>
+        <field name="FunctionBlockName">XbSDF+O1Qp_C(|B7XYk)</field>
+        <field name="IsSafe">1</field>
+        <field name="IsActive">0</field>
+        <field name="Attempts">0</field>
+        <field name="ErrorFunctionName" />
+        <field name="ErrorFunctionUid" />
+        <next>
+          <block type="er_var_set" id="$~t]=F|RrqPR:0,ic-U1">
+            <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+            <field name="IsSafe">1</field>
+            <value name="variable_value">
+              <block type="er_string" id="|{Wp*+[k9_BG2r]`QwS_">
+                <field name="TextInput">Unknown</field>
+              </block>
+            </value>
+            <next>
+              <block type="er_save_variable" id="AOK.6rpCSu4`bUTNcDp@">
+                <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                <field name="Global">1</field>
+                <field name="IsSafe">1</field>
+                <next>
+                  <block type="er_drive_to_defined_position" id="/iP7;K.r@$)D7`n(//F@">
+                    <field name="Menu_valDrop">dc92fc8a-fbd5-11ef-8c1a-000e8eb687a3</field>
+                    <field name="PlanningAttempts">10</field>
+                    <field name="AdvancedMenuOpen">0</field>
+                    <field name="IsSafe">1</field>
+                    <field name="Menu_val">dc92fc8a-fbd5-11ef-8c1a-000e8eb687a3</field>
+                    <field name="IsActive">0</field>
+                    <field name="Attempts">0</field>
+                    <field name="ErrorFunctionName" />
+                    <field name="ErrorFunctionUid" />
+                    <next>
+                      <block type="er_var_set" id="6AUN#|%6;ZFWJjaK{Mzw">
+                        <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                        <field name="IsSafe">1</field>
+                        <value name="variable_value">
+                          <block type="er_string" id="W9TJjl(#T4?MoH)U8c9J">
+                            <field name="TextInput">Home</field>
+                          </block>
+                        </value>
+                        <next>
+                          <block type="er_save_variable" id="jW9mS3AfYs!RZ|[r,oR.">
+                            <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                            <field name="Global">1</field>
+                            <field name="IsSafe">1</field>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="er_function_block" id="b{QH;cJFie1Oi[[~]5VZ" x="2740" y="40">
+    <field name="FunctionBlockName">HomeRobotArm</field>
+    <field name="IsActive">0</field>
+    <field name="Attempts">0</field>
+    <field name="ErrorFunctionName" />
+    <field name="ErrorFunctionUid" />
+    <statement name="INSTRUCTIONS">
+      <block type="er_var_set" id="3yqB8c%[5nwK@jW..FOQ">
+        <field name="VarName" id=";R0IspM4wHmF|Z%0!^*[" variabletype="VAR">RobotPose</field>
+        <field name="IsSafe">1</field>
+        <value name="variable_value">
+          <block type="er_string" id="yUZqqql1$#!(CjtVHFoG">
+            <field name="TextInput">Unknown</field>
+          </block>
+        </value>
+        <next>
+          <block type="er_save_variable" id="r!`~]|vsnFFTC;%6V#:w">
+            <field name="VarName" id=";R0IspM4wHmF|Z%0!^*[" variabletype="VAR">RobotPose</field>
+            <field name="Global">1</field>
+            <field name="IsSafe">1</field>
+            <next>
+              <block type="er_ur_move" id="^#zNESG%sTI0+kN%]f+C">
+                <mutation statementCount="1" />
+                <field name="velocity_ptp">1</field>
+                <field name="acceleration_ptp">1</field>
+                <field name="velocity_lin">0.5</field>
+                <field name="acceleration_lin">0.5</field>
+                <field name="blend">0</field>
+                <field name="IsSafe">1</field>
+                <field name="TOOL_FRAME">Manip.Flange</field>
+                <field name="IsActive">0</field>
+                <field name="Attempts">0</field>
+                <field name="ErrorFunctionName" />
+                <field name="ErrorFunctionUid" />
+                <field name="move_type0">PTP</field>
+                <statement name="ur_pos0">
+                  <block type="er_waypoint_manipulator" id="=t$W0{%`.F95L_k8|,fw">
+                    <field name="typeSpecifier">1</field>
+                    <field name="IsSafe">1</field>
+                    <field name="useLocalSettings">0</field>
+                    <field name="velocity">1</field>
+                    <field name="acceleration">1</field>
+                    <field name="blend">0</field>
+                    <field name="var" id="Tv]a}RxLvF8/PMFH@xfx" variabletype="VAR">__var__</field>
+                    <field name="waypointName">Home</field>
+                    <field name="q0">169.4151379088</field>
+                    <field name="q1">-49.3058627104</field>
+                    <field name="q2">132.4236293084</field>
+                    <field name="q3">-173.095306455</field>
+                    <field name="q4">-89.7346054864</field>
+                    <field name="q5">-12.4975422763</field>
+                    <field name="X">0</field>
+                    <field name="Y">0</field>
+                    <field name="Z">0</field>
+                    <field name="Roll">0</field>
+                    <field name="Pitch">0</field>
+                    <field name="Yaw">0</field>
+                    <field name="REF_FRAME">Base</field>
+                    <field name="REF_FRAME_NAME" />
+                  </block>
+                </statement>
+                <next>
+                  <block type="er_var_set" id="crbaSzFWy{of8VwI+G)8">
+                    <field name="VarName" id=";R0IspM4wHmF|Z%0!^*[" variabletype="VAR">RobotPose</field>
+                    <field name="IsSafe">1</field>
+                    <value name="variable_value">
+                      <block type="er_string" id="Cx_,^+zN0UB9+/n.7emT">
+                        <field name="TextInput">Home</field>
+                      </block>
+                    </value>
+                    <next>
+                      <block type="er_save_variable" id="nvl}`.y)MWZ#I5A7FrTP">
+                        <field name="VarName" id=";R0IspM4wHmF|Z%0!^*[" variabletype="VAR">RobotPose</field>
+                        <field name="Global">1</field>
+                        <field name="IsSafe">1</field>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="er_function_block" id="#f%=AHUde[8d:xi3G~RB" x="40" y="1440">
+    <field name="FunctionBlockName">LoadAllVariables</field>
+    <field name="IsActive">0</field>
+    <field name="Attempts">0</field>
+    <field name="ErrorFunctionName" />
+    <field name="ErrorFunctionUid" />
+    <statement name="INSTRUCTIONS">
+      <block type="er_var_set" id="~Vdvc@=rz{w=nWXk1Lju">
+        <field name="VarName" id="F5s/B*bP#fiJAxPE]MSL" variabletype="VAR">CrucibleRackA_Origin</field>
+        <field name="IsSafe">1</field>
+        <value name="variable_value">
+          <block type="er_current_transform" id="uLV8$u,Hp}69-GT^SS)p">
+            <field name="FROM_FRAME">Base</field>
+            <field name="TO_FRAME">CrucibleSubRackA_1_20xTteFRh6uZJP8L</field>
+            <field name="IsSafe">1</field>
+          </block>
+        </value>
+        <next>
+          <block type="er_save_variable" id="K[oX6@CwU{kK^f3PUOhx">
+            <field name="VarName" id="F5s/B*bP#fiJAxPE]MSL" variabletype="VAR">CrucibleRackA_Origin</field>
+            <field name="Global">1</field>
+            <field name="IsSafe">1</field>
+            <next>
+              <block type="er_var_set" id="Nri:t/cv}_p4jyl==n?X">
+                <field name="VarName" id="TOMJ2%gN3M/]qpX)kiZf" variabletype="VAR">CrucibleRackB_Origin</field>
+                <field name="IsSafe">1</field>
+                <value name="variable_value">
+                  <block type="er_current_transform" id="p@4eg*/|IQQbDO8|Tv$.">
+                    <field name="FROM_FRAME">Base</field>
+                    <field name="TO_FRAME">CrucibleSubRackB_1_GFlGQUScdEO5uMT3</field>
+                    <field name="IsSafe">1</field>
+                  </block>
+                </value>
+                <next>
+                  <block type="er_save_variable" id="i.!h($W{L#Qy42)UhH6?">
+                    <field name="VarName" id="TOMJ2%gN3M/]qpX)kiZf" variabletype="VAR">CrucibleRackB_Origin</field>
+                    <field name="Global">1</field>
+                    <field name="IsSafe">1</field>
+                    <next>
+                      <block type="er_var_set" id="HfVd^8tt?.W((8[4iv[x">
+                        <field name="VarName" id="x3Zs~mP7Je$a:Jhub,p{" variabletype="VAR">CrucibleRackC_Origin</field>
+                        <field name="IsSafe">1</field>
+                        <value name="variable_value">
+                          <block type="er_current_transform" id="=VBh-NE@SU-ZT.JA}Ypi">
+                            <field name="FROM_FRAME">Base</field>
+                            <field name="TO_FRAME">CrucibleSubRackC_1_HsIhMkHxwf3q0Wt4</field>
+                            <field name="IsSafe">1</field>
+                          </block>
+                        </value>
+                        <next>
+                          <block type="er_save_variable" id="_dPMp7(z}GITh9fEn$aQ">
+                            <field name="VarName" id="x3Zs~mP7Je$a:Jhub,p{" variabletype="VAR">CrucibleRackC_Origin</field>
+                            <field name="Global">1</field>
+                            <field name="IsSafe">1</field>
+                            <next>
+                              <block type="er_var_set" id="?P?D?=1|uuOB;j#QLDN}">
+                                <field name="VarName" id="d`XM,y/KM^zGOpf+Q7I(" variabletype="VAR">CrucibleRackD_Origin</field>
+                                <field name="IsSafe">1</field>
+                                <value name="variable_value">
+                                  <block type="er_current_transform" id="p7|%4^/U1/~!7Y!;05g(">
+                                    <field name="FROM_FRAME">Base</field>
+                                    <field name="TO_FRAME">CrucibleSubRackD_1_6By9CN0Cs0yep394</field>
+                                    <field name="IsSafe">1</field>
+                                  </block>
+                                </value>
+                                <next>
+                                  <block type="er_save_variable" id="rlOx9AI%D3gErFw4F#)#">
+                                    <field name="VarName" id="d`XM,y/KM^zGOpf+Q7I(" variabletype="VAR">CrucibleRackD_Origin</field>
+                                    <field name="Global">1</field>
+                                    <field name="IsSafe">1</field>
+                                    <next>
+                                      <block type="er_var_set" id="KU^BzbpQM[mL`VSn}[tg">
+                                        <field name="VarName" id="U#tnVG_T)Ls(P:T)WDGJ" variabletype="VAR">Offset_Crucible_Rack_X</field>
+                                        <field name="IsSafe">1</field>
+                                        <value name="variable_value">
+                                          <block type="er_XYZRPY" id="vZo/x:B.;Sz*sRngash5">
+                                            <field name="X">0.032723626</field>
+                                            <field name="Y">-0.0308517701</field>
+                                            <field name="Z">-0.0002191428</field>
+                                            <field name="Roll">-0.0008300763</field>
+                                            <field name="Pitch">-0.0023438598</field>
+                                            <field name="Yaw">-0.0018351967</field>
+                                            <field name="REF_FRAME">CrucibleSubRackA_1_20xTteFRh6uZJP8L</field>
+                                            <field name="TOOL_FRAME">CrucibleSubRackA_2_RPw7vVLC08pdEIwD</field>
+                                            <field name="IsSafe">1</field>
+                                          </block>
+                                        </value>
+                                        <next>
+                                          <block type="er_save_variable" id="-7!?$KR!O6nRsA|#{$:|">
+                                            <field name="VarName" id="U#tnVG_T)Ls(P:T)WDGJ" variabletype="VAR">Offset_Crucible_Rack_X</field>
+                                            <field name="Global">1</field>
+                                            <field name="IsSafe">1</field>
+                                            <next>
+                                              <block type="er_var_set" id="5Gj7KMOOO/zVO9;%)f#X">
+                                                <field name="VarName" id="W?9y.@m{ibtZ:+:qEkD%" variabletype="VAR">Offset_Crucible_Rack_Y</field>
+                                                <field name="IsSafe">1</field>
+                                                <value name="variable_value">
+                                                  <block type="er_XYZRPY" id="$I,0uMX0Yq+tR+)9F`|5">
+                                                    <field name="X">0.0308759383</field>
+                                                    <field name="Y">0.032763429</field>
+                                                    <field name="Z">-0.0001771297</field>
+                                                    <field name="Roll">0.0014777261</field>
+                                                    <field name="Pitch">-0.0018778276</field>
+                                                    <field name="Yaw">-0.0018131295</field>
+                                                    <field name="REF_FRAME">CrucibleSubRackA_1_20xTteFRh6uZJP8L</field>
+                                                    <field name="TOOL_FRAME">CrucibleSubRackA_3_MLNx6Zsf9s0TCxId</field>
+                                                    <field name="IsSafe">1</field>
+                                                  </block>
+                                                </value>
+                                                <next>
+                                                  <block type="er_save_variable" id=":C!cH+l{w(2?32ioS6eB">
+                                                    <field name="VarName" id="W?9y.@m{ibtZ:+:qEkD%" variabletype="VAR">Offset_Crucible_Rack_Y</field>
+                                                    <field name="Global">1</field>
+                                                    <field name="IsSafe">1</field>
+                                                    <next>
+                                                      <block type="er_load_variable" id="@4}wc.[Yhz+TW@`X{7aA">
+                                                        <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                                                        <field name="Global">1</field>
+                                                        <field name="IsSafe">1</field>
+                                                        <value name="variable_value">
+                                                          <block type="er_string" id="+83(}xLF8LZ=IF00Iu_]">
+                                                            <field name="TextInput">Unknown</field>
+                                                          </block>
+                                                        </value>
+                                                        <next>
+                                                          <block type="er_load_variable" id="{v8^KJp#7J*H8nM:?QxN">
+                                                            <field name="VarName" id=";R0IspM4wHmF|Z%0!^*[" variabletype="VAR">RobotPose</field>
+                                                            <field name="Global">1</field>
+                                                            <field name="IsSafe">1</field>
+                                                            <value name="variable_value">
+                                                              <block type="er_string" id="tm:~}rnOm8do{~#m8suD">
+                                                                <field name="TextInput">Unknown</field>
+                                                              </block>
+                                                            </value>
+                                                            <next>
+                                                              <block type="er_load_variable" id="u?wa[7u-ChHt|yh8[[xT">
+                                                                <field name="VarName" id="`8Y^M@P1E(]+X/xS-.@`" variabletype="VAR">IsLabmanTagCalibrated</field>
+                                                                <field name="Global">1</field>
+                                                                <field name="IsSafe">1</field>
+                                                                <value name="variable_value">
+                                                                  <block type="er_logic_boolean" id="Rz`0{^Rf-ykJ#sB0L#h{">
+                                                                    <field name="BOOL">FALSE</field>
+                                                                  </block>
+                                                                </value>
+                                                                <next>
+                                                                  <block type="er_load_variable" id="3M6!2~Rt/d362`dzS9)^">
+                                                                    <field name="VarName" id="SvyKO-MR8C+.T%iruMt[" variabletype="VAR">IsFurnaceStationWorkbenchTagCalibrated</field>
+                                                                    <field name="Global">1</field>
+                                                                    <field name="IsSafe">1</field>
+                                                                    <value name="variable_value">
+                                                                      <block type="er_logic_boolean" id="{LB45sw^qK508JXhvxJ9">
+                                                                        <field name="BOOL">FALSE</field>
+                                                                      </block>
+                                                                    </value>
+                                                                    <next>
+                                                                      <block type="er_load_variable" id="p+S{fMhd]S4s)t4[I$wP">
+                                                                        <field name="VarName" id="ib*flv_W[|@thXa{{h$I" variabletype="VAR">IsFurnaceStationWorkbenchTagForMovingCalibrated</field>
+                                                                        <field name="Global">1</field>
+                                                                        <field name="IsSafe">1</field>
+                                                                        <value name="variable_value">
+                                                                          <block type="er_logic_boolean" id="r]2H_c^SKw^fd7qIE9A[">
+                                                                            <field name="BOOL">FALSE</field>
+                                                                          </block>
+                                                                        </value>
+                                                                        <next>
+                                                                          <block type="er_load_variable" id="hiN$Rs.IEAdToA9MG7|B">
+                                                                            <field name="VarName" id="0OjLCMqnlb,Y~0][I,2{" variabletype="VAR">IsFurnaceStationPrometheusTagCalibrated</field>
+                                                                            <field name="Global">1</field>
+                                                                            <field name="IsSafe">1</field>
+                                                                            <value name="variable_value">
+                                                                              <block type="er_logic_boolean" id="Klqokuv+,W6T7!B}?CcH">
+                                                                                <field name="BOOL">FALSE</field>
+                                                                              </block>
+                                                                            </value>
+                                                                            <next>
+                                                                              <block type="er_load_variable" id="~By5u^_Kn:!:n=1MLK4y">
+                                                                                <field name="VarName" id="A2Qm]z?=kjb_#jVDvUd%" variabletype="VAR">IsSubRackStorageStationTagForMovingCalibrated</field>
+                                                                                <field name="Global">1</field>
+                                                                                <field name="IsSafe">1</field>
+                                                                                <value name="variable_value">
+                                                                                  <block type="er_logic_boolean" id="[-cjKp}a!73?|3R%|U]w">
+                                                                                    <field name="BOOL">FALSE</field>
+                                                                                  </block>
+                                                                                </value>
+                                                                                <next>
+                                                                                  <block type="er_load_variable" id="J@`HXl;`uK:-86-Ke6U^">
+                                                                                    <field name="VarName" id="7#;3Wt]Y=}xpfmIUS4:@" variabletype="VAR">IsSubRackStorageStationTagCalibrated</field>
+                                                                                    <field name="Global">1</field>
+                                                                                    <field name="IsSafe">1</field>
+                                                                                    <value name="variable_value">
+                                                                                      <block type="er_logic_boolean" id="ZboZGu,DTDpUTXg`1x/.">
+                                                                                        <field name="BOOL">FALSE</field>
+                                                                                      </block>
+                                                                                    </value>
+                                                                                    <next>
+                                                                                      <block type="er_load_variable" id="m%0*ai!nx+a9MqY8~_AY">
+                                                                                        <field name="VarName" id="YYS-|g_37,.!NEIfS[n9" variabletype="VAR">IsIXRDTagCalibrated</field>
+                                                                                        <field name="Global">1</field>
+                                                                                        <field name="IsSafe">1</field>
+                                                                                        <value name="variable_value">
+                                                                                          <block type="er_logic_boolean" id="c@h}],,NMeY7E`C!!v|5">
+                                                                                            <field name="BOOL">FALSE</field>
+                                                                                          </block>
+                                                                                        </value>
+                                                                                        <next>
+                                                                                          <block type="er_load_variable" id="ZEnF@pf|{1g?i[$)rPdH">
+                                                                                            <field name="VarName" id="7~LsFV/HD0T-t{%Yet=|" variabletype="VAR">IsDASHTagCalibrated</field>
+                                                                                            <field name="Global">1</field>
+                                                                                            <field name="IsSafe">1</field>
+                                                                                            <value name="variable_value">
+                                                                                              <block type="er_logic_boolean" id="19sBxmY$xC#rkxxunS_e">
+                                                                                                <field name="BOOL">FALSE</field>
+                                                                                              </block>
+                                                                                            </value>
+                                                                                            <next>
+                                                                                              <block type="er_load_variable" id="5K_BY*={!D2UhSpC.ogO">
+                                                                                                <field name="VarName" id="#0JHr^V3|Ph{$SvrVkV," variabletype="VAR">robot_arm_region</field>
+                                                                                                <field name="Global">1</field>
+                                                                                                <field name="IsSafe">1</field>
+                                                                                                <value name="variable_value">
+                                                                                                  <block type="er_string" id="_CTYnrPPq55fv]xpFdIB">
+                                                                                                    <field name="TextInput">Unknown</field>
+                                                                                                  </block>
+                                                                                                </value>
+                                                                                                <next>
+                                                                                                  <block type="er_load_variable" id="ymR@j7R0}G2eR_pV2E|D">
+                                                                                                    <field name="VarName" id="OR^RWwwK;l-T0(1Ym8c!" variabletype="VAR">robot_arm_job</field>
+                                                                                                    <field name="Global">1</field>
+                                                                                                    <field name="IsSafe">1</field>
+                                                                                                    <value name="variable_value">
+                                                                                                      <block type="er_string" id="[![:s^e.yfJef`(K[`7o">
+                                                                                                        <field name="TextInput">Unknown</field>
+                                                                                                      </block>
+                                                                                                    </value>
+                                                                                                    <next>
+                                                                                                      <block type="er_load_variable" id="FW7!P#u0|ls+v*x[4,8+">
+                                                                                                        <field name="VarName" id="{OYev.jj}|bk,-d8H%j`" variabletype="VAR">robot_arm_slot</field>
+                                                                                                        <field name="Global">1</field>
+                                                                                                        <field name="IsSafe">1</field>
+                                                                                                        <value name="variable_value">
+                                                                                                          <block type="er_string" id="BbCg!CRxXA,FYA$8Gyi|">
+                                                                                                            <field name="TextInput">Unknown</field>
+                                                                                                          </block>
+                                                                                                        </value>
+                                                                                                        <next>
+                                                                                                          <block type="er_load_variable" id=":@L(apHL-R/K+cG40`IJ">
+                                                                                                            <field name="VarName" id="#1[Zt+VB5.6;s;yeH[z4" variabletype="VAR">target_base_position</field>
+                                                                                                            <field name="Global">1</field>
+                                                                                                            <field name="IsSafe">1</field>
+                                                                                                            <value name="variable_value">
+                                                                                                              <block type="er_string" id="%84V9M_ELQ0~`NAbMnNU">
+                                                                                                                <field name="TextInput">Unknown</field>
+                                                                                                              </block>
+                                                                                                            </value>
+                                                                                                            <next>
+                                                                                                              <block type="er_load_variable" id="8/sNO5m(o;xcrtNET)sg">
+                                                                                                                <field name="VarName" id="OOt8Ewpl=wg@$J!^;OR$" variabletype="VAR">TagCalibrationSuccessful</field>
+                                                                                                                <field name="Global">1</field>
+                                                                                                                <field name="IsSafe">1</field>
+                                                                                                                <value name="variable_value">
+                                                                                                                  <block type="er_logic_boolean" id="Cs?[c(b%*l,+AhMXS-qd">
+                                                                                                                    <field name="BOOL">FALSE</field>
+                                                                                                                  </block>
+                                                                                                                </value>
+                                                                                                                <next>
+                                                                                                                  <block type="er_load_variable" id="mDg^3Chra/l2nJf4QTsN">
+                                                                                                                    <field name="VarName" id="zZZ5.^!/J$JDH@;^6X16" variabletype="VAR">TagCalibrationTrialCount</field>
+                                                                                                                    <field name="Global">1</field>
+                                                                                                                    <field name="IsSafe">1</field>
+                                                                                                                    <value name="variable_value">
+                                                                                                                      <block type="er_math_number" id="l;ywbkOx/st#`m+LT99K">
+                                                                                                                        <field name="NUM">0</field>
+                                                                                                                      </block>
+                                                                                                                    </value>
+                                                                                                                    <next>
+                                                                                                                      <block type="er_load_variable" id="-GGvLo?nbt[,|@Ei^,#/">
+                                                                                                                        <field name="VarName" id="T$5[@69B6!X{h%$Y#,@n" variabletype="VAR">DASHPickPlaceProgression</field>
+                                                                                                                        <field name="Global">1</field>
+                                                                                                                        <field name="IsSafe">1</field>
+                                                                                                                        <value name="variable_value">
+                                                                                                                          <block type="er_string" id=")@Et_5%H[a2+OmP/~i4/">
+                                                                                                                            <field name="TextInput">Unknown</field>
+                                                                                                                          </block>
+                                                                                                                        </value>
+                                                                                                                        <next>
+                                                                                                                          <block type="er_load_variable" id="TgS`91*jxMLTwr^bz4xi">
+                                                                                                                            <field name="VarName" id="Eg(T:9}B6T#}T2;`xGho" variabletype="VAR">BFT_CALIBRATION</field>
+                                                                                                                            <field name="Global">1</field>
+                                                                                                                            <field name="IsSafe">1</field>
+                                                                                                                            <value name="variable_value">
+                                                                                                                              <block type="er_current_transform" id="GMigGpih@)P}PjYQl[zk">
+                                                                                                                                <field name="FROM_FRAME">Base</field>
+                                                                                                                                <field name="TO_FRAME">FurnaceStationWorkbenchTag_qoYe4kLX3i8FcNCN</field>
+                                                                                                                                <field name="IsSafe">1</field>
+                                                                                                                              </block>
+                                                                                                                            </value>
+                                                                                                                            <next>
+                                                                                                                              <block type="er_set_reference" id="_c(O3v$!#E%dT/[o4a[V">
+                                                                                                                                <field name="RefName" id="BFT_CALIBRATION_YAmHFYgGteIOED9U" variabletype="REF">BFT_CALIBRATION</field>
+                                                                                                                                <field name="IsSafe">1</field>
+                                                                                                                                <value name="reference_value">
+                                                                                                                                  <block type="er_var_get" id="tX${97CH}9.Lz-|]@b1-">
+                                                                                                                                    <field name="VarName" id="Eg(T:9}B6T#}T2;`xGho" variabletype="VAR">BFT_CALIBRATION</field>
+                                                                                                                                    <field name="IsSafe">1</field>
+                                                                                                                                  </block>
+                                                                                                                                </value>
+                                                                                                                                <next>
+                                                                                                                                  <block type="er_load_variable" id="ezGB}1lo|gz90G9G?ymp">
+                                                                                                                                    <field name="VarName" id="fAZm_`e9Mj]cA0i$DlE}" variabletype="VAR">LABMAN_CALIBRATION</field>
+                                                                                                                                    <field name="Global">1</field>
+                                                                                                                                    <field name="IsSafe">1</field>
+                                                                                                                                    <value name="variable_value">
+                                                                                                                                      <block type="er_current_transform" id="0ukQij?R23*W@=pRIL.%">
+                                                                                                                                        <field name="FROM_FRAME">Base</field>
+                                                                                                                                        <field name="TO_FRAME">LabmanTag_7zFZpIEhUJObCuEz</field>
+                                                                                                                                        <field name="IsSafe">1</field>
+                                                                                                                                      </block>
+                                                                                                                                    </value>
+                                                                                                                                    <next>
+                                                                                                                                      <block type="er_set_reference" id="gY_fK@g~,@(Eob9G*++%">
+                                                                                                                                        <field name="RefName" id="LABMAN_CALIBRATION_8NHRsePTDUvdfRSq" variabletype="REF">LABMAN_CALIBRATION</field>
+                                                                                                                                        <field name="IsSafe">1</field>
+                                                                                                                                        <value name="reference_value">
+                                                                                                                                          <block type="er_var_get" id="#q4N?UroST=,(E5O$[ux">
+                                                                                                                                            <field name="VarName" id="fAZm_`e9Mj]cA0i$DlE}" variabletype="VAR">LABMAN_CALIBRATION</field>
+                                                                                                                                            <field name="IsSafe">1</field>
+                                                                                                                                          </block>
+                                                                                                                                        </value>
+                                                                                                                                        <next>
+                                                                                                                                          <block type="er_load_variable" id="Yv$?6=[[.z)B$/vp.SqK">
+                                                                                                                                            <field name="VarName" id="@Wvjr^#|QP`@s)Ee#}f5" variabletype="VAR">LabmanTag</field>
+                                                                                                                                            <field name="Global">1</field>
+                                                                                                                                            <field name="IsSafe">1</field>
+                                                                                                                                            <value name="variable_value">
+                                                                                                                                              <block type="er_current_transform" id="S)+S%w!3nD68k`JGD+;3">
+                                                                                                                                                <field name="FROM_FRAME">Base</field>
+                                                                                                                                                <field name="TO_FRAME">LabmanTag_7zFZpIEhUJObCuEz</field>
+                                                                                                                                                <field name="IsSafe">1</field>
+                                                                                                                                              </block>
+                                                                                                                                            </value>
+                                                                                                                                            <next>
+                                                                                                                                              <block type="er_set_reference" id="Yw_bmU=B6}barMycP]uY">
+                                                                                                                                                <field name="RefName" id="LabmanTag_7zFZpIEhUJObCuEz" variabletype="REF">LabmanTag</field>
+                                                                                                                                                <field name="IsSafe">1</field>
+                                                                                                                                                <value name="reference_value">
+                                                                                                                                                  <block type="er_var_get" id="Y/OYhjTBIZ}LGyRMQaoY">
+                                                                                                                                                    <field name="VarName" id="@Wvjr^#|QP`@s)Ee#}f5" variabletype="VAR">LabmanTag</field>
+                                                                                                                                                    <field name="IsSafe">1</field>
+                                                                                                                                                  </block>
+                                                                                                                                                </value>
+                                                                                                                                                <next>
+                                                                                                                                                  <block type="er_load_variable" id="^CmW[hB^6n(2EI]PMJj`">
+                                                                                                                                                    <field name="VarName" id="DQ.MY-Tc8@N4ILg9$}+K" variabletype="VAR">FurnaceStationTag</field>
+                                                                                                                                                    <field name="Global">1</field>
+                                                                                                                                                    <field name="IsSafe">1</field>
+                                                                                                                                                    <value name="variable_value">
+                                                                                                                                                      <block type="er_current_transform" id="Ze6inrrha_3FvNj|PVG/">
+                                                                                                                                                        <field name="FROM_FRAME">Base</field>
+                                                                                                                                                        <field name="TO_FRAME">FurnaceStationWorkbenchTag_qoYe4kLX3i8FcNCN</field>
+                                                                                                                                                        <field name="IsSafe">1</field>
+                                                                                                                                                      </block>
+                                                                                                                                                    </value>
+                                                                                                                                                    <next>
+                                                                                                                                                      <block type="er_set_reference" id="@lQGn,1V4?-Av#Uc@F`t">
+                                                                                                                                                        <field name="RefName" id="FurnaceStationWorkbenchTag_qoYe4kLX3i8FcNCN" variabletype="REF">FurnaceStationTag</field>
+                                                                                                                                                        <field name="IsSafe">1</field>
+                                                                                                                                                        <value name="reference_value">
+                                                                                                                                                          <block type="er_var_get" id="h%f)Mq$pz09}2*h.;c2a">
+                                                                                                                                                            <field name="VarName" id="DQ.MY-Tc8@N4ILg9$}+K" variabletype="VAR">FurnaceStationTag</field>
+                                                                                                                                                            <field name="IsSafe">1</field>
+                                                                                                                                                          </block>
+                                                                                                                                                        </value>
+                                                                                                                                                        <next>
+                                                                                                                                                          <block type="er_load_variable" id="N,Bp`lcm4%kb`+Zm5U%x">
+                                                                                                                                                            <field name="VarName" id="h{TYO7D_hj5Qdm=DvpnJ" variabletype="VAR">SubRackStationTag</field>
+                                                                                                                                                            <field name="Global">1</field>
+                                                                                                                                                            <field name="IsSafe">1</field>
+                                                                                                                                                            <value name="variable_value">
+                                                                                                                                                              <block type="er_current_transform" id="E`xv:g^79p_%w@.yOK9$">
+                                                                                                                                                                <field name="FROM_FRAME">Base</field>
+                                                                                                                                                                <field name="TO_FRAME">SubRackStationTag_U5AEqShevmM6UlpK</field>
+                                                                                                                                                                <field name="IsSafe">1</field>
+                                                                                                                                                              </block>
+                                                                                                                                                            </value>
+                                                                                                                                                            <next>
+                                                                                                                                                              <block type="er_set_reference" id="Rdi`4vkga[2|oQ/#3?-$">
+                                                                                                                                                                <field name="RefName" id="SubRackStationTag_U5AEqShevmM6UlpK" variabletype="REF">SubRackStationTag</field>
+                                                                                                                                                                <field name="IsSafe">1</field>
+                                                                                                                                                                <value name="reference_value">
+                                                                                                                                                                  <block type="er_var_get" id="Tsd`ta7Uq4?4bHE[Z#qA">
+                                                                                                                                                                    <field name="VarName" id="h{TYO7D_hj5Qdm=DvpnJ" variabletype="VAR">SubRackStationTag</field>
+                                                                                                                                                                    <field name="IsSafe">1</field>
+                                                                                                                                                                  </block>
+                                                                                                                                                                </value>
+                                                                                                                                                                <next>
+                                                                                                                                                                  <block type="er_load_variable" id="y9|NDsl7;lrF1KJk:TWY">
+                                                                                                                                                                    <field name="VarName" id="WO7^K.PZr3Dm83|K~RAR" variabletype="VAR">DASHTag</field>
+                                                                                                                                                                    <field name="Global">1</field>
+                                                                                                                                                                    <field name="IsSafe">1</field>
+                                                                                                                                                                    <value name="variable_value">
+                                                                                                                                                                      <block type="er_current_transform" id="}RPs:FO1/S_X6+w:8tbF">
+                                                                                                                                                                        <field name="FROM_FRAME">Base</field>
+                                                                                                                                                                        <field name="TO_FRAME">DASHTag_5djSQL5cksLzHtWi</field>
+                                                                                                                                                                        <field name="IsSafe">1</field>
+                                                                                                                                                                      </block>
+                                                                                                                                                                    </value>
+                                                                                                                                                                    <next>
+                                                                                                                                                                      <block type="er_set_reference" id="cnQajw{]!~.W^]ApelsF">
+                                                                                                                                                                        <field name="RefName" id="DASHTag_5djSQL5cksLzHtWi" variabletype="REF">DASHTag</field>
+                                                                                                                                                                        <field name="IsSafe">1</field>
+                                                                                                                                                                        <value name="reference_value">
+                                                                                                                                                                          <block type="er_var_get" id="`pN1b$-3p,0ie{WoUf1B">
+                                                                                                                                                                            <field name="VarName" id="WO7^K.PZr3Dm83|K~RAR" variabletype="VAR">DASHTag</field>
+                                                                                                                                                                            <field name="IsSafe">1</field>
+                                                                                                                                                                          </block>
+                                                                                                                                                                        </value>
+                                                                                                                                                                        <next>
+                                                                                                                                                                          <block type="er_load_variable" id="Hp1p,32Yk{{I#vcA.Od2">
+                                                                                                                                                                            <field name="VarName" id="HF-0|}%i+%hnmE@~_kvu" variabletype="VAR">IXRDTag</field>
+                                                                                                                                                                            <field name="Global">1</field>
+                                                                                                                                                                            <field name="IsSafe">1</field>
+                                                                                                                                                                            <value name="variable_value">
+                                                                                                                                                                              <block type="er_current_transform" id="olquZaz4g0zXf{ua//Mz">
+                                                                                                                                                                                <field name="FROM_FRAME">Base</field>
+                                                                                                                                                                                <field name="TO_FRAME">IXRDTag_fANdACLQc1hGBNEh</field>
+                                                                                                                                                                                <field name="IsSafe">1</field>
+                                                                                                                                                                              </block>
+                                                                                                                                                                            </value>
+                                                                                                                                                                            <next>
+                                                                                                                                                                              <block type="er_set_reference" id="x?r_:D,-kunzba/bM/YH">
+                                                                                                                                                                                <field name="RefName" id="IXRDTag_fANdACLQc1hGBNEh" variabletype="REF">IXRDTag</field>
+                                                                                                                                                                                <field name="IsSafe">1</field>
+                                                                                                                                                                                <value name="reference_value">
+                                                                                                                                                                                  <block type="er_var_get" id="Rn|IC6{el5Q?(qz`N7M[">
+                                                                                                                                                                                    <field name="VarName" id="HF-0|}%i+%hnmE@~_kvu" variabletype="VAR">IXRDTag</field>
+                                                                                                                                                                                    <field name="IsSafe">1</field>
+                                                                                                                                                                                  </block>
+                                                                                                                                                                                </value>
+                                                                                                                                                                              </block>
+                                                                                                                                                                            </next>
+                                                                                                                                                                          </block>
+                                                                                                                                                                        </next>
+                                                                                                                                                                      </block>
+                                                                                                                                                                    </next>
+                                                                                                                                                                  </block>
+                                                                                                                                                                </next>
+                                                                                                                                                              </block>
+                                                                                                                                                            </next>
+                                                                                                                                                          </block>
+                                                                                                                                                        </next>
+                                                                                                                                                      </block>
+                                                                                                                                                    </next>
+                                                                                                                                                  </block>
+                                                                                                                                                </next>
+                                                                                                                                              </block>
+                                                                                                                                            </next>
+                                                                                                                                          </block>
+                                                                                                                                        </next>
+                                                                                                                                      </block>
+                                                                                                                                    </next>
+                                                                                                                                  </block>
+                                                                                                                                </next>
+                                                                                                                              </block>
+                                                                                                                            </next>
+                                                                                                                          </block>
+                                                                                                                        </next>
+                                                                                                                      </block>
+                                                                                                                    </next>
+                                                                                                                  </block>
+                                                                                                                </next>
+                                                                                                              </block>
+                                                                                                            </next>
+                                                                                                          </block>
+                                                                                                        </next>
+                                                                                                      </block>
+                                                                                                    </next>
+                                                                                                  </block>
+                                                                                                </next>
+                                                                                              </block>
+                                                                                            </next>
+                                                                                          </block>
+                                                                                        </next>
+                                                                                      </block>
+                                                                                    </next>
+                                                                                  </block>
+                                                                                </next>
+                                                                              </block>
+                                                                            </next>
+                                                                          </block>
+                                                                        </next>
+                                                                      </block>
+                                                                    </next>
+                                                                  </block>
+                                                                </next>
+                                                              </block>
+                                                            </next>
+                                                          </block>
+                                                        </next>
+                                                      </block>
+                                                    </next>
+                                                  </block>
+                                                </next>
+                                              </block>
+                                            </next>
+                                          </block>
+                                        </next>
+                                      </block>
+                                    </next>
+                                  </block>
+                                </next>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="er_function_block" id=",7M6[?h@qz#.zsoEh`L!" x="940" y="1440">
+    <field name="FunctionBlockName">PickPlaceErrorHandling</field>
+    <field name="IsActive">0</field>
+    <field name="Attempts">0</field>
+    <field name="ErrorFunctionName" />
+    <field name="ErrorFunctionUid" />
+    <statement name="INSTRUCTIONS">
+      <block type="er_try_catch" id="JfXxX2g~+4x[m0s27s12">
+        <statement name="TryInstructions">
+          <block type="er_controls_if" id="56PhMBY470`nX%5g8i)e">
+            <html:mutation elseif="8" />
+            <value name="IF0">
+              <block type="er_logic_compare" id="VKt+n-UjhbiL#LGl%@`r">
+                <field name="OP">EQ</field>
+                <value name="A">
+                  <block type="er_var_get" id="F#md,wT.Yw8{dy_/ql?=">
+                    <field name="VarName" id="#0JHr^V3|Ph{$SvrVkV," variabletype="VAR">robot_arm_region</field>
+                    <field name="IsSafe">1</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="er_string" id="ZK$1%.Uz,[D39PoY.X`N">
+                    <field name="TextInput">LABMAN</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO0">
+              <block type="er_call_prog_function_2" id="_ocM$!-4(oI)!Eh;Te8z">
+                <field name="programNameDrop">Station_Labman</field>
+                <field name="functionUiDDrop">Station_Labman_{Ls)AF9v`3N@D.md^}D6</field>
+                <field name="programName">Station_Labman</field>
+                <field name="functionUiD">Station_Labman_{Ls)AF9v`3N@D.md^}D6</field>
+                <field name="IsSafe">1</field>
+                <field name="IsActive">0</field>
+                <field name="Attempts">0</field>
+                <field name="ErrorFunctionName" />
+                <field name="ErrorFunctionUid" />
+              </block>
+            </statement>
+            <value name="IF1">
+              <block type="er_logic_compare" id="qII-1Q|jZ$f}CqI6%kBx">
+                <field name="OP">EQ</field>
+                <value name="A">
+                  <block type="er_var_get" id="TC+rmc:S].Y8qhb|[=aL">
+                    <field name="VarName" id="#0JHr^V3|Ph{$SvrVkV," variabletype="VAR">robot_arm_region</field>
+                    <field name="IsSafe">1</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="er_string" id="9{/9]7dT1jQXD#1US={?">
+                    <field name="TextInput">ROBOT_BASE</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO1">
+              <block type="er_call_prog_function_2" id="6LngE_VAbCrq?O4Y+nH3">
+                <field name="programNameDrop">On_Robot</field>
+                <field name="functionUiDDrop">On_Robot_UE:sny)-+Wb,!6WnNq~F</field>
+                <field name="programName">On_Robot</field>
+                <field name="functionUiD">On_Robot_UE:sny)-+Wb,!6WnNq~F</field>
+                <field name="IsSafe">1</field>
+                <field name="IsActive">0</field>
+                <field name="Attempts">0</field>
+                <field name="ErrorFunctionName" />
+                <field name="ErrorFunctionUid" />
+              </block>
+            </statement>
+            <value name="IF2">
+              <block type="er_logic_compare" id="t)L2}-1x^H+s8_vchC#*">
+                <field name="OP">EQ</field>
+                <value name="A">
+                  <block type="er_var_get" id="5e4giCLs7JXF[p6F]D[.">
+                    <field name="VarName" id="#0JHr^V3|Ph{$SvrVkV," variabletype="VAR">robot_arm_region</field>
+                    <field name="IsSafe">1</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="er_string" id="4j1h_1;22.Ef,.|Pj)AA">
+                    <field name="TextInput">ROBOT_BASE/SubRackA</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO2">
+              <block type="er_call_prog_function_2" id="z$]/7NFaTouJpC7Sdw/U">
+                <field name="programNameDrop">On_Robot</field>
+                <field name="functionUiDDrop">On_Robot_UE:sny)-+Wb,!6WnNq~F</field>
+                <field name="programName">On_Robot</field>
+                <field name="functionUiD">On_Robot_UE:sny)-+Wb,!6WnNq~F</field>
+                <field name="IsSafe">1</field>
+                <field name="IsActive">0</field>
+                <field name="Attempts">0</field>
+                <field name="ErrorFunctionName" />
+                <field name="ErrorFunctionUid" />
+              </block>
+            </statement>
+            <value name="IF3">
+              <block type="er_logic_compare" id="X~qB+N;zx/?F;ZF)bqF)">
+                <field name="OP">EQ</field>
+                <value name="A">
+                  <block type="er_var_get" id="v!_$xCW-?m)e;{dtj3Op">
+                    <field name="VarName" id="#0JHr^V3|Ph{$SvrVkV," variabletype="VAR">robot_arm_region</field>
+                    <field name="IsSafe">1</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="er_string" id="DQ[A,kgx9A9zr?*DB|XH">
+                    <field name="TextInput">ROBOT_BASE/SubRackB</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO3">
+              <block type="er_call_prog_function_2" id=".:v1gw00`z=!h{:]/:%H">
+                <field name="programNameDrop">On_Robot</field>
+                <field name="functionUiDDrop">On_Robot_UE:sny)-+Wb,!6WnNq~F</field>
+                <field name="programName">On_Robot</field>
+                <field name="functionUiD">On_Robot_UE:sny)-+Wb,!6WnNq~F</field>
+                <field name="IsSafe">1</field>
+                <field name="IsActive">0</field>
+                <field name="Attempts">0</field>
+                <field name="ErrorFunctionName" />
+                <field name="ErrorFunctionUid" />
+              </block>
+            </statement>
+            <value name="IF4">
+              <block type="er_logic_compare" id="R;TJU{rL?V#^_l6B.C0{">
+                <field name="OP">EQ</field>
+                <value name="A">
+                  <block type="er_var_get" id="lhL3FDBMHF@qOf6`vWE(">
+                    <field name="VarName" id="#0JHr^V3|Ph{$SvrVkV," variabletype="VAR">robot_arm_region</field>
+                    <field name="IsSafe">1</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="er_string" id="[eSe7BxVz:S}F/}Wp+3f">
+                    <field name="TextInput">ROBOT_BASE/SubRackC</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO4">
+              <block type="er_call_prog_function_2" id="HaY([AO=[5cznuD~y^qm">
+                <field name="programNameDrop">On_Robot</field>
+                <field name="functionUiDDrop">On_Robot_UE:sny)-+Wb,!6WnNq~F</field>
+                <field name="programName">On_Robot</field>
+                <field name="functionUiD">On_Robot_UE:sny)-+Wb,!6WnNq~F</field>
+                <field name="IsSafe">1</field>
+                <field name="IsActive">0</field>
+                <field name="Attempts">0</field>
+                <field name="ErrorFunctionName" />
+                <field name="ErrorFunctionUid" />
+              </block>
+            </statement>
+            <value name="IF5">
+              <block type="er_logic_compare" id="!?*r*LEK8$zEN/*#G?[j">
+                <field name="OP">EQ</field>
+                <value name="A">
+                  <block type="er_var_get" id="%zn;9N}22K.WPMz@Xexi">
+                    <field name="VarName" id="#0JHr^V3|Ph{$SvrVkV," variabletype="VAR">robot_arm_region</field>
+                    <field name="IsSafe">1</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="er_string" id="9prE`+3N][(RWwL-MKYk">
+                    <field name="TextInput">ROBOT_BASE/SubRackD</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO5">
+              <block type="er_call_prog_function_2" id="BqVv]b=2?7@Qf;@WIGaz">
+                <field name="programNameDrop">On_Robot</field>
+                <field name="functionUiDDrop">On_Robot_UE:sny)-+Wb,!6WnNq~F</field>
+                <field name="programName">On_Robot</field>
+                <field name="functionUiD">On_Robot_UE:sny)-+Wb,!6WnNq~F</field>
+                <field name="IsSafe">1</field>
+                <field name="IsActive">0</field>
+                <field name="Attempts">0</field>
+                <field name="ErrorFunctionName" />
+                <field name="ErrorFunctionUid" />
+              </block>
+            </statement>
+            <value name="IF6">
+              <block type="er_logic_compare" id="uDn`5px7g}}o4=fVqa$W">
+                <field name="OP">EQ</field>
+                <value name="A">
+                  <block type="er_var_get" id="l5D.65eC,?N.Ce9x7n^P">
+                    <field name="VarName" id="#0JHr^V3|Ph{$SvrVkV," variabletype="VAR">robot_arm_region</field>
+                    <field name="IsSafe">1</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="er_string" id="(*,p8L{1,R^)ASBYK0R8">
+                    <field name="TextInput">BFT</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO6">
+              <block type="er_call_prog_function_2" id="BX2NH-!C4JYJuXr@,94L">
+                <field name="programNameDrop">Station_BFT</field>
+                <field name="functionUiDDrop">Station_BFT_lW+oo(VI5)]MAXZx8D.t</field>
+                <field name="programName">Station_BFT</field>
+                <field name="functionUiD">Station_BFT_lW+oo(VI5)]MAXZx8D.t</field>
+                <field name="IsSafe">1</field>
+                <field name="IsActive">0</field>
+                <field name="Attempts">0</field>
+                <field name="ErrorFunctionName" />
+                <field name="ErrorFunctionUid" />
+              </block>
+            </statement>
+            <value name="IF7">
+              <block type="er_logic_compare" id="Sk5x}/wB5UEIh:,t[|q0">
+                <field name="OP">EQ</field>
+                <value name="A">
+                  <block type="er_var_get" id="m0xEP!~+Yf6D14ky:e%v">
+                    <field name="VarName" id="#0JHr^V3|Ph{$SvrVkV," variabletype="VAR">robot_arm_region</field>
+                    <field name="IsSafe">1</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="er_string" id="IHN{TnX#+_M2o!?l:(0B">
+                    <field name="TextInput">DASH</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO7">
+              <block type="er_call_prog_function_2" id="{v*MX/7x$POrv(A787dt">
+                <field name="programNameDrop">Station_DASH</field>
+                <field name="functionUiDDrop">Station_DASH_btBzZj=8*1^XJM^#1,Cx</field>
+                <field name="programName">Station_DASH</field>
+                <field name="functionUiD">Station_DASH_btBzZj=8*1^XJM^#1,Cx</field>
+                <field name="IsSafe">1</field>
+                <field name="IsActive">0</field>
+                <field name="Attempts">0</field>
+                <field name="ErrorFunctionName" />
+                <field name="ErrorFunctionUid" />
+              </block>
+            </statement>
+            <value name="IF8">
+              <block type="er_logic_compare" id="Pv-[UXPr~ezxcHw9fdMz">
+                <field name="OP">EQ</field>
+                <value name="A">
+                  <block type="er_var_get" id="9z$/{3c:Yf{FQhi7|Z^L">
+                    <field name="VarName" id="#0JHr^V3|Ph{$SvrVkV," variabletype="VAR">robot_arm_region</field>
+                    <field name="IsSafe">1</field>
+                  </block>
+                </value>
+                <value name="B">
+                  <block type="er_string" id="_sJyYQ4eg^DDsuI)!pdp">
+                    <field name="TextInput">SRS</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO8">
+              <block type="er_call_prog_function_2" id="q.h72g*%s)IZG|;abahZ">
+                <field name="programNameDrop">Station_SRS</field>
+                <field name="functionUiDDrop">Station_SRS_cyIlzXe#eYYUV[Nzq9}5</field>
+                <field name="programName">Station_SRS</field>
+                <field name="functionUiD">Station_SRS_cyIlzXe#eYYUV[Nzq9}5</field>
+                <field name="IsSafe">1</field>
+                <field name="IsActive">0</field>
+                <field name="Attempts">0</field>
+                <field name="ErrorFunctionName" />
+                <field name="ErrorFunctionUid" />
+              </block>
+            </statement>
+            <next>
+              <block type="er_throw" id="+(.t/XgD0.O}ks]o{7Xe">
+                <value name="Message">
+                  <block type="er_string" id="(e8jV4XocwU;FkDd+8@s">
+                    <field name="TextInput">Failed to home robot arm during an error, unknown error</field>
+                  </block>
+                </value>
+              </block>
+            </next>
+          </block>
+        </statement>
+      </block>
+    </statement>
+  </block>
+  <block type="er_function_block" id="XbSDF+O1Qp_C(|B7XYk)" x="1840" y="1440">
+    <field name="FunctionBlockName">ResetTagCalibrations</field>
+    <field name="IsActive">0</field>
+    <field name="Attempts">0</field>
+    <field name="ErrorFunctionName" />
+    <field name="ErrorFunctionUid" />
+    <statement name="INSTRUCTIONS">
+      <block type="er_var_set" id="rtT_:rUJTa3#0og~T|lT">
+        <field name="VarName" id="`8Y^M@P1E(]+X/xS-.@`" variabletype="VAR">IsLabmanTagCalibrated</field>
+        <field name="IsSafe">1</field>
+        <value name="variable_value">
+          <block type="er_logic_boolean" id="y.8V^*g*636}D}_DZF%+">
+            <field name="BOOL">FALSE</field>
+          </block>
+        </value>
+        <next>
+          <block type="er_save_variable" id="=7.SN~UJbq!Rv_(JX6XM">
+            <field name="VarName" id="`8Y^M@P1E(]+X/xS-.@`" variabletype="VAR">IsLabmanTagCalibrated</field>
+            <field name="Global">1</field>
+            <field name="IsSafe">1</field>
+            <next>
+              <block type="er_var_set" id="0w_:`}Iu1hw!opwTHd%J">
+                <field name="VarName" id="ib*flv_W[|@thXa{{h$I" variabletype="VAR">IsFurnaceStationWorkbenchTagForMovingCalibrated</field>
+                <field name="IsSafe">1</field>
+                <value name="variable_value">
+                  <block type="er_logic_boolean" id="Wv3rC5e0kV]=j4k{`p~{">
+                    <field name="BOOL">FALSE</field>
+                  </block>
+                </value>
+                <next>
+                  <block type="er_save_variable" id="8{~F5BID1,!YPI~]x4/E">
+                    <field name="VarName" id="ib*flv_W[|@thXa{{h$I" variabletype="VAR">IsFurnaceStationWorkbenchTagForMovingCalibrated</field>
+                    <field name="Global">1</field>
+                    <field name="IsSafe">1</field>
+                    <next>
+                      <block type="er_var_set" id="cK/+cmB8Y~il1HZf7Cgh">
+                        <field name="VarName" id="SvyKO-MR8C+.T%iruMt[" variabletype="VAR">IsFurnaceStationWorkbenchTagCalibrated</field>
+                        <field name="IsSafe">1</field>
+                        <value name="variable_value">
+                          <block type="er_logic_boolean" id="s@FxtTOp~VK^zE)eR:7v">
+                            <field name="BOOL">FALSE</field>
+                          </block>
+                        </value>
+                        <next>
+                          <block type="er_save_variable" id="`@IFVN0Sl{)FaQtl_EGC">
+                            <field name="VarName" id="SvyKO-MR8C+.T%iruMt[" variabletype="VAR">IsFurnaceStationWorkbenchTagCalibrated</field>
+                            <field name="Global">1</field>
+                            <field name="IsSafe">1</field>
+                            <next>
+                              <block type="er_var_set" id="}]]z?_yOhyVpsu1zxt`[">
+                                <field name="VarName" id="0OjLCMqnlb,Y~0][I,2{" variabletype="VAR">IsFurnaceStationPrometheusTagCalibrated</field>
+                                <field name="IsSafe">1</field>
+                                <value name="variable_value">
+                                  <block type="er_logic_boolean" id="*BnQd-MXUX.D!uu~%Cz3">
+                                    <field name="BOOL">FALSE</field>
+                                  </block>
+                                </value>
+                                <next>
+                                  <block type="er_save_variable" id="u9iwK{/I;m$0n,[LXysz">
+                                    <field name="VarName" id="0OjLCMqnlb,Y~0][I,2{" variabletype="VAR">IsFurnaceStationPrometheusTagCalibrated</field>
+                                    <field name="Global">1</field>
+                                    <field name="IsSafe">1</field>
+                                    <next>
+                                      <block type="er_var_set" id="Yn-V*Euz~SC[9.uq!oIu">
+                                        <field name="VarName" id="7#;3Wt]Y=}xpfmIUS4:@" variabletype="VAR">IsSubRackStorageStationTagCalibrated</field>
+                                        <field name="IsSafe">1</field>
+                                        <value name="variable_value">
+                                          <block type="er_logic_boolean" id="s3@637c{]4PKOwl9h=G#">
+                                            <field name="BOOL">FALSE</field>
+                                          </block>
+                                        </value>
+                                        <next>
+                                          <block type="er_save_variable" id=".@8];^/cvNyaOFL!9(q7">
+                                            <field name="VarName" id="7#;3Wt]Y=}xpfmIUS4:@" variabletype="VAR">IsSubRackStorageStationTagCalibrated</field>
+                                            <field name="Global">1</field>
+                                            <field name="IsSafe">1</field>
+                                            <next>
+                                              <block type="er_var_set" id="$#%K!@VSw[=Rg^*dF^QY">
+                                                <field name="VarName" id="A2Qm]z?=kjb_#jVDvUd%" variabletype="VAR">IsSubRackStorageStationTagForMovingCalibrated</field>
+                                                <field name="IsSafe">1</field>
+                                                <value name="variable_value">
+                                                  <block type="er_logic_boolean" id="]NFIzSZlj*[0{B=sYN.}">
+                                                    <field name="BOOL">FALSE</field>
+                                                  </block>
+                                                </value>
+                                                <next>
+                                                  <block type="er_save_variable" id="!h/rG)#KFAY%kYU4W)^o">
+                                                    <field name="VarName" id="A2Qm]z?=kjb_#jVDvUd%" variabletype="VAR">IsSubRackStorageStationTagForMovingCalibrated</field>
+                                                    <field name="Global">1</field>
+                                                    <field name="IsSafe">1</field>
+                                                    <next>
+                                                      <block type="er_var_set" id="TwDt%J{FksQQoRYGGahU">
+                                                        <field name="VarName" id="7~LsFV/HD0T-t{%Yet=|" variabletype="VAR">IsDASHTagCalibrated</field>
+                                                        <field name="IsSafe">1</field>
+                                                        <value name="variable_value">
+                                                          <block type="er_logic_boolean" id="s-Eth/F7(:LjH:0gydM)">
+                                                            <field name="BOOL">FALSE</field>
+                                                          </block>
+                                                        </value>
+                                                        <next>
+                                                          <block type="er_save_variable" id="ZJ^xdo6adgEq1i|8oO%C">
+                                                            <field name="VarName" id="7~LsFV/HD0T-t{%Yet=|" variabletype="VAR">IsDASHTagCalibrated</field>
+                                                            <field name="Global">1</field>
+                                                            <field name="IsSafe">1</field>
+                                                            <next>
+                                                              <block type="er_var_set" id="`d5T{02ZcESnr%EXuwF2">
+                                                                <field name="VarName" id="YYS-|g_37,.!NEIfS[n9" variabletype="VAR">IsIXRDTagCalibrated</field>
+                                                                <field name="IsSafe">1</field>
+                                                                <value name="variable_value">
+                                                                  <block type="er_logic_boolean" id="yH`{+=_V.rIUDjI9To(g">
+                                                                    <field name="BOOL">FALSE</field>
+                                                                  </block>
+                                                                </value>
+                                                                <next>
+                                                                  <block type="er_save_variable" id="emi{?{GxQW[RrY|T.Da=">
+                                                                    <field name="VarName" id="YYS-|g_37,.!NEIfS[n9" variabletype="VAR">IsIXRDTagCalibrated</field>
+                                                                    <field name="Global">1</field>
+                                                                    <field name="IsSafe">1</field>
+                                                                  </block>
+                                                                </next>
+                                                              </block>
+                                                            </next>
+                                                          </block>
+                                                        </next>
+                                                      </block>
+                                                    </next>
+                                                  </block>
+                                                </next>
+                                              </block>
+                                            </next>
+                                          </block>
+                                        </next>
+                                      </block>
+                                    </next>
+                                  </block>
+                                </next>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="er_function_block" id="ksgb0497xy4zf7qZdcK7" x="2740" y="1440">
+    <field name="FunctionBlockName">PickPrologue</field>
+    <field name="IsActive">0</field>
+    <field name="Attempts">0</field>
+    <field name="ErrorFunctionName" />
+    <field name="ErrorFunctionUid" />
+    <statement name="INSTRUCTIONS">
+      <block type="er_controls_if" id="I0BvS*,n4r40wUyX[[_k">
+        <html:mutation else="1" />
+        <value name="IF0">
+          <block type="er_logic_compare" id="|Ddo^I,p7SiVoen}{iV*">
+            <field name="OP">NEQ</field>
+            <value name="A">
+              <block type="er_var_get" id="dm0[iEJY6jTF8/sG()/L">
+                <field name="VarName" id="`-@wq!IVJ#jgPX@cF`H%" variabletype="VAR">source_slot</field>
+                <field name="IsSafe">1</field>
+              </block>
+            </value>
+            <value name="B">
+              <block type="er_string" id="4j_t-R4w)OzJTq7LOoV]">
+                <field name="TextInput">None</field>
+              </block>
+            </value>
+          </block>
+        </value>
+        <statement name="DO0">
+          <block type="er_try_catch" id="s5f(,.n1$`g?^]=H|:Y8">
+            <statement name="TryInstructions">
+              <block type="er_var_set" id="M@mxjrOA0seV7Dbq!_)-">
+                <field name="VarName" id="R($|maIf;Ti3DarVS0a0" variabletype="VAR">int_source_slot</field>
+                <field name="IsSafe">1</field>
+                <value name="variable_value">
+                  <block type="er_cast" id="IoS%$Arc_=?@~a^rTCA7">
+                    <field name="_CAST_TYPE">5</field>
+                    <value name="_ARG1">
+                      <block type="er_var_get" id="d^krtJ75J0`2[~21K9-I">
+                        <field name="VarName" id="`-@wq!IVJ#jgPX@cF`H%" variabletype="VAR">source_slot</field>
+                        <field name="IsSafe">1</field>
+                      </block>
+                    </value>
+                  </block>
+                </value>
+              </block>
+            </statement>
+            <statement name="CatchInstructions">
+              <block type="er_var_set" id="7Jnjtq19:549fvdZh[^l">
+                <field name="VarName" id="R($|maIf;Ti3DarVS0a0" variabletype="VAR">int_source_slot</field>
+                <field name="IsSafe">1</field>
+                <value name="variable_value">
+                  <block type="er_var_get" id="MofjdN{_rnzgym_8`UQ^">
+                    <field name="VarName" id="`-@wq!IVJ#jgPX@cF`H%" variabletype="VAR">source_slot</field>
+                    <field name="IsSafe">1</field>
+                  </block>
+                </value>
+              </block>
+            </statement>
+          </block>
+        </statement>
+        <statement name="ELSE">
+          <block type="er_var_set" id="GV-~tNi$[@5Z`{2O+c;L">
+            <field name="VarName" id="R($|maIf;Ti3DarVS0a0" variabletype="VAR">int_source_slot</field>
+            <field name="IsSafe">1</field>
+            <value name="variable_value">
+              <block type="er_string" id=";-3j{:S{)=y$uO*#/*8E">
+                <field name="TextInput">None</field>
+              </block>
+            </value>
+          </block>
+        </statement>
+        <next>
+          <block type="er_var_set" id="2`p{WuOmZ3Yx/jMwej5+">
+            <field name="VarName" id="#0JHr^V3|Ph{$SvrVkV," variabletype="VAR">robot_arm_region</field>
+            <field name="IsSafe">1</field>
+            <value name="variable_value">
+              <block type="er_var_get" id="i:Hf~+*rk+.vg5Nnjbx*">
+                <field name="VarName" id=":3gVli8AVh_[Ooc1qZv:" variabletype="VAR">source_region</field>
+                <field name="IsSafe">1</field>
+              </block>
+            </value>
+            <next>
+              <block type="er_save_variable" id="r^Z1=9,rQPj|)F);m(!Q">
+                <field name="VarName" id="#0JHr^V3|Ph{$SvrVkV," variabletype="VAR">robot_arm_region</field>
+                <field name="Global">1</field>
+                <field name="IsSafe">1</field>
+                <next>
+                  <block type="er_var_set" id="W4ix=mXLYk}FTE$aYR,f">
+                    <field name="VarName" id="{OYev.jj}|bk,-d8H%j`" variabletype="VAR">robot_arm_slot</field>
+                    <field name="IsSafe">1</field>
+                    <value name="variable_value">
+                      <block type="er_var_get" id="/36_aWfh2^~Do!ruiGPx">
+                        <field name="VarName" id="R($|maIf;Ti3DarVS0a0" variabletype="VAR">int_source_slot</field>
+                        <field name="IsSafe">1</field>
+                      </block>
+                    </value>
+                    <next>
+                      <block type="er_save_variable" id="S.|~O?byyY}X=!Ry.S.:">
+                        <field name="VarName" id="{OYev.jj}|bk,-d8H%j`" variabletype="VAR">robot_arm_slot</field>
+                        <field name="Global">1</field>
+                        <field name="IsSafe">1</field>
+                        <next>
+                          <block type="er_var_set" id="eT9zp(B_a4MGP?%p;NOr">
+                            <field name="VarName" id="Q@ASmaU6o_KaiI_%C)uv" variabletype="VAR">slot</field>
+                            <field name="IsSafe">1</field>
+                            <value name="variable_value">
+                              <block type="er_var_get" id="[~Nl=Tqic,:]g/-(5wJk">
+                                <field name="VarName" id="R($|maIf;Ti3DarVS0a0" variabletype="VAR">int_source_slot</field>
+                                <field name="IsSafe">1</field>
+                              </block>
+                            </value>
+                            <next>
+                              <block type="er_save_variable" id="f]8Vs{d{^x8+^mH4G.P.">
+                                <field name="VarName" id="Q@ASmaU6o_KaiI_%C)uv" variabletype="VAR">slot</field>
+                                <field name="Global">1</field>
+                                <field name="IsSafe">1</field>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="er_function_block" id="HdFJko7n5YgzDFasGn9Y" x="40" y="2840">
+    <field name="FunctionBlockName">PlacePrologue</field>
+    <field name="IsActive">0</field>
+    <field name="Attempts">0</field>
+    <field name="ErrorFunctionName" />
+    <field name="ErrorFunctionUid" />
+    <statement name="INSTRUCTIONS">
+      <block type="er_controls_if" id="j8~PQt_DrokxMdDr9flf">
+        <html:mutation else="1" />
+        <value name="IF0">
+          <block type="er_logic_compare" id="nddgwI;:+W{AocTq~y^T">
+            <field name="OP">NEQ</field>
+            <value name="A">
+              <block type="er_var_get" id="@s^zeI.P_[~(D%FL78:}">
+                <field name="VarName" id="DQ17XL0%Ti37.)o(z]L@" variabletype="VAR">destination_slot</field>
+                <field name="IsSafe">1</field>
+              </block>
+            </value>
+            <value name="B">
+              <block type="er_string" id="5[oBtm4.NbZ.G.}ECk+?">
+                <field name="TextInput">None</field>
+              </block>
+            </value>
+          </block>
+        </value>
+        <statement name="DO0">
+          <block type="er_try_catch" id="cotdL(sR#i$L7_sp+JB`">
+            <statement name="TryInstructions">
+              <block type="er_var_set" id="QTC[Ho;Ii]sNy`R1mYK!">
+                <field name="VarName" id="X[$6OL(N~clLVT~7epMa" variabletype="VAR">int_destination_slot</field>
+                <field name="IsSafe">1</field>
+                <value name="variable_value">
+                  <block type="er_cast" id="yX@Gg3[u@~G#.F,yyWqg">
+                    <field name="_CAST_TYPE">5</field>
+                    <value name="_ARG1">
+                      <block type="er_var_get" id="(1[LTe]#UT8+W[~KG`Qr">
+                        <field name="VarName" id="DQ17XL0%Ti37.)o(z]L@" variabletype="VAR">destination_slot</field>
+                        <field name="IsSafe">1</field>
+                      </block>
+                    </value>
+                  </block>
+                </value>
+              </block>
+            </statement>
+            <statement name="CatchInstructions">
+              <block type="er_var_set" id="zDFDgL?0ve9[j1=:*0:p">
+                <field name="VarName" id="X[$6OL(N~clLVT~7epMa" variabletype="VAR">int_destination_slot</field>
+                <field name="IsSafe">1</field>
+                <value name="variable_value">
+                  <block type="er_var_get" id=".i=e;e`s;Wv7=+Ykx{{p">
+                    <field name="VarName" id="DQ17XL0%Ti37.)o(z]L@" variabletype="VAR">destination_slot</field>
+                    <field name="IsSafe">1</field>
+                  </block>
+                </value>
+              </block>
+            </statement>
+          </block>
+        </statement>
+        <statement name="ELSE">
+          <block type="er_var_set" id="E1:eZ15X7U|+-Jt5ZRQ{">
+            <field name="VarName" id="X[$6OL(N~clLVT~7epMa" variabletype="VAR">int_destination_slot</field>
+            <field name="IsSafe">1</field>
+            <value name="variable_value">
+              <block type="er_string" id="`6zb)DpT(X(%7pHD{XD]">
+                <field name="TextInput">None</field>
+              </block>
+            </value>
+          </block>
+        </statement>
+        <next>
+          <block type="er_var_set" id="=W^Rr,-`yR$xI2d_Jz!5">
+            <field name="VarName" id="#0JHr^V3|Ph{$SvrVkV," variabletype="VAR">robot_arm_region</field>
+            <field name="IsSafe">1</field>
+            <value name="variable_value">
+              <block type="er_var_get" id="%MS;bf|+U,_s6VY0$Cy~">
+                <field name="VarName" id="pnyxBS+tPj|S]R~H)d`T" variabletype="VAR">destination_region</field>
+                <field name="IsSafe">1</field>
+              </block>
+            </value>
+            <next>
+              <block type="er_save_variable" id="^D}~o-IciMEYgps-)C2v">
+                <field name="VarName" id="#0JHr^V3|Ph{$SvrVkV," variabletype="VAR">robot_arm_region</field>
+                <field name="Global">1</field>
+                <field name="IsSafe">1</field>
+                <next>
+                  <block type="er_var_set" id="?sh.W4sBCW_;.oV%10)K">
+                    <field name="VarName" id="{OYev.jj}|bk,-d8H%j`" variabletype="VAR">robot_arm_slot</field>
+                    <field name="IsSafe">1</field>
+                    <value name="variable_value">
+                      <block type="er_var_get" id="[@UQT*KL_~-/dQo2$pwY">
+                        <field name="VarName" id="X[$6OL(N~clLVT~7epMa" variabletype="VAR">int_destination_slot</field>
+                        <field name="IsSafe">1</field>
+                      </block>
+                    </value>
+                    <next>
+                      <block type="er_save_variable" id="q;ko^t5dcY0(/T7N|6l{">
+                        <field name="VarName" id="{OYev.jj}|bk,-d8H%j`" variabletype="VAR">robot_arm_slot</field>
+                        <field name="Global">1</field>
+                        <field name="IsSafe">1</field>
+                        <next>
+                          <block type="er_var_set" id="KD[YD46Nwy$2m{,DHSL,">
+                            <field name="VarName" id="Q@ASmaU6o_KaiI_%C)uv" variabletype="VAR">slot</field>
+                            <field name="IsSafe">1</field>
+                            <value name="variable_value">
+                              <block type="er_var_get" id="nj:B0KXOv)p(w%N+DKmk">
+                                <field name="VarName" id="X[$6OL(N~clLVT~7epMa" variabletype="VAR">int_destination_slot</field>
+                                <field name="IsSafe">1</field>
+                              </block>
+                            </value>
+                            <next>
+                              <block type="er_save_variable" id="S7WMGN(s^t{k_Q8EWNmP">
+                                <field name="VarName" id="Q@ASmaU6o_KaiI_%C)uv" variabletype="VAR">slot</field>
+                                <field name="Global">1</field>
+                                <field name="IsSafe">1</field>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="er_function_block" id="vqLIdhh3FOcMbbQlbDYu" x="940" y="2840">
+    <field name="FunctionBlockName">PickPostcheck</field>
+    <field name="IsActive">0</field>
+    <field name="Attempts">0</field>
+    <field name="ErrorFunctionName" />
+    <field name="ErrorFunctionUid" />
+    <statement name="INSTRUCTIONS">
+      <block type="er_ur_action" id="~eB-.osyW([x}DJBoD6S">
+        <field name="Menu_valDrop">CheckIsGripping</field>
+        <field name="ResponseVar" id="v0v2]!*5^jYBIHn.5Pf3" variabletype="VAR">returnVal</field>
+        <field name="IsSafe">1</field>
+        <field name="Menu_val">CheckIsGripping</field>
+        <next>
+          <block type="er_controls_if" id="Rep:6~*t6`G]q:l_!.Vg">
+            <value name="IF0">
+              <block type="er_logic_negate" id="^nZE$d1MEB(d{$=O}Kdm">
+                <value name="BOOL">
+                  <block type="er_var_get" id="aMYu(=x{b|h3k9X6K4x.">
+                    <field name="VarName" id="v0v2]!*5^jYBIHn.5Pf3" variabletype="VAR">returnVal</field>
+                    <field name="IsSafe">1</field>
+                  </block>
+                </value>
+              </block>
+            </value>
+            <statement name="DO0">
+              <block type="er_throw" id=")+]eIlD:WdN=;^=HHi!=">
+                <value name="Message">
+                  <block type="er_string" id="Fj#@ukF=x*d98tZNx`vY">
+                    <field name="TextInput">Robot arm is homed but failed to pick</field>
+                  </block>
+                </value>
+              </block>
+            </statement>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="er_program" id="VNJ3n3xq7acUOtXMxEOw" deletable="false" editable="false" x="0" y="0">
+    <field name="_progName">On_Robot;Station_BFT;Station_DASH;Station_IXRD;Station_Labman;Station_SEMEDS;Station_SRS;Tests</field>
+    <field name="TOOL_FRAME">Manip.Flange</field>
+    <statement name="INSTRUCTIONS" />
+  </block>
+</xml>

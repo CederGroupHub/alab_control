@@ -257,8 +257,8 @@ class MobileRobotArm():
         else:
             raise ValueError(f"Unknown state: {self.state}. Please check the API documentation for the full list of states.")
         
-    def run_main_program(self, target_base_position: str, source_region: str, source_slot: str, destination_region: str, destination_slot: str):
-        # load the main program once it is not running.
+    def wait_until_loadable(self):
+        # a program can only be loaded once the previous one has finished.
         while self.is_running():
             patience = 30
             while self.is_running() and patience > 0:
@@ -266,12 +266,32 @@ class MobileRobotArm():
                 time.sleep(1)
             if patience == 0:
                 raise ValueError(f"The MRA is still running after 30 seconds. Current state: {self.get_state_and_message()[0]}")
+
+    def run_main_program(self, target_base_position: str, source_region: str, source_slot: str, destination_region: str, destination_slot: str):
+        self.wait_until_loadable()
         self.load_main_program(target_base_position, source_region, source_slot, destination_region, destination_slot)
         time.sleep(3) # wait for the program to load.
         # start the program
         self.start_program()
         time.sleep(3) # wait for the program to start.
         # wait for the program to finish
+        self.wait_for_program_to_finish()
+
+    def run_program(self, program_name: str, arguments: dict[str, str] | None = None):
+        """
+        Load a program by name, run it, and wait for it to finish.
+
+        Used by the split programs, where each movement is its own program rather than a
+        branch inside Main. Arguments are named and all string typed (type 0).
+        """
+        self.wait_until_loadable()
+        self.load_program(
+            program_name,
+            [{"name": name, "type": 0, "value": str(value)} for name, value in (arguments or {}).items()],
+        )
+        time.sleep(3) # wait for the program to load.
+        self.start_program()
+        time.sleep(3) # wait for the program to start.
         self.wait_for_program_to_finish()
     
     def charge(self):

@@ -1,0 +1,1465 @@
+<?xml version='1.0' encoding='utf-8'?>
+<xml xmlns="https://developers.google.com/blockly/xml" xmlns:html="http://www.w3.org/1999/xhtml">
+  <metadata buildtype="release" robotname="ER-FLEX-20018" softwareversion="2.12.0" scrollx="3614.3887237975723" scrolly="205.85706734770793" />
+  <version Ver="1.1.1" />
+  <variables>
+    <variable type="VAR" id="YYS-|g_37,.!NEIfS[n9">IsIXRDTagCalibrated</variable>
+    <variable type="VAR" id="5q~4,DykK5jvDM,cnoYE">arguments</variable>
+    <variable type="VAR" id="Tv]a}RxLvF8/PMFH@xfx">__var__</variable>
+    <variable type="VAR" id="Q@ASmaU6o_KaiI_%C)uv">slot</variable>
+    <variable type="VAR" id=";R0IspM4wHmF|Z%0!^*[">RobotPose</variable>
+    <variable type="VAR" id="D=XB==Svlr%7,s6iYW[,">isReachable</variable>
+    <variable type="VAR" id="W4NmdV-Uy#Q1NQV2?~Am">temp_slot</variable>
+    <variable type="VAR" id="~eLan,]rkGv~nSo}AIGN">BasePosition</variable>
+    <variable type="VAR" id="KoI~+nlp!oEr`E/6d.=x">ComputedPosition</variable>
+    <variable type="VAR" id="%9H*Y^v.kLf`ZW-#KXz-">LABMAN_pickplace_stage</variable>
+    <variable type="VAR" id="`8Y^M@P1E(]+X/xS-.@`">IsLabmanTagCalibrated</variable>
+    <variable type="VAR" id="F5s/B*bP#fiJAxPE]MSL">CrucibleRackA_Origin</variable>
+    <variable type="VAR" id="v0v2]!*5^jYBIHn.5Pf3">returnVal</variable>
+    <variable type="VAR" id="aQVOLqCH^|32d6QZgQ^i">x_dim</variable>
+    <variable type="VAR" id="r=M+LyK1rh2L{psIMr)a">FurnaceStationTagFromPrometheusTag</variable>
+    <variable type="VAR" id="z6p+(C=f4AQZ{=/wQ|cP">GridOrigin</variable>
+    <variable type="VAR" id="#0JHr^V3|Ph{$SvrVkV,">robot_arm_region</variable>
+    <variable type="VAR" id="#1[Zt+VB5.6;s;yeH[z4">target_base_position</variable>
+    <variable type="VAR" id="Md_!dI:d=4:qR|ih|IDI">rows</variable>
+    <variable type="VAR" id="54TYWvk$XiR]58c465{}">offset_x</variable>
+    <variable type="VAR" id="-B-YyC#gN!n3*.*AvI66">isWaypointUnreachableError</variable>
+    <variable type="VAR" id="}zM*obU+}8mWWsb-o}$d">BFT_Origin</variable>
+    <variable type="VAR" id="{AyRV5hn6+`~87_d#156">DASH_Origin</variable>
+    <variable type="VAR" id="T$5[@69B6!X{h%$Y#,@n">DASHPickPlaceProgression</variable>
+    <variable type="VAR" id="ib*flv_W[|@thXa{{h$I">IsFurnaceStationWorkbenchTagForMovingCalibrated</variable>
+    <variable type="VAR" id="TOMJ2%gN3M/]qpX)kiZf">CrucibleRackB_Origin</variable>
+    <variable type="VAR" id="7~LsFV/HD0T-t{%Yet=|">IsDASHTagCalibrated</variable>
+    <variable type="VAR" id="U#tnVG_T)Ls(P:T)WDGJ">Offset_Crucible_Rack_X</variable>
+    <variable type="VAR" id="WF6#RM*@ZU;v?wEj]qSa">offset_y</variable>
+    <variable type="VAR" id="7#;3Wt]Y=}xpfmIUS4:@">IsSubRackStorageStationTagCalibrated</variable>
+    <variable type="VAR" id="SvyKO-MR8C+.T%iruMt[">IsFurnaceStationWorkbenchTagCalibrated</variable>
+    <variable type="VAR" id="+5HX6b1L8*AFepW)q,u@">IntoSEMEDSCounter</variable>
+    <variable type="VAR" id="_YByk*`;L8p2l.6d);h:">IntoIXRDCounter</variable>
+    <variable type="VAR" id="VAR">not initialized</variable>
+    <variable type="VAR" id="x3Zs~mP7Je$a:Jhub,p{">CrucibleRackC_Origin</variable>
+    <variable type="VAR" id="d`XM,y/KM^zGOpf+Q7I(">CrucibleRackD_Origin</variable>
+    <variable type="VAR" id="405S}KZ5@Ha9_L|5w!0q">columns</variable>
+    <variable type="VAR" id="a-qM6{;z)`wV#}c4@kX%">IntoLabmanCounter</variable>
+    <variable type="VAR" id="8]ZnqE,):LOa2:5?_g=p">rows_counter</variable>
+    <variable type="VAR" id="W?9y.@m{ibtZ:+:qEkD%">Offset_Crucible_Rack_Y</variable>
+    <variable type="VAR" id="{OYev.jj}|bk,-d8H%j`">robot_arm_slot</variable>
+    <variable type="VAR" id=":3gVli8AVh_[Ooc1qZv:">source_region</variable>
+    <variable type="VAR" id="MuWMoEuVk5y+eHk!Kig+">columns_counter</variable>
+    <variable type="VAR" id="a*cS3.JJ/v$JuF(%cslQ">Offset_BFT_X</variable>
+    <variable type="VAR" id="jBC.o]{0s7wnApeNQyXo">Offset_DASH_X</variable>
+    <variable type="VAR" id="OOt8Ewpl=wg@$J!^;OR$">TagCalibrationSuccessful</variable>
+    <variable type="VAR" id="QILSIdy-tb4kaZ~,#CX`">OutFromSEMEDSCounter</variable>
+    <variable type="VAR" id="H3#R)VzOa.$]FIoDk],_">OutFromIXRDCounter</variable>
+    <variable type="VAR" id="zZZ5.^!/J$JDH@;^6X16">TagCalibrationTrialCount</variable>
+    <variable type="VAR" id="(ynvZQ|e=~0$oz}9:^KK">OutFromLabmanCounter</variable>
+    <variable type="VAR" id="0OjLCMqnlb,Y~0][I,2{">IsFurnaceStationPrometheusTagCalibrated</variable>
+    <variable type="VAR" id="iZDH,QI-CLax,G`:~=`~">Offset_BFT_Y</variable>
+    <variable type="VAR" id="Dx,Rn?K3Kwr_|kzPMa{M">Offset_DASH_Y</variable>
+    <variable type="VAR" id="pnyxBS+tPj|S]R~H)d`T">destination_region</variable>
+    <variable type="REF" id="DASHTagForMoving_Toyd7CJwnKwQfpj2">DASHTagForMoving</variable>
+    <variable type="REF" id="LabmanBasePositioning_msx3yv1VQRGV9Qu3">LabmanBasePositioning</variable>
+    <variable type="VAR" id="`-@wq!IVJ#jgPX@cF`H%">source_slot</variable>
+    <variable type="VAR" id="A2Qm]z?=kjb_#jVDvUd%">IsSubRackStorageStationTagForMovingCalibrated</variable>
+    <variable type="REF" id="FurnaceStationWorkbenchTagForMoving_nC0l51ETQSyattb0">FurnaceStationWorkbenchTagForMoving</variable>
+    <variable type="REF" id="SubRackStationTagForMoving_qmKiRQamfhkF05MT">SubRackStationTagForMoving</variable>
+    <variable type="REF" id="DASHTag_5djSQL5cksLzHtWi">DASHTag</variable>
+    <variable type="VAR" id="WO7^K.PZr3Dm83|K~RAR">DASHTag</variable>
+    <variable type="REF" id="IXRDTag_fANdACLQc1hGBNEh">IXRDTag</variable>
+    <variable type="VAR" id="DQ17XL0%Ti37.)o(z]L@">destination_slot</variable>
+    <variable type="REF" id="PrometheusTag_m0B7CQQrniDjCYkm">PrometheusTag</variable>
+    <variable type="REF" id="FurnaceStationWorkbenchTag_qoYe4kLX3i8FcNCN">FurnaceStationTag</variable>
+    <variable type="REF" id="SubRackStationTag_U5AEqShevmM6UlpK">SubRackStationTag</variable>
+    <variable type="VAR" id="HF-0|}%i+%hnmE@~_kvu">IXRDTag</variable>
+    <variable type="REF" id="LabmanTag_7zFZpIEhUJObCuEz">LabmanTag</variable>
+    <variable type="VAR" id="DQ.MY-Tc8@N4ILg9$}+K">FurnaceStationTag</variable>
+    <variable type="VAR" id="h{TYO7D_hj5Qdm=DvpnJ">SubRackStationTag</variable>
+    <variable type="VAR" id="@Wvjr^#|QP`@s)Ee#}f5">LabmanTag</variable>
+    <variable type="VAR" id="Eg(T:9}B6T#}T2;`xGho">BFT_CALIBRATION</variable>
+    <variable type="VAR" id="R($|maIf;Ti3DarVS0a0">int_source_slot</variable>
+    <variable type="VAR" id="X[$6OL(N~clLVT~7epMa">int_destination_slot</variable>
+    <variable type="REF" id="BFT_CALIBRATION_YAmHFYgGteIOED9U">BFT_CALIBRATION</variable>
+    <variable type="VAR" id="fAZm_`e9Mj]cA0i$DlE}">LABMAN_CALIBRATION</variable>
+    <variable type="VAR" id="OR^RWwwK;l-T0(1Ym8c!">robot_arm_job</variable>
+    <variable type="REF" id="LABMAN_CALIBRATION_8NHRsePTDUvdfRSq">LABMAN_CALIBRATION</variable>
+  </variables>
+  <block type="er_function_block" id="jckR?{!oj75V}y%/#Te?" x="40" y="40">
+    <field name="FunctionBlockName">GoToSEMEDS</field>
+    <field name="IsActive">0</field>
+    <field name="Attempts">0</field>
+    <field name="ErrorFunctionName" />
+    <field name="ErrorFunctionUid" />
+    <statement name="INSTRUCTIONS">
+      <block type="er_call_prog_function_2" id=",id0:w4RGDkS]YfIuNd?">
+        <field name="programNameDrop">Shared</field>
+        <field name="functionUiDDrop">Shared_XbSDF+O1Qp_C(|B7XYk)</field>
+        <field name="programName">Shared</field>
+        <field name="functionUiD">Shared_XbSDF+O1Qp_C(|B7XYk)</field>
+        <field name="IsSafe">1</field>
+        <field name="IsActive">0</field>
+        <field name="Attempts">0</field>
+        <field name="ErrorFunctionName" />
+        <field name="ErrorFunctionUid" />
+        <next>
+          <block type="er_call_prog_function_2" id="OuXP%4#E?K,Kp/rcSSpY">
+            <field name="programNameDrop">Shared</field>
+            <field name="functionUiDDrop">Shared_#f%=AHUde[8d:xi3G~RB</field>
+            <field name="programName">Shared</field>
+            <field name="functionUiD">Shared_#f%=AHUde[8d:xi3G~RB</field>
+            <field name="IsSafe">1</field>
+            <field name="IsActive">0</field>
+            <field name="Attempts">0</field>
+            <field name="ErrorFunctionName" />
+            <field name="ErrorFunctionUid" />
+            <next>
+              <block type="er_controls_if" id="%Ys9^!h;gm16=Q!t=ofq">
+                <value name="IF0">
+                  <block type="er_logic_compare" id=".45r`8Dr*]T|Lp%KRsc7">
+                    <field name="OP">NEQ</field>
+                    <value name="A">
+                      <block type="er_var_get" id="Yb*8|UqD^q{EnXkGCUIt">
+                        <field name="VarName" id=";R0IspM4wHmF|Z%0!^*[" variabletype="VAR">RobotPose</field>
+                        <field name="IsSafe">1</field>
+                      </block>
+                    </value>
+                    <value name="B">
+                      <block type="er_string" id="L-N9VPOqrYz`Wds_OOC(">
+                        <field name="TextInput">Home</field>
+                      </block>
+                    </value>
+                  </block>
+                </value>
+                <statement name="DO0">
+                  <block type="er_throw" id="@6=?[oKy=$c~z:bK2^Q(">
+                    <value name="Message">
+                      <block type="er_string" id="6|{|/ym[y:TRvZC6@nnt">
+                        <field name="TextInput">Robot is not in home position</field>
+                      </block>
+                    </value>
+                  </block>
+                </statement>
+                <next>
+                  <block type="er_var_set" id="+,S-QYZV8`[l14_:9}!e">
+                    <field name="VarName" id="+5HX6b1L8*AFepW)q,u@" variabletype="VAR">IntoSEMEDSCounter</field>
+                    <field name="IsSafe">1</field>
+                    <value name="variable_value">
+                      <block type="er_math_number" id="A2D}fww9+gU_UP=*taYo">
+                        <field name="NUM">0</field>
+                      </block>
+                    </value>
+                    <next>
+                      <block type="er_controls_while" id="Xk:fMMRloA[j5WEI[i}2">
+                        <value name="BOOL">
+                          <block type="er_logic_operation" id="Y=4xe)zp0/[?XByeAAz;">
+                            <field name="OP">AND</field>
+                            <value name="A">
+                              <block type="er_logic_compare" id="DAhbH]$pN*RmGDv]nM{)">
+                                <field name="OP">NEQ</field>
+                                <value name="A">
+                                  <block type="er_var_get" id="0dP|Q4@NSE=wIKX~2:eC">
+                                    <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                                    <field name="IsSafe">1</field>
+                                  </block>
+                                </value>
+                                <value name="B">
+                                  <block type="er_string" id=":u[E6lvgF:)2Yjf-K:9%">
+                                    <field name="TextInput">IXRD</field>
+                                  </block>
+                                </value>
+                              </block>
+                            </value>
+                            <value name="B">
+                              <block type="er_logic_compare" id="2WCblel(#:.Qja]Nd~Db">
+                                <field name="OP">LTE</field>
+                                <value name="A">
+                                  <block type="er_var_get" id="_:V6AB;n0]Suh)#LGI^*">
+                                    <field name="VarName" id="+5HX6b1L8*AFepW)q,u@" variabletype="VAR">IntoSEMEDSCounter</field>
+                                    <field name="IsSafe">1</field>
+                                  </block>
+                                </value>
+                                <value name="B">
+                                  <block type="er_math_number" id="tbXxEFALac8aR1!8W}b!">
+                                    <field name="NUM">3</field>
+                                  </block>
+                                </value>
+                              </block>
+                            </value>
+                          </block>
+                        </value>
+                        <statement name="DO">
+                          <block type="er_try_catch" id="6^l,)G+fLYBoaXNGZ*cy">
+                            <statement name="TryInstructions">
+                              <block type="er_try_catch" id="n@4IS+w7rWG{f@^2K5m3">
+                                <statement name="TryInstructions">
+                                  <block type="er_var_set" id="-(_Em![[4mCCbe#Z{yg@">
+                                    <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                                    <field name="IsSafe">1</field>
+                                    <value name="variable_value">
+                                      <block type="er_string" id="zzDqU:rrBgBN`#oLC]x2">
+                                        <field name="TextInput">Unknown</field>
+                                      </block>
+                                    </value>
+                                    <next>
+                                      <block type="er_save_variable" id="W[v96yLg?_;RA-629^]u">
+                                        <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                                        <field name="Global">1</field>
+                                        <field name="IsSafe">1</field>
+                                        <next>
+                                          <block type="er_drive_to_defined_position" id="%K3tjpi+JD_mrA_:G[}s">
+                                            <field name="Menu_valDrop">3d36cab5-0460-11f0-92aa-000e8eb687a3</field>
+                                            <field name="PlanningAttempts">10</field>
+                                            <field name="AdvancedMenuOpen">0</field>
+                                            <field name="IsSafe">1</field>
+                                            <field name="Menu_val">3d36cab5-0460-11f0-92aa-000e8eb687a3</field>
+                                            <field name="IsActive">0</field>
+                                            <field name="Attempts">0</field>
+                                            <field name="ErrorFunctionName" />
+                                            <field name="ErrorFunctionUid" />
+                                            <next>
+                                              <block type="er_drive_to_defined_position" id="sut}#Y7Uo+}_OCRX`AeD">
+                                                <field name="Menu_valDrop">a9646ced-fbed-11ef-8c1a-000e8eb687a3</field>
+                                                <field name="PlanningAttempts">10</field>
+                                                <field name="AdvancedMenuOpen">0</field>
+                                                <field name="IsSafe">1</field>
+                                                <field name="Menu_val">a9646ced-fbed-11ef-8c1a-000e8eb687a3</field>
+                                                <field name="IsActive">0</field>
+                                                <field name="Attempts">0</field>
+                                                <field name="ErrorFunctionName" />
+                                                <field name="ErrorFunctionUid" />
+                                                <next>
+                                                  <block type="er_drive_mute_protective_fields" id="Cr+AwacEcwU#umpS;P~6">
+                                                    <field name="IsActive">0</field>
+                                                    <field name="Attempts">0</field>
+                                                    <field name="ErrorFunctionName" />
+                                                    <field name="ErrorFunctionUid" />
+                                                    <statement name="DriveInstructions">
+                                                      <block type="er_MiR_Missions" id="9;]7SG[M8ahvMXz7W1UF">
+                                                        <field name="Menu_valDrop">d2f5f25e-baca-11f0-9abb-000e8eb687a3</field>
+                                                        <field name="Menu_val">d2f5f25e-baca-11f0-9abb-000e8eb687a3</field>
+                                                        <field name="IsSafe">1</field>
+                                                        <field name="IsActive">0</field>
+                                                        <field name="Attempts">0</field>
+                                                        <field name="ErrorFunctionName" />
+                                                        <field name="ErrorFunctionUid" />
+                                                        <next>
+                                                          <block type="er_drive_to_defined_position" id="5]YIIxFC!jUvhqvZ+2u=">
+                                                            <field name="Menu_valDrop">ff4db904-0622-11f1-a35f-000e8eb687a3</field>
+                                                            <field name="PlanningAttempts">10</field>
+                                                            <field name="AdvancedMenuOpen">0</field>
+                                                            <field name="IsSafe">1</field>
+                                                            <field name="Menu_val">ff4db904-0622-11f1-a35f-000e8eb687a3</field>
+                                                            <field name="IsActive">0</field>
+                                                            <field name="Attempts">0</field>
+                                                            <field name="ErrorFunctionName" />
+                                                            <field name="ErrorFunctionUid" />
+                                                            <next>
+                                                              <block type="er_drive_to_defined_position" id="CubW33($8}O_-rmk)f%[">
+                                                                <field name="Menu_valDrop">45ea8397-060f-11f1-a35f-000e8eb687a3</field>
+                                                                <field name="PlanningAttempts">10</field>
+                                                                <field name="AdvancedMenuOpen">0</field>
+                                                                <field name="IsSafe">1</field>
+                                                                <field name="Menu_val">45ea8397-060f-11f1-a35f-000e8eb687a3</field>
+                                                                <field name="IsActive">0</field>
+                                                                <field name="Attempts">0</field>
+                                                                <field name="ErrorFunctionName" />
+                                                                <field name="ErrorFunctionUid" />
+                                                              </block>
+                                                            </next>
+                                                          </block>
+                                                        </next>
+                                                      </block>
+                                                    </statement>
+                                                    <next>
+                                                      <block type="er_wait" id="=.gP-)bb1DezlXJ@5D%u">
+                                                        <value name="Wait">
+                                                          <shadow type="er_math_number" id="deb+E!#QO+50_((%UO6I">
+                                                            <field name="NUM">5000</field>
+                                                          </shadow>
+                                                        </value>
+                                                        <next>
+                                                          <block type="er_var_set" id="2LtuNMVX+]V#fk|APt[=">
+                                                            <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                                                            <field name="IsSafe">1</field>
+                                                            <value name="variable_value">
+                                                              <block type="er_string" id="8PycN_+=`?Ee]cy!Cggb">
+                                                                <field name="TextInput">IXRD</field>
+                                                              </block>
+                                                            </value>
+                                                            <next>
+                                                              <block type="er_save_variable" id="pO6$rrnjs(rb8WG*yXlO">
+                                                                <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                                                                <field name="Global">1</field>
+                                                                <field name="IsSafe">1</field>
+                                                              </block>
+                                                            </next>
+                                                          </block>
+                                                        </next>
+                                                      </block>
+                                                    </next>
+                                                  </block>
+                                                </next>
+                                              </block>
+                                            </next>
+                                          </block>
+                                        </next>
+                                      </block>
+                                    </next>
+                                  </block>
+                                </statement>
+                                <statement name="CatchInstructions">
+                                  <block type="er_wait" id="yFIn/+$,a?VMxk,AF6_:">
+                                    <value name="Wait">
+                                      <shadow type="er_math_number" id="bPwd}K1rY+Tfw])*Wf2$">
+                                        <field name="NUM">5000</field>
+                                      </shadow>
+                                    </value>
+                                    <next>
+                                      <block type="er_drive_mute_protective_fields" id="qt/6w79N94Hlk%ymB+4#">
+                                        <field name="IsActive">0</field>
+                                        <field name="Attempts">0</field>
+                                        <field name="ErrorFunctionName" />
+                                        <field name="ErrorFunctionUid" />
+                                        <statement name="DriveInstructions">
+                                          <block type="er_drive_to_defined_position" id="N5IQ8v1tbaBX1Ei{o*[{">
+                                            <field name="Menu_valDrop">a9646ced-fbed-11ef-8c1a-000e8eb687a3</field>
+                                            <field name="PlanningAttempts">10</field>
+                                            <field name="AdvancedMenuOpen">0</field>
+                                            <field name="IsSafe">1</field>
+                                            <field name="Menu_val">a9646ced-fbed-11ef-8c1a-000e8eb687a3</field>
+                                            <field name="IsActive">0</field>
+                                            <field name="Attempts">0</field>
+                                            <field name="ErrorFunctionName" />
+                                            <field name="ErrorFunctionUid" />
+                                            <next>
+                                              <block type="er_MiR_Missions" id="wl54ulB9TVX{Pu=:bQ_z">
+                                                <field name="Menu_valDrop">3606f1a7-bacd-11f0-9abb-000e8eb687a3</field>
+                                                <field name="Menu_val">3606f1a7-bacd-11f0-9abb-000e8eb687a3</field>
+                                                <field name="IsSafe">1</field>
+                                                <field name="IsActive">0</field>
+                                                <field name="Attempts">0</field>
+                                                <field name="ErrorFunctionName" />
+                                                <field name="ErrorFunctionUid" />
+                                              </block>
+                                            </next>
+                                          </block>
+                                        </statement>
+                                        <next>
+                                          <block type="er_drive_to_defined_position" id="Pm6J8iv2)s;8qlBOB9;d">
+                                            <field name="Menu_valDrop">3d36cab5-0460-11f0-92aa-000e8eb687a3</field>
+                                            <field name="PlanningAttempts">10</field>
+                                            <field name="AdvancedMenuOpen">0</field>
+                                            <field name="IsSafe">1</field>
+                                            <field name="Menu_val">3d36cab5-0460-11f0-92aa-000e8eb687a3</field>
+                                            <field name="IsActive">0</field>
+                                            <field name="Attempts">0</field>
+                                            <field name="ErrorFunctionName" />
+                                            <field name="ErrorFunctionUid" />
+                                            <next>
+                                              <block type="er_throw" id="E-4^+=}iVah4-VxXu!];">
+                                                <value name="Message">
+                                                  <block type="er_string" id="Z(58?=t:{X6@gcH}+w01">
+                                                    <field name="TextInput">Failed to go to SEMEDS</field>
+                                                  </block>
+                                                </value>
+                                              </block>
+                                            </next>
+                                          </block>
+                                        </next>
+                                      </block>
+                                    </next>
+                                  </block>
+                                </statement>
+                              </block>
+                            </statement>
+                            <statement name="CatchInstructions">
+                              <block type="er_call_prog_function_2" id=";j`b1_JQrNm6X`aqKuII">
+                                <field name="programNameDrop">Shared</field>
+                                <field name="functionUiDDrop">Shared_SF,!~w-@hao8drL#WL-W</field>
+                                <field name="programName">Shared</field>
+                                <field name="functionUiD">Shared_SF,!~w-@hao8drL#WL-W</field>
+                                <field name="IsSafe">1</field>
+                                <field name="IsActive">0</field>
+                                <field name="Attempts">0</field>
+                                <field name="ErrorFunctionName" />
+                                <field name="ErrorFunctionUid" />
+                                <next>
+                                  <block type="er_var_set" id="l;q#}J-l9ZCy:6=@l,le">
+                                    <field name="VarName" id="+5HX6b1L8*AFepW)q,u@" variabletype="VAR">IntoSEMEDSCounter</field>
+                                    <field name="IsSafe">1</field>
+                                    <value name="variable_value">
+                                      <block type="er_math" id="*yutg{XP5cqqA5YCT{3D">
+                                        <field name="MATH_OP">Add</field>
+                                        <value name="MATH_ARG1">
+                                          <block type="er_var_get" id="3nXf}LTd]Dn)r[K5jR~k">
+                                            <field name="VarName" id="+5HX6b1L8*AFepW)q,u@" variabletype="VAR">IntoSEMEDSCounter</field>
+                                            <field name="IsSafe">1</field>
+                                          </block>
+                                        </value>
+                                        <value name="MATH_ARG2">
+                                          <block type="er_math_number" id="*rW2UVbbf~sTVq6XIW0K">
+                                            <field name="NUM">1</field>
+                                          </block>
+                                        </value>
+                                      </block>
+                                    </value>
+                                  </block>
+                                </next>
+                              </block>
+                            </statement>
+                          </block>
+                        </statement>
+                        <next>
+                          <block type="er_controls_if" id="9(p3{o:P`[#HWxM`sS@t">
+                            <value name="IF0">
+                              <block type="er_logic_compare" id="6X*pJ}%mvCLl{U|fEfk-">
+                                <field name="OP">GT</field>
+                                <value name="A">
+                                  <block type="er_var_get" id="9.-yWzT[R,ZecrX|ThvH">
+                                    <field name="VarName" id="+5HX6b1L8*AFepW)q,u@" variabletype="VAR">IntoSEMEDSCounter</field>
+                                    <field name="IsSafe">1</field>
+                                  </block>
+                                </value>
+                                <value name="B">
+                                  <block type="er_math_number" id="ui8P,ZCSww?p$6)dyzjt">
+                                    <field name="NUM">3</field>
+                                  </block>
+                                </value>
+                              </block>
+                            </value>
+                            <statement name="DO0">
+                              <block type="er_throw" id=",Y:Ml~tW#S0=c2xKc;IO">
+                                <value name="Message">
+                                  <block type="er_string" id="!P5]RbB2[TwC4Sk~FxKf">
+                                    <field name="TextInput">Failed to Calibrate Tag after 3 trials</field>
+                                  </block>
+                                </value>
+                              </block>
+                            </statement>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="er_function_block" id="@-8|Mh~Np/_}|$lW+|A[" x="940" y="40">
+    <field name="FunctionBlockName">Out from SEMEDS</field>
+    <field name="IsActive">0</field>
+    <field name="Attempts">0</field>
+    <field name="ErrorFunctionName" />
+    <field name="ErrorFunctionUid" />
+    <statement name="INSTRUCTIONS">
+      <block type="er_call_prog_function_2" id="6ZcotVU:-8CXPGK.{EeO">
+        <field name="programNameDrop">Shared</field>
+        <field name="functionUiDDrop">Shared_XbSDF+O1Qp_C(|B7XYk)</field>
+        <field name="programName">Shared</field>
+        <field name="functionUiD">Shared_XbSDF+O1Qp_C(|B7XYk)</field>
+        <field name="IsSafe">1</field>
+        <field name="IsActive">0</field>
+        <field name="Attempts">0</field>
+        <field name="ErrorFunctionName" />
+        <field name="ErrorFunctionUid" />
+        <next>
+          <block type="er_call_prog_function_2" id="Zwsmlt0FIsa}CN.m)1kF">
+            <field name="programNameDrop">Shared</field>
+            <field name="functionUiDDrop">Shared_#f%=AHUde[8d:xi3G~RB</field>
+            <field name="programName">Shared</field>
+            <field name="functionUiD">Shared_#f%=AHUde[8d:xi3G~RB</field>
+            <field name="IsSafe">1</field>
+            <field name="IsActive">0</field>
+            <field name="Attempts">0</field>
+            <field name="ErrorFunctionName" />
+            <field name="ErrorFunctionUid" />
+            <next>
+              <block type="er_controls_if" id="[lm[!C)`KiK#us$el!iz">
+                <value name="IF0">
+                  <block type="er_logic_compare" id="3k(7DYmR]GSHujb_*i!6">
+                    <field name="OP">NEQ</field>
+                    <value name="A">
+                      <block type="er_var_get" id="wQ5s`6s]uGf@hLi}^IM5">
+                        <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                        <field name="IsSafe">1</field>
+                      </block>
+                    </value>
+                    <value name="B">
+                      <block type="er_string" id="^zr=)m|xFdjs{ES}aYG?">
+                        <field name="TextInput">SEMEDS</field>
+                      </block>
+                    </value>
+                  </block>
+                </value>
+                <statement name="DO0">
+                  <block type="er_throw" id="1xd+=2(XLhv~$={-8%VM">
+                    <value name="Message">
+                      <block type="er_string" id="*NBgk,@x60A.=:`n~bZ_">
+                        <field name="TextInput">Base is not infront of IXRD</field>
+                      </block>
+                    </value>
+                  </block>
+                </statement>
+                <next>
+                  <block type="er_controls_if" id="peTST,aqfdo_R2.hT]8#">
+                    <value name="IF0">
+                      <block type="er_logic_compare" id="2ITW$Eq8I1sIM?_ob53d">
+                        <field name="OP">NEQ</field>
+                        <value name="A">
+                          <block type="er_var_get" id="?SCIatM+3DGbL~hf{;)a">
+                            <field name="VarName" id=";R0IspM4wHmF|Z%0!^*[" variabletype="VAR">RobotPose</field>
+                            <field name="IsSafe">1</field>
+                          </block>
+                        </value>
+                        <value name="B">
+                          <block type="er_string" id="w|--Y|g-IGW`(sO}H$K(">
+                            <field name="TextInput">Home</field>
+                          </block>
+                        </value>
+                      </block>
+                    </value>
+                    <statement name="DO0">
+                      <block type="er_throw" id="D;zgOr3oU/ieU#}FGf9;">
+                        <value name="Message">
+                          <block type="er_string" id="S)Q%fxvt3^RX!JF^^FP0">
+                            <field name="TextInput">Robot is not in home position</field>
+                          </block>
+                        </value>
+                      </block>
+                    </statement>
+                    <next>
+                      <block type="er_var_set" id="w~.DYcF(]=zBRHi|8u=j">
+                        <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                        <field name="IsSafe">1</field>
+                        <value name="variable_value">
+                          <block type="er_string" id="J}kIY9P-8$Li=-O)]Jye">
+                            <field name="TextInput">Unknown</field>
+                          </block>
+                        </value>
+                        <next>
+                          <block type="er_save_variable" id="O,_ZWO-;j(_Zw=jib=l|">
+                            <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                            <field name="Global">1</field>
+                            <field name="IsSafe">1</field>
+                            <next>
+                              <block type="er_var_set" id="i.sAi!q?CKJIk,I]?U^A">
+                                <field name="VarName" id="QILSIdy-tb4kaZ~,#CX`" variabletype="VAR">OutFromSEMEDSCounter</field>
+                                <field name="IsSafe">1</field>
+                                <value name="variable_value">
+                                  <block type="er_math_number" id="gX|,Sy)|XW:UO:j7Sh6q">
+                                    <field name="NUM">0</field>
+                                  </block>
+                                </value>
+                                <next>
+                                  <block type="er_controls_while" id="7l]Jkf(l[DdF;FvYXW`s">
+                                    <value name="BOOL">
+                                      <block type="er_logic_operation" id="n#y=70EZ5K!f[Gn8+Miw">
+                                        <field name="OP">AND</field>
+                                        <value name="A">
+                                          <block type="er_logic_compare" id="3rJHdii/E)zW-AjH##^U">
+                                            <field name="OP">NEQ</field>
+                                            <value name="A">
+                                              <block type="er_var_get" id="l$_zH.X%rwM+oLFS%LNV">
+                                                <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                                                <field name="IsSafe">1</field>
+                                              </block>
+                                            </value>
+                                            <value name="B">
+                                              <block type="er_string" id="0bwDk#5Dc-2[RH8RGm8Z">
+                                                <field name="TextInput">BeforeLabmanBackApproach</field>
+                                              </block>
+                                            </value>
+                                          </block>
+                                        </value>
+                                        <value name="B">
+                                          <block type="er_logic_compare" id="|f5I3oP@v]R6UP00Y7v)">
+                                            <field name="OP">LTE</field>
+                                            <value name="A">
+                                              <block type="er_var_get" id=":.u9tCLiCBX4A_hCrd},">
+                                                <field name="VarName" id="QILSIdy-tb4kaZ~,#CX`" variabletype="VAR">OutFromSEMEDSCounter</field>
+                                                <field name="IsSafe">1</field>
+                                              </block>
+                                            </value>
+                                            <value name="B">
+                                              <block type="er_math_number" id="h1WTMq[A+QOd*.B0RS@e">
+                                                <field name="NUM">3</field>
+                                              </block>
+                                            </value>
+                                          </block>
+                                        </value>
+                                      </block>
+                                    </value>
+                                    <statement name="DO">
+                                      <block type="er_var_set" id="16ySYWFa-Czsa@uIj?z6">
+                                        <field name="VarName" id="QILSIdy-tb4kaZ~,#CX`" variabletype="VAR">OutFromSEMEDSCounter</field>
+                                        <field name="IsSafe">1</field>
+                                        <value name="variable_value">
+                                          <block type="er_math" id="y@7G|`beV:@d~+z!?60O">
+                                            <field name="MATH_OP">Add</field>
+                                            <value name="MATH_ARG1">
+                                              <block type="er_var_get" id="5K4,e=s:b+E0ucf?TY[]">
+                                                <field name="VarName" id="QILSIdy-tb4kaZ~,#CX`" variabletype="VAR">OutFromSEMEDSCounter</field>
+                                                <field name="IsSafe">1</field>
+                                              </block>
+                                            </value>
+                                            <value name="MATH_ARG2">
+                                              <block type="er_math_number" id="[3+@uMrb{#lslpi,X2XM">
+                                                <field name="NUM">1</field>
+                                              </block>
+                                            </value>
+                                          </block>
+                                        </value>
+                                        <next>
+                                          <block type="er_try_catch" id="o~6wOV|j;ca!OCoQa:E`">
+                                            <statement name="TryInstructions">
+                                              <block type="er_drive_mute_protective_fields" id="0oa[+w0ZgM#N9[w6iN|l">
+                                                <field name="IsActive">0</field>
+                                                <field name="Attempts">0</field>
+                                                <field name="ErrorFunctionName" />
+                                                <field name="ErrorFunctionUid" />
+                                                <statement name="DriveInstructions">
+                                                  <block type="er_MiR_Missions" id="1wDo(vH@i7jA+/Z!Ah-/">
+                                                    <field name="Menu_valDrop">d2f5f25e-baca-11f0-9abb-000e8eb687a3</field>
+                                                    <field name="Menu_val">d2f5f25e-baca-11f0-9abb-000e8eb687a3</field>
+                                                    <field name="IsSafe">1</field>
+                                                    <field name="IsActive">0</field>
+                                                    <field name="Attempts">0</field>
+                                                    <field name="ErrorFunctionName" />
+                                                    <field name="ErrorFunctionUid" />
+                                                    <next>
+                                                      <block type="er_drive_to_defined_position" id="!kdMs_x)*Qyp#=Haya-M">
+                                                        <field name="Menu_valDrop">ff4db904-0622-11f1-a35f-000e8eb687a3</field>
+                                                        <field name="PlanningAttempts">10</field>
+                                                        <field name="AdvancedMenuOpen">0</field>
+                                                        <field name="IsSafe">1</field>
+                                                        <field name="Menu_val">ff4db904-0622-11f1-a35f-000e8eb687a3</field>
+                                                        <field name="IsActive">0</field>
+                                                        <field name="Attempts">0</field>
+                                                        <field name="ErrorFunctionName" />
+                                                        <field name="ErrorFunctionUid" />
+                                                        <next>
+                                                          <block type="er_drive_to_defined_position" id="lXYo,?Fq?kHTpMZ,PzuY">
+                                                            <field name="Menu_valDrop">a9646ced-fbed-11ef-8c1a-000e8eb687a3</field>
+                                                            <field name="PlanningAttempts">10</field>
+                                                            <field name="AdvancedMenuOpen">0</field>
+                                                            <field name="IsSafe">1</field>
+                                                            <field name="Menu_val">a9646ced-fbed-11ef-8c1a-000e8eb687a3</field>
+                                                            <field name="IsActive">0</field>
+                                                            <field name="Attempts">0</field>
+                                                            <field name="ErrorFunctionName" />
+                                                            <field name="ErrorFunctionUid" />
+                                                            <next>
+                                                              <block type="er_MiR_Missions" id="QzMYTN#yPjks?Cfy$9vi">
+                                                                <field name="Menu_valDrop">3606f1a7-bacd-11f0-9abb-000e8eb687a3</field>
+                                                                <field name="Menu_val">3606f1a7-bacd-11f0-9abb-000e8eb687a3</field>
+                                                                <field name="IsSafe">1</field>
+                                                                <field name="IsActive">0</field>
+                                                                <field name="Attempts">0</field>
+                                                                <field name="ErrorFunctionName" />
+                                                                <field name="ErrorFunctionUid" />
+                                                              </block>
+                                                            </next>
+                                                          </block>
+                                                        </next>
+                                                      </block>
+                                                    </next>
+                                                  </block>
+                                                </statement>
+                                                <next>
+                                                  <block type="er_wait" id="XJX;0Yw;{N_t%v4w8sQ_">
+                                                    <value name="Wait">
+                                                      <shadow type="er_math_number" id="z2)}Ns5`-),9eO|Pgw;8">
+                                                        <field name="NUM">5000</field>
+                                                      </shadow>
+                                                    </value>
+                                                    <next>
+                                                      <block type="er_drive_to_defined_position" id="%1`(~3W:i-E=VQgtMN~1">
+                                                        <field name="Menu_valDrop">3d36cab5-0460-11f0-92aa-000e8eb687a3</field>
+                                                        <field name="PlanningAttempts">10</field>
+                                                        <field name="AdvancedMenuOpen">0</field>
+                                                        <field name="IsSafe">1</field>
+                                                        <field name="Menu_val">3d36cab5-0460-11f0-92aa-000e8eb687a3</field>
+                                                        <field name="IsActive">0</field>
+                                                        <field name="Attempts">0</field>
+                                                        <field name="ErrorFunctionName" />
+                                                        <field name="ErrorFunctionUid" />
+                                                        <next>
+                                                          <block type="er_var_set" id="Z7E8h~FHr$B_sjixz?Yv">
+                                                            <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                                                            <field name="IsSafe">1</field>
+                                                            <value name="variable_value">
+                                                              <block type="er_string" id="O0#5:f9+MOkxYY7MUITL">
+                                                                <field name="TextInput">BeforeLabmanBackApproach</field>
+                                                              </block>
+                                                            </value>
+                                                            <next>
+                                                              <block type="er_save_variable" id="Eo#DFj!Y|lq=xAp^(?l}">
+                                                                <field name="VarName" id="~eLan,]rkGv~nSo}AIGN" variabletype="VAR">BasePosition</field>
+                                                                <field name="Global">1</field>
+                                                                <field name="IsSafe">1</field>
+                                                              </block>
+                                                            </next>
+                                                          </block>
+                                                        </next>
+                                                      </block>
+                                                    </next>
+                                                  </block>
+                                                </next>
+                                              </block>
+                                            </statement>
+                                            <statement name="CatchInstructions">
+                                              <block type="er_controls_if" id="ZB(Day#P+OoJd{]xWeZx">
+                                                <html:mutation elseif="1" />
+                                                <value name="IF0">
+                                                  <block type="er_logic_compare" id="N|d,xpfLSA4]RljbF]mE">
+                                                    <field name="OP">EQ</field>
+                                                    <value name="A">
+                                                      <block type="er_var_get" id="bHs(eXr/mr]Vvs,0nGdY">
+                                                        <field name="VarName" id="QILSIdy-tb4kaZ~,#CX`" variabletype="VAR">OutFromSEMEDSCounter</field>
+                                                        <field name="IsSafe">1</field>
+                                                      </block>
+                                                    </value>
+                                                    <value name="B">
+                                                      <block type="er_math_number" id="}L%y,mx#hESKIeE/KTt:">
+                                                        <field name="NUM">1</field>
+                                                      </block>
+                                                    </value>
+                                                  </block>
+                                                </value>
+                                                <statement name="DO0">
+                                                  <block type="er_call_function_block" id="yv3Qb[20U/XD0QK,Lb(j">
+                                                    <field name="FunctionBlockNameDrop">q[f##K+.7nqfy`C}Z4ZU</field>
+                                                    <field name="FunctionBlockName">q[f##K+.7nqfy`C}Z4ZU</field>
+                                                    <field name="IsSafe">1</field>
+                                                    <field name="IsActive">0</field>
+                                                    <field name="Attempts">0</field>
+                                                    <field name="ErrorFunctionName" />
+                                                    <field name="ErrorFunctionUid" />
+                                                  </block>
+                                                </statement>
+                                                <value name="IF1">
+                                                  <block type="er_logic_compare" id="hP)BsM.|!~L~cM`F{U=Q">
+                                                    <field name="OP">EQ</field>
+                                                    <value name="A">
+                                                      <block type="er_var_get" id="uK}n(00/H{nU5;[K0-G]">
+                                                        <field name="VarName" id="QILSIdy-tb4kaZ~,#CX`" variabletype="VAR">OutFromSEMEDSCounter</field>
+                                                        <field name="IsSafe">1</field>
+                                                      </block>
+                                                    </value>
+                                                    <value name="B">
+                                                      <block type="er_math_number" id="Wm!^nEtI7EQZPNe5pdrq">
+                                                        <field name="NUM">2</field>
+                                                      </block>
+                                                    </value>
+                                                  </block>
+                                                </value>
+                                                <statement name="DO1">
+                                                  <block type="er_call_function_block" id="zlfuyYv3q|azK=X:_}1f">
+                                                    <field name="FunctionBlockNameDrop">ca*C$PTc+[M}i($XcrH,</field>
+                                                    <field name="FunctionBlockName">ca*C$PTc+[M}i($XcrH,</field>
+                                                    <field name="IsSafe">1</field>
+                                                    <field name="IsActive">0</field>
+                                                    <field name="Attempts">0</field>
+                                                    <field name="ErrorFunctionName" />
+                                                    <field name="ErrorFunctionUid" />
+                                                  </block>
+                                                </statement>
+                                              </block>
+                                            </statement>
+                                          </block>
+                                        </next>
+                                      </block>
+                                    </statement>
+                                    <next>
+                                      <block type="er_controls_if" id="_=h7nj4No1{}O#,+-$~y">
+                                        <value name="IF0">
+                                          <block type="er_logic_compare" id=":g7Oyv~VjmBwIaw:h_[b">
+                                            <field name="OP">GT</field>
+                                            <value name="A">
+                                              <block type="er_var_get" id="h}SP=.cW]pW0CILoey|4">
+                                                <field name="VarName" id="QILSIdy-tb4kaZ~,#CX`" variabletype="VAR">OutFromSEMEDSCounter</field>
+                                                <field name="IsSafe">1</field>
+                                              </block>
+                                            </value>
+                                            <value name="B">
+                                              <block type="er_math_number" id="6`Lf/DZv$F*0#9G+dk!G">
+                                                <field name="NUM">3</field>
+                                              </block>
+                                            </value>
+                                          </block>
+                                        </value>
+                                        <statement name="DO0">
+                                          <block type="er_throw" id="v=YZ-bF:O6C8tt80ujPx">
+                                            <value name="Message">
+                                              <block type="er_string" id="a]kU6)2lo~+xhzY?QJXj">
+                                                <field name="TextInput">Error Moving out from SEMEDS</field>
+                                              </block>
+                                            </value>
+                                          </block>
+                                        </statement>
+                                        <next>
+                                          <block type="er_call_prog_function_2" id="%3%NefIX!asce3{mLIP]">
+                                            <field name="programNameDrop">Shared</field>
+                                            <field name="functionUiDDrop">Shared_SF,!~w-@hao8drL#WL-W</field>
+                                            <field name="programName">Shared</field>
+                                            <field name="functionUiD">Shared_SF,!~w-@hao8drL#WL-W</field>
+                                            <field name="IsSafe">1</field>
+                                            <field name="IsActive">0</field>
+                                            <field name="Attempts">0</field>
+                                            <field name="ErrorFunctionName" />
+                                            <field name="ErrorFunctionUid" />
+                                          </block>
+                                        </next>
+                                      </block>
+                                    </next>
+                                  </block>
+                                </next>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="er_function_block" id="2=5vFwM0DnMQ2R}W8)Aw" x="1840" y="40">
+    <field name="FunctionBlockName">PickSEMRackVerticalOnRobot_SEMEDS</field>
+    <field name="IsActive">0</field>
+    <field name="Attempts">0</field>
+    <field name="ErrorFunctionName" />
+    <field name="ErrorFunctionUid" />
+    <statement name="INSTRUCTIONS">
+      <block type="er_call_prog_function_2" id="{U(e:FQ7.VVBG6{tp^v`">
+        <field name="programNameDrop">Shared</field>
+        <field name="functionUiDDrop">Shared_#f%=AHUde[8d:xi3G~RB</field>
+        <field name="programName">Shared</field>
+        <field name="functionUiD">Shared_#f%=AHUde[8d:xi3G~RB</field>
+        <field name="IsSafe">1</field>
+        <field name="IsActive">0</field>
+        <field name="Attempts">0</field>
+        <field name="ErrorFunctionName" />
+        <field name="ErrorFunctionUid" />
+        <next>
+          <block type="er_call_prog_function_2" id="]~-`xt2$eC2nP?*N;!E^">
+            <field name="programNameDrop">Station_IXRD</field>
+            <field name="functionUiDDrop">Station_IXRD_UWx[pj,3)dw8/G|OKE2]</field>
+            <field name="programName">Station_IXRD</field>
+            <field name="functionUiD">Station_IXRD_UWx[pj,3)dw8/G|OKE2]</field>
+            <field name="IsSafe">1</field>
+            <field name="IsActive">0</field>
+            <field name="Attempts">0</field>
+            <field name="ErrorFunctionName" />
+            <field name="ErrorFunctionUid" />
+            <next>
+              <block type="er_ur_action" id="7c-S-Fqf^Vj4(-4uf)8d">
+                <field name="Menu_valDrop">OpenGripper92p5mm</field>
+                <field name="ResponseVar" id="v0v2]!*5^jYBIHn.5Pf3" variabletype="VAR">returnVal</field>
+                <field name="IsSafe">1</field>
+                <field name="Menu_val">OpenGripper92p5mm</field>
+                <next>
+                  <block type="er_var_set" id="g[]8;-@;sr:a9jb}kN4~">
+                    <field name="VarName" id=";R0IspM4wHmF|Z%0!^*[" variabletype="VAR">RobotPose</field>
+                    <field name="IsSafe">1</field>
+                    <value name="variable_value">
+                      <block type="er_string" id="QPI@/f6jenrsg_-[(6}:">
+                        <field name="TextInput">Unknown</field>
+                      </block>
+                    </value>
+                    <next>
+                      <block type="er_save_variable" id="wTi*yn_kIt*Hwq_Mc}tA">
+                        <field name="VarName" id=";R0IspM4wHmF|Z%0!^*[" variabletype="VAR">RobotPose</field>
+                        <field name="Global">1</field>
+                        <field name="IsSafe">1</field>
+                        <next>
+                          <block type="er_ur_move" id="Hv_/zYPGb[;7A%4Mica=">
+                            <mutation statementCount="1" />
+                            <field name="velocity_ptp">0.5</field>
+                            <field name="acceleration_ptp">0.5</field>
+                            <field name="velocity_lin">0.1</field>
+                            <field name="acceleration_lin">0.1</field>
+                            <field name="blend">0</field>
+                            <field name="IsSafe">1</field>
+                            <field name="TOOL_FRAME">Manip.Flange</field>
+                            <field name="IsActive">0</field>
+                            <field name="Attempts">0</field>
+                            <field name="ErrorFunctionName" />
+                            <field name="ErrorFunctionUid" />
+                            <field name="move_type0">LIN</field>
+                            <statement name="ur_pos0">
+                              <block type="er_waypoint_manipulator" id="lUT6iTCghI!ap_xI.m30">
+                                <field name="typeSpecifier">1</field>
+                                <field name="IsSafe">1</field>
+                                <field name="useLocalSettings">1</field>
+                                <field name="velocity">0.1</field>
+                                <field name="acceleration">0.1</field>
+                                <field name="blend">0</field>
+                                <field name="var" id="Tv]a}RxLvF8/PMFH@xfx" variabletype="VAR">__var__</field>
+                                <field name="waypointName">waypoint_ 508</field>
+                                <field name="q0">182.7162482985</field>
+                                <field name="q1">-55.8240317637</field>
+                                <field name="q2">132.6265405683</field>
+                                <field name="q3">-166.7819986806</field>
+                                <field name="q4">-89.9597012007</field>
+                                <field name="q5">-87.0173376685</field>
+                                <field name="X">-0.3902758881</field>
+                                <field name="Y">0.5976614785</field>
+                                <field name="Z">0.372720974</field>
+                                <field name="Roll">91.4929052765</field>
+                                <field name="Pitch">0.0823734105</field>
+                                <field name="Yaw">22.7999399118</field>
+                                <field name="REF_FRAME">LabmanTag_fa37JncCHryDsbza</field>
+                                <field name="REF_FRAME_NAME" />
+                                <next>
+                                  <block type="er_waypoint_manipulator" id="@LVISpNkUZxLMQV^V1@4">
+                                    <field name="typeSpecifier">1</field>
+                                    <field name="IsSafe">1</field>
+                                    <field name="useLocalSettings">1</field>
+                                    <field name="velocity">0.1</field>
+                                    <field name="acceleration">0.1</field>
+                                    <field name="blend">0</field>
+                                    <field name="var" id="Tv]a}RxLvF8/PMFH@xfx" variabletype="VAR">__var__</field>
+                                    <field name="waypointName">waypoint_ 512</field>
+                                    <field name="q0">182.6621122191</field>
+                                    <field name="q1">-15.2077825245</field>
+                                    <field name="q2">117.2733271632</field>
+                                    <field name="q3">-192.0463493261</field>
+                                    <field name="q4">-90.0972612105</field>
+                                    <field name="q5">-87.0329104998</field>
+                                    <field name="X">-0.3902758881</field>
+                                    <field name="Y">0.5976614785</field>
+                                    <field name="Z">0.372720974</field>
+                                    <field name="Roll">91.4929052765</field>
+                                    <field name="Pitch">0.0823734105</field>
+                                    <field name="Yaw">22.7999399118</field>
+                                    <field name="REF_FRAME">LabmanTag_fa37JncCHryDsbza</field>
+                                    <field name="REF_FRAME_NAME" />
+                                  </block>
+                                </next>
+                              </block>
+                            </statement>
+                            <next>
+                              <block type="er_ur_action" id="C.qQKKVHz%Tinxk+#8$#">
+                                <field name="Menu_valDrop">CloseGripperRack</field>
+                                <field name="ResponseVar" id="v0v2]!*5^jYBIHn.5Pf3" variabletype="VAR">returnVal</field>
+                                <field name="IsSafe">1</field>
+                                <field name="Menu_val">CloseGripperRack</field>
+                                <next>
+                                  <block type="er_ur_move" id="KR42Lu|z*kn`RueVj{$7">
+                                    <mutation statementCount="1" />
+                                    <field name="velocity_ptp">0.5</field>
+                                    <field name="acceleration_ptp">0.5</field>
+                                    <field name="velocity_lin">0.1</field>
+                                    <field name="acceleration_lin">0.1</field>
+                                    <field name="blend">0</field>
+                                    <field name="IsSafe">1</field>
+                                    <field name="TOOL_FRAME">Manip.Flange</field>
+                                    <field name="IsActive">0</field>
+                                    <field name="Attempts">0</field>
+                                    <field name="ErrorFunctionName" />
+                                    <field name="ErrorFunctionUid" />
+                                    <field name="move_type0">LIN</field>
+                                    <statement name="ur_pos0">
+                                      <block type="er_waypoint_manipulator" id="*5qQ9B9D3ONpU0QH^(dR">
+                                        <field name="typeSpecifier">1</field>
+                                        <field name="IsSafe">1</field>
+                                        <field name="useLocalSettings">1</field>
+                                        <field name="velocity">0.1</field>
+                                        <field name="acceleration">0.1</field>
+                                        <field name="blend">0</field>
+                                        <field name="var" id="Tv]a}RxLvF8/PMFH@xfx" variabletype="VAR">__var__</field>
+                                        <field name="waypointName">waypoint_ 517</field>
+                                        <field name="q0">182.7171225627</field>
+                                        <field name="q1">-55.8238302731</field>
+                                        <field name="q2">132.6250379266</field>
+                                        <field name="q3">-166.7816161901</field>
+                                        <field name="q4">-89.9589635402</field>
+                                        <field name="q5">-87.0189222724</field>
+                                        <field name="X">-0.3902758881</field>
+                                        <field name="Y">0.5976614785</field>
+                                        <field name="Z">0.372720974</field>
+                                        <field name="Roll">91.4929052765</field>
+                                        <field name="Pitch">0.0823734105</field>
+                                        <field name="Yaw">22.7999399118</field>
+                                        <field name="REF_FRAME">LabmanTag_fa37JncCHryDsbza</field>
+                                        <field name="REF_FRAME_NAME" />
+                                      </block>
+                                    </statement>
+                                    <next>
+                                      <block type="er_call_prog_function_2" id="wEVAp~m@|q=#Lt:50qpb">
+                                        <field name="programNameDrop">Shared</field>
+                                        <field name="functionUiDDrop">Shared_b{QH;cJFie1Oi[[~]5VZ</field>
+                                        <field name="programName">Shared</field>
+                                        <field name="functionUiD">Shared_b{QH;cJFie1Oi[[~]5VZ</field>
+                                        <field name="IsSafe">1</field>
+                                        <field name="IsActive">0</field>
+                                        <field name="Attempts">0</field>
+                                        <field name="ErrorFunctionName" />
+                                        <field name="ErrorFunctionUid" />
+                                      </block>
+                                    </next>
+                                  </block>
+                                </next>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="er_function_block" id="B7esE8a^R18WI#kEq@~}" x="2740" y="40">
+    <field name="FunctionBlockName">PlaceSEMEDSRack</field>
+    <field name="IsActive">0</field>
+    <field name="Attempts">0</field>
+    <field name="ErrorFunctionName" />
+    <field name="ErrorFunctionUid" />
+    <statement name="INSTRUCTIONS">
+      <block type="er_var_set" id="jN`7p^]K2v9?=k%^0)+/">
+        <field name="VarName" id=";R0IspM4wHmF|Z%0!^*[" variabletype="VAR">RobotPose</field>
+        <field name="IsSafe">1</field>
+        <value name="variable_value">
+          <block type="er_string" id="/;Q5L|=UQ@b+C!eh|J0f">
+            <field name="TextInput">Unknown</field>
+          </block>
+        </value>
+        <next>
+          <block type="er_save_variable" id="#FYaq/rG[sejnIcrhnO!">
+            <field name="VarName" id=";R0IspM4wHmF|Z%0!^*[" variabletype="VAR">RobotPose</field>
+            <field name="Global">1</field>
+            <field name="IsSafe">1</field>
+            <next>
+              <block type="er_ur_move" id="g_wz]Cii*fx:AC_M~S`R">
+                <mutation statementCount="1" />
+                <field name="velocity_ptp">0.5</field>
+                <field name="acceleration_ptp">0.5</field>
+                <field name="velocity_lin">0.1</field>
+                <field name="acceleration_lin">0.1</field>
+                <field name="blend">0</field>
+                <field name="IsSafe">1</field>
+                <field name="TOOL_FRAME">Manip.Flange</field>
+                <field name="IsActive">0</field>
+                <field name="Attempts">0</field>
+                <field name="ErrorFunctionName" />
+                <field name="ErrorFunctionUid" />
+                <field name="move_type0">LIN</field>
+                <statement name="ur_pos0">
+                  <block type="er_waypoint_manipulator" id="3,pvqbWJhLsbf/;wN@O;">
+                    <field name="typeSpecifier">1</field>
+                    <field name="IsSafe">1</field>
+                    <field name="useLocalSettings">0</field>
+                    <field name="velocity">1</field>
+                    <field name="acceleration">1</field>
+                    <field name="blend">0</field>
+                    <field name="var" id="Tv]a}RxLvF8/PMFH@xfx" variabletype="VAR">__var__</field>
+                    <field name="waypointName">waypoint_ 559</field>
+                    <field name="q0">193.1540614258</field>
+                    <field name="q1">-88.8389389295</field>
+                    <field name="q2">113.1052998449</field>
+                    <field name="q3">-114.3494777812</field>
+                    <field name="q4">-89.5350000381</field>
+                    <field name="q5">11.0855165512</field>
+                    <field name="X">0.1516325349</field>
+                    <field name="Y">0.5859392861</field>
+                    <field name="Z">-0.2349416031</field>
+                    <field name="Roll">125.718762379</field>
+                    <field name="Pitch">-1.0894557826</field>
+                    <field name="Yaw">60.0437665961</field>
+                    <field name="REF_FRAME">LabmanTag_fa37JncCHryDsbza</field>
+                    <field name="REF_FRAME_NAME" />
+                    <next>
+                      <block type="er_waypoint_manipulator" id="k(kJt8txyg9{s|dx:=$I">
+                        <field name="typeSpecifier">1</field>
+                        <field name="IsSafe">1</field>
+                        <field name="useLocalSettings">0</field>
+                        <field name="velocity">1</field>
+                        <field name="acceleration">1</field>
+                        <field name="blend">0</field>
+                        <field name="var" id="Tv]a}RxLvF8/PMFH@xfx" variabletype="VAR">__var__</field>
+                        <field name="waypointName">waypoint_ 560</field>
+                        <field name="q0">223.2203082654</field>
+                        <field name="q1">-96.173196928</field>
+                        <field name="q2">111.4785673506</field>
+                        <field name="q3">-105.3366606807</field>
+                        <field name="q4">-89.5054663001</field>
+                        <field name="q5">-0.7650258106</field>
+                        <field name="X">0.1516325349</field>
+                        <field name="Y">0.5859392861</field>
+                        <field name="Z">-0.2349416031</field>
+                        <field name="Roll">125.718762379</field>
+                        <field name="Pitch">-1.0894557826</field>
+                        <field name="Yaw">60.0437665961</field>
+                        <field name="REF_FRAME">LabmanTag_fa37JncCHryDsbza</field>
+                        <field name="REF_FRAME_NAME" />
+                        <next>
+                          <block type="er_waypoint_manipulator" id="#VI^U!L1J(e/0O?IG[_.">
+                            <field name="typeSpecifier">2</field>
+                            <field name="IsSafe">1</field>
+                            <field name="useLocalSettings">0</field>
+                            <field name="velocity">1</field>
+                            <field name="acceleration">1</field>
+                            <field name="blend">0</field>
+                            <field name="var" id="Tv]a}RxLvF8/PMFH@xfx" variabletype="VAR">__var__</field>
+                            <field name="waypointName">waypoint_ 561</field>
+                            <field name="q0">114.2232069242</field>
+                            <field name="q1">-88.6323235727</field>
+                            <field name="q2">89.0362049834</field>
+                            <field name="q3">-90.3861688895</field>
+                            <field name="q4">-89.4672172407</field>
+                            <field name="q5">-11.0835291936</field>
+                            <field name="X">-0.1132583588</field>
+                            <field name="Y">-0.3451693449</field>
+                            <field name="Z">-0.3709519496</field>
+                            <field name="Roll">96.5905924504</field>
+                            <field name="Pitch">2.1924973215</field>
+                            <field name="Yaw">0.4825118819</field>
+                            <field name="REF_FRAME">IXRDTag_fANdACLQc1hGBNEh</field>
+                            <field name="REF_FRAME_NAME" />
+                            <next>
+                              <block type="er_waypoint_manipulator" id="hv@WH|0NNQhM@5Af[pJY">
+                                <field name="typeSpecifier">2</field>
+                                <field name="IsSafe">1</field>
+                                <field name="useLocalSettings">0</field>
+                                <field name="velocity">1</field>
+                                <field name="acceleration">1</field>
+                                <field name="blend">0</field>
+                                <field name="var" id="Tv]a}RxLvF8/PMFH@xfx" variabletype="VAR">__var__</field>
+                                <field name="waypointName">waypoint_ 562</field>
+                                <field name="q0">114.2232069242</field>
+                                <field name="q1">-88.6323235727</field>
+                                <field name="q2">89.0362049834</field>
+                                <field name="q3">-90.3861688895</field>
+                                <field name="q4">-89.4672172407</field>
+                                <field name="q5">-11.0835291936</field>
+                                <field name="X">0.1893011962</field>
+                                <field name="Y">-0.3097867256</field>
+                                <field name="Z">-0.3167307605</field>
+                                <field name="Roll">89.9028404861</field>
+                                <field name="Pitch">-0.0494983702</field>
+                                <field name="Yaw">0.4209025102</field>
+                                <field name="REF_FRAME">IXRDTag_fANdACLQc1hGBNEh</field>
+                                <field name="REF_FRAME_NAME" />
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </statement>
+                <next>
+                  <block type="er_ur_action" id="#vt2:%EJtKP1]YtgVZK!">
+                    <field name="Menu_valDrop">CheckVerticalIXRD</field>
+                    <field name="ResponseVar" id="v0v2]!*5^jYBIHn.5Pf3" variabletype="VAR">returnVal</field>
+                    <field name="IsSafe">1</field>
+                    <field name="Menu_val">CheckVerticalIXRD</field>
+                    <next>
+                      <block type="er_ur_action" id="^JQ2AGcJIcOL3L|M$Ym,">
+                        <field name="Menu_valDrop">OpenGripper92p5mm</field>
+                        <field name="ResponseVar" id="v0v2]!*5^jYBIHn.5Pf3" variabletype="VAR">returnVal</field>
+                        <field name="IsSafe">1</field>
+                        <field name="Menu_val">OpenGripper92p5mm</field>
+                        <next>
+                          <block type="er_call_prog_function_2" id="ve3U!F%Nuvr|ySy0,C(Y">
+                            <field name="programNameDrop">Station_IXRD</field>
+                            <field name="functionUiDDrop">Station_IXRD_)[m[-H^-xc%g76$8^T_/</field>
+                            <field name="programName">Station_IXRD</field>
+                            <field name="functionUiD">Station_IXRD_)[m[-H^-xc%g76$8^T_/</field>
+                            <field name="IsSafe">1</field>
+                            <field name="IsActive">0</field>
+                            <field name="Attempts">0</field>
+                            <field name="ErrorFunctionName" />
+                            <field name="ErrorFunctionUid" />
+                            <next>
+                              <block type="er_ur_move" id="JV@v#YuLP~D~u4]5HZpx">
+                                <mutation statementCount="1" />
+                                <field name="velocity_ptp">0.5</field>
+                                <field name="acceleration_ptp">0.5</field>
+                                <field name="velocity_lin">0.1</field>
+                                <field name="acceleration_lin">0.1</field>
+                                <field name="blend">0</field>
+                                <field name="IsSafe">1</field>
+                                <field name="TOOL_FRAME">Manip.Flange</field>
+                                <field name="IsActive">0</field>
+                                <field name="Attempts">0</field>
+                                <field name="ErrorFunctionName" />
+                                <field name="ErrorFunctionUid" />
+                                <field name="move_type0">LIN</field>
+                                <statement name="ur_pos0">
+                                  <block type="er_waypoint_manipulator" id="NU%B(6aQ[f:fvW0h@{QX">
+                                    <field name="typeSpecifier">2</field>
+                                    <field name="IsSafe">1</field>
+                                    <field name="useLocalSettings">0</field>
+                                    <field name="velocity">1</field>
+                                    <field name="acceleration">1</field>
+                                    <field name="blend">0</field>
+                                    <field name="var" id="Tv]a}RxLvF8/PMFH@xfx" variabletype="VAR">__var__</field>
+                                    <field name="waypointName">waypoint_ 563</field>
+                                    <field name="q0">114.2232069242</field>
+                                    <field name="q1">-88.6323235727</field>
+                                    <field name="q2">89.0362049834</field>
+                                    <field name="q3">-90.3861688895</field>
+                                    <field name="q4">-89.4672172407</field>
+                                    <field name="q5">-11.0835291936</field>
+                                    <field name="X">0.1893011962</field>
+                                    <field name="Y">-0.3097867256</field>
+                                    <field name="Z">-0.3167307605</field>
+                                    <field name="Roll">89.9028404861</field>
+                                    <field name="Pitch">-0.0494983702</field>
+                                    <field name="Yaw">0.4209025102</field>
+                                    <field name="REF_FRAME">IXRDTag_fANdACLQc1hGBNEh</field>
+                                    <field name="REF_FRAME_NAME" />
+                                    <next>
+                                      <block type="er_waypoint_manipulator" id="l0uTuYOt)5fY1V:S=aY6">
+                                        <field name="typeSpecifier">2</field>
+                                        <field name="IsSafe">1</field>
+                                        <field name="useLocalSettings">0</field>
+                                        <field name="velocity">1</field>
+                                        <field name="acceleration">1</field>
+                                        <field name="blend">0</field>
+                                        <field name="var" id="Tv]a}RxLvF8/PMFH@xfx" variabletype="VAR">__var__</field>
+                                        <field name="waypointName">waypoint_ 564</field>
+                                        <field name="q0">114.2232069242</field>
+                                        <field name="q1">-88.6323235727</field>
+                                        <field name="q2">89.0362049834</field>
+                                        <field name="q3">-90.3861688895</field>
+                                        <field name="q4">-89.4672172407</field>
+                                        <field name="q5">-11.0835291936</field>
+                                        <field name="X">-0.1132583588</field>
+                                        <field name="Y">-0.3451693449</field>
+                                        <field name="Z">-0.3709519496</field>
+                                        <field name="Roll">96.5905924504</field>
+                                        <field name="Pitch">2.1924973215</field>
+                                        <field name="Yaw">0.4825118819</field>
+                                        <field name="REF_FRAME">IXRDTag_fANdACLQc1hGBNEh</field>
+                                        <field name="REF_FRAME_NAME" />
+                                        <next>
+                                          <block type="er_waypoint_manipulator" id="pFizv/P09xdBY{k)Q{#K">
+                                            <field name="typeSpecifier">1</field>
+                                            <field name="IsSafe">1</field>
+                                            <field name="useLocalSettings">0</field>
+                                            <field name="velocity">1</field>
+                                            <field name="acceleration">1</field>
+                                            <field name="blend">0</field>
+                                            <field name="var" id="Tv]a}RxLvF8/PMFH@xfx" variabletype="VAR">__var__</field>
+                                            <field name="waypointName">waypoint_ 565</field>
+                                            <field name="q0">223.2203082654</field>
+                                            <field name="q1">-96.173196928</field>
+                                            <field name="q2">111.4785673506</field>
+                                            <field name="q3">-105.3366606807</field>
+                                            <field name="q4">-89.5054663001</field>
+                                            <field name="q5">-0.7650258106</field>
+                                            <field name="X">0.1516325349</field>
+                                            <field name="Y">0.5859392861</field>
+                                            <field name="Z">-0.2349416031</field>
+                                            <field name="Roll">125.718762379</field>
+                                            <field name="Pitch">-1.0894557826</field>
+                                            <field name="Yaw">60.0437665961</field>
+                                            <field name="REF_FRAME">LabmanTag_fa37JncCHryDsbza</field>
+                                            <field name="REF_FRAME_NAME" />
+                                            <next>
+                                              <block type="er_waypoint_manipulator" id="fWiwQ3lY?TgQHLQO~z.{">
+                                                <field name="typeSpecifier">1</field>
+                                                <field name="IsSafe">1</field>
+                                                <field name="useLocalSettings">0</field>
+                                                <field name="velocity">1</field>
+                                                <field name="acceleration">1</field>
+                                                <field name="blend">0</field>
+                                                <field name="var" id="Tv]a}RxLvF8/PMFH@xfx" variabletype="VAR">__var__</field>
+                                                <field name="waypointName">waypoint_ 566</field>
+                                                <field name="q0">193.1540614258</field>
+                                                <field name="q1">-88.8389389295</field>
+                                                <field name="q2">113.1052998449</field>
+                                                <field name="q3">-114.3494777812</field>
+                                                <field name="q4">-89.5350000381</field>
+                                                <field name="q5">11.0855165512</field>
+                                                <field name="X">0.1516325349</field>
+                                                <field name="Y">0.5859392861</field>
+                                                <field name="Z">-0.2349416031</field>
+                                                <field name="Roll">125.718762379</field>
+                                                <field name="Pitch">-1.0894557826</field>
+                                                <field name="Yaw">60.0437665961</field>
+                                                <field name="REF_FRAME">LabmanTag_fa37JncCHryDsbza</field>
+                                                <field name="REF_FRAME_NAME" />
+                                              </block>
+                                            </next>
+                                          </block>
+                                        </next>
+                                      </block>
+                                    </next>
+                                  </block>
+                                </statement>
+                                <next>
+                                  <block type="er_call_prog_function_2" id=",:AB3,-}GDmW)|V.+khl">
+                                    <field name="programNameDrop">Shared</field>
+                                    <field name="functionUiDDrop">Shared_b{QH;cJFie1Oi[[~]5VZ</field>
+                                    <field name="programName">Shared</field>
+                                    <field name="functionUiD">Shared_b{QH;cJFie1Oi[[~]5VZ</field>
+                                    <field name="IsSafe">1</field>
+                                    <field name="IsActive">0</field>
+                                    <field name="Attempts">0</field>
+                                    <field name="ErrorFunctionName" />
+                                    <field name="ErrorFunctionUid" />
+                                    <next>
+                                      <block type="er_var_set" id="Uw)ZQeP*3[+uZ-D^zKCC">
+                                        <field name="VarName" id=";R0IspM4wHmF|Z%0!^*[" variabletype="VAR">RobotPose</field>
+                                        <field name="IsSafe">1</field>
+                                        <value name="variable_value">
+                                          <block type="er_string" id="/MwDOuve1AwbS9m**]mZ">
+                                            <field name="TextInput">Home</field>
+                                          </block>
+                                        </value>
+                                        <next>
+                                          <block type="er_save_variable" id="].#5j--~Flnof.^sVfWx">
+                                            <field name="VarName" id=";R0IspM4wHmF|Z%0!^*[" variabletype="VAR">RobotPose</field>
+                                            <field name="Global">1</field>
+                                            <field name="IsSafe">1</field>
+                                          </block>
+                                        </next>
+                                      </block>
+                                    </next>
+                                  </block>
+                                </next>
+                              </block>
+                            </next>
+                          </block>
+                        </next>
+                      </block>
+                    </next>
+                  </block>
+                </next>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="er_function_block" id="q[f##K+.7nqfy`C}Z4ZU" x="40" y="1440">
+    <field name="FunctionBlockName">SEMEDS BASE ERROR RECOVERY_1</field>
+    <field name="IsActive">0</field>
+    <field name="Attempts">0</field>
+    <field name="ErrorFunctionName" />
+    <field name="ErrorFunctionUid" />
+    <statement name="INSTRUCTIONS">
+      <block type="er_wait" id="5dyH(vcXOeG@BdFiQFdI">
+        <value name="Wait">
+          <shadow type="er_math_number" id="c}ZtdjpC$hv~v^CNd{T?">
+            <field name="NUM">5000</field>
+          </shadow>
+        </value>
+        <next>
+          <block type="er_drive_mute_protective_fields" id="NoP7!f{rh/pMuS70j7]k">
+            <field name="IsActive">0</field>
+            <field name="Attempts">0</field>
+            <field name="ErrorFunctionName" />
+            <field name="ErrorFunctionUid" />
+            <statement name="DriveInstructions">
+              <block type="er_drive_relative" id="1YU$tlT/oce{vim)BOV|">
+                <field name="XPos">0.1</field>
+                <field name="YPos">0</field>
+                <field name="Theta">0</field>
+                <field name="CollisionDetection">0</field>
+                <field name="Strategy">0</field>
+                <field name="YScale">0.5</field>
+                <field name="DispX">0.5</field>
+                <field name="MinimumX">0.05</field>
+                <field name="LinearSpeed">0.1</field>
+                <field name="AngularSpeed">0.15</field>
+                <field name="IsSafe">1</field>
+                <field name="typeSpecifier">1</field>
+                <field name="IsActive">0</field>
+                <field name="Attempts">0</field>
+                <field name="ErrorFunctionName" />
+                <field name="ErrorFunctionUid" />
+              </block>
+            </statement>
+            <next>
+              <block type="er_wait" id=",,3R]KGvVUSGke3)U^A[">
+                <value name="Wait">
+                  <shadow type="er_math_number" id="jJ)JYyR*]{}HuT+rm!gS">
+                    <field name="NUM">5000</field>
+                  </shadow>
+                </value>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="er_function_block" id="ca*C$PTc+[M}i($XcrH," x="940" y="1440">
+    <field name="FunctionBlockName">SEMEDS BASE ERROR RECOVERY_2</field>
+    <field name="IsActive">0</field>
+    <field name="Attempts">0</field>
+    <field name="ErrorFunctionName" />
+    <field name="ErrorFunctionUid" />
+    <statement name="INSTRUCTIONS">
+      <block type="er_wait" id="q_0Fc|]el].b40HCeE6[">
+        <value name="Wait">
+          <shadow type="er_math_number" id="20%GaU4JeDW6$PR`RM:A">
+            <field name="NUM">5000</field>
+          </shadow>
+        </value>
+        <next>
+          <block type="er_drive_mute_protective_fields" id="Xpab+Jd{^$}GtGxqRUb)">
+            <field name="IsActive">0</field>
+            <field name="Attempts">0</field>
+            <field name="ErrorFunctionName" />
+            <field name="ErrorFunctionUid" />
+            <statement name="DriveInstructions">
+              <block type="er_drive_relative" id="ojM.;L7NJcGOq|MB[(_b">
+                <field name="XPos">-0.1</field>
+                <field name="YPos">0</field>
+                <field name="Theta">0</field>
+                <field name="CollisionDetection">0</field>
+                <field name="Strategy">0</field>
+                <field name="YScale">0.5</field>
+                <field name="DispX">0.5</field>
+                <field name="MinimumX">0.05</field>
+                <field name="LinearSpeed">0.1</field>
+                <field name="AngularSpeed">0.15</field>
+                <field name="IsSafe">1</field>
+                <field name="typeSpecifier">1</field>
+                <field name="IsActive">0</field>
+                <field name="Attempts">0</field>
+                <field name="ErrorFunctionName" />
+                <field name="ErrorFunctionUid" />
+              </block>
+            </statement>
+            <next>
+              <block type="er_wait" id="DF_LPWJ7DZ2fhGh/Vsb-">
+                <value name="Wait">
+                  <shadow type="er_math_number" id="gH1toky-w/^VNMQLDAwV">
+                    <field name="NUM">5000</field>
+                  </shadow>
+                </value>
+              </block>
+            </next>
+          </block>
+        </next>
+      </block>
+    </statement>
+  </block>
+  <block type="er_program" id="ScFWg4E2rzz1SxTXh7gz" deletable="false" editable="false" x="0" y="0">
+    <field name="_progName">On_Robot;Shared;Station_BFT;Station_DASH;Station_IXRD;Station_Labman;Station_SRS;Tests</field>
+    <field name="TOOL_FRAME">Manip.Flange</field>
+    <statement name="INSTRUCTIONS" />
+  </block>
+</xml>

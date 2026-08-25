@@ -48,14 +48,24 @@ def programming(
     return ProgrammingSession(ros)
 
 
-def deploy(session: ProgrammingSession, name: str, er_xml: str) -> None:
-    """Save a program archive to the controller under a name of our choosing."""
+def deploy(
+    session: ProgrammingSession,
+    name: str,
+    er_xml: str,
+    frontend_code: str | None = None,
+) -> None:
+    """Save a program archive to the controller under a name of our choosing.
+
+    Pass ``frontend_code`` when the program has a real canvas to go with it, as the
+    programs split out of ``Main`` do; a Python-authored one has nothing to draw and
+    gets the placeholder.
+    """
     session.checked(
         "/ability_backend/program/save_program_as",
         {
             "token_id": session.token,
             "program_name": name,
-            "frontend_code": EMPTY_CANVAS,
+            "frontend_code": frontend_code or EMPTY_CANVAS,
             "er_xml": er_xml,
             "overwrite": True,
         },
