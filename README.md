@@ -3,10 +3,22 @@ This python package includes drivers needed to control devices in Ceder group's 
 
 ## Installation
 ```shell
-python setup.py install
+pip install .
 ```
 
-Note that at least one requirement is only available in the Ceder group's private repository. These requirements are contained in the `requirements_ceder.txt` file and can be included by installing with `pip install alab_control[ceder]`. Alternatively, you can install the requirements manually with
+For editable local development, use:
+
+```shell
+pip install -e .
+```
+
+Note that at least one optional dependency is only available in the Ceder group's private workflow/tooling context. Install it with:
+
+```shell
+pip install ".[ceder]"
+```
+
+If you need that dependency separately, the requirement is still listed in `requirements_ceder.txt` and can be installed manually with:
 
 ```shell
 pip install -r requirements_ceder.txt
