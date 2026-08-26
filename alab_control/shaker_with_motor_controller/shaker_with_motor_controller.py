@@ -149,19 +149,21 @@ class ShakerWMC(BaseArduinoDevice):
         thread.start()
         try:
             while thread.is_alive():
-                if self.stop_event.is_set():  # Stop motor if event is set
-                    raise KeyboardInterrupt
+                if self.stop_event.is_set():
+                    self.motor_controller.stop()
+                    thread.join(timeout=10)
+                    return
                 state = self.get_state()
                 if SystemState(state["system_status"]) == SystemState.ERROR:
                     raise ShakerWMCError("Shaker machine is in error state.")
-                time.sleep(1)
-        except (ShakerWMCError, Exception, KeyboardInterrupt) as e:
+                time.sleep(0.1)
+        except ShakerWMCError:
             self.motor_controller.stop()
-            thread.join()
-            raise e
+            thread.join(timeout=10)
+            raise
         finally:
             self.motor_controller.stop()
-            thread.join()
+            thread.join(timeout=10)
 
     def close_gripper_and_shake(self, duration_sec: int, frequency: int = FREQUENCY):
         """
@@ -189,8 +191,9 @@ class ShakerWMC(BaseArduinoDevice):
         """
         Stop the shaker machine
         """
-        self.stop_event.set()  # Tell the thread to stop
+        self.stop_event.set()
         self.motor_controller.stop()
+        self.stop_event.clear()
 
     def is_running(self):
         return self.get_state()["system_status"] == SystemState.RUNNING.value

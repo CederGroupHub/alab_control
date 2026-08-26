@@ -1648,6 +1648,7 @@ class MotorController:
         )
         self.dt = dt
         self.latest_run_results = None
+        self._stop_requested = False
 
     def set_controller(self, kp, ki, kd, integral_contribution_limit=1.0):
         self.pid_tuner.controller = PIDController(
@@ -1695,6 +1696,7 @@ class MotorController:
     def run_profile(
         self, steady_state_wait_duration: float = 3, error_limit: float = 0.01
     ) -> None:
+        self._stop_requested = False
         try:
             if not self.speed_profile:
                 raise ValueError("Temperature profile is not set.")
@@ -1715,8 +1717,12 @@ class MotorController:
             steady_state = False
 
             for i in range(len(t)):  # for each time point in the profile
+                if self._stop_requested:
+                    break
                 time_stepped = False
                 while not time_stepped:
+                    if self._stop_requested:
+                        break
                     # if reached the next time step in real life, set the SV to the value in the profile associated with the time point
                     # and update the control output and record the actual speed
 
@@ -1793,6 +1799,7 @@ class MotorController:
             self.plant.stop_sensor()
 
     def stop(self):
+        self._stop_requested = True
         self.plant.stop_actuator()
         self.plant.stop_sensor()
 
