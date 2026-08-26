@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 from contextlib import contextmanager
 import datetime
 from enum import Enum, auto
@@ -233,9 +236,7 @@ class LabmanView:
                 self.quadrants[idx].current_workflow = d["LoadedWorkflowName"]
 
         except Exception as e:
-            print(
-                f"Got error: {e}.\n\nLabman API timed out. Check if the Labman GUI is frozen."
-            )
+            logger.error(f'Got error: {e}.\n\nLabman API timed out. Check if the Labman GUI is frozen.')
             for q in self.quadrants.values():
                 # set quadrants to unknown to ensure robot arm doesn't try to pick from the quadrant while we are unsure of the labman state.
                 q.status = QuadrantStatus.UNKNOWN
@@ -331,21 +332,15 @@ class LabmanView:
         for index, powder in heads_in_db.items():
             if index not in heads_in_labman:
                 in_sync = False
-                print(
-                    f"Dosing head {index} is empty on the Labman, but contains {powder} in our database!"
-                )
+                logger.info(f'Dosing head {index} is empty on the Labman, but contains {powder} in our database!')
             elif heads_in_labman[index] != powder:
                 in_sync = False
-                print(
-                    f"Dosing head {index} contains {heads_in_labman[index]} on the Labman, but contains {powder} in our database!"
-                )
+                logger.info(f'Dosing head {index} contains {heads_in_labman[index]} on the Labman, but contains {powder} in our database!')
 
         for index, powder in heads_in_labman.items():
             if index not in heads_in_db:
                 in_sync = False
-                print(
-                    f"Dosing head {index} contains {powder} on the Labman, but is empty in our database!"
-                )
+                logger.info(f'Dosing head {index} contains {powder} on the Labman, but is empty in our database!')
         return in_sync
 
 

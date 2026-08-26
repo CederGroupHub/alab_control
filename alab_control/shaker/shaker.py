@@ -2,9 +2,8 @@ import logging
 import time
 from enum import Enum
 
-from alab_control._base_arduino_device import BaseArduinoDevice
-
 logger = logging.getLogger(__name__)
+from alab_control._base_arduino_device import BaseArduinoDevice
 
 
 class ShakerState(Enum):

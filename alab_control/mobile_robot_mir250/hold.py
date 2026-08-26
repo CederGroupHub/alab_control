@@ -28,7 +28,6 @@ from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
-
 #: Environment variable naming the hold record.
 HOLD_FILE_ENV = "MIR250_HOLD_FILE"
 

@@ -1,5 +1,10 @@
+
+
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
 import time
 from contextlib import contextmanager
 from enum import Enum
@@ -107,15 +112,15 @@ if __name__ == "__main__":
     # Update the port based on your setup
     motor = GripperShaker("192.168.0.39")
     try:
-        print("Starting motor...")
+        logger.info('Starting motor...')
         motor.start_motor()
         time.sleep(2)
 
-        print("Stopping motor...")
+        logger.info('Stopping motor...')
         motor.stop_motor()
         time.sleep(1)
 
-        print("Current state:", motor.get_state())
+        logger.info(str('Current state:') + ' ' + str(motor.get_state()))
 
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logger.error(f'An error occurred: {e}')

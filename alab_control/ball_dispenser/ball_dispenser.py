@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import time
 from enum import Enum
 
@@ -42,7 +45,7 @@ class BallDispenser(BaseArduinoDevice):
             timeout=10,
             max_retries=5,
         )
-        print(f"{self.get_current_time()} Dispensing balls")
+        logger.info(f'{self.get_current_time()} Dispensing balls')
         start_time = time.time()
         time.sleep(5)
 

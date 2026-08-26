@@ -17,6 +17,7 @@ import logging
 import time
 from typing import Any, Callable
 
+logger = logging.getLogger(__name__)
 from .clients import (
     ATTENDED_STATES,
     IDLE_STATES,
@@ -26,8 +27,6 @@ from .clients import (
     is_error_state,
 )
 from .session import BridgeError, ProgrammingSession
-
-logger = logging.getLogger(__name__)
 
 # A Blockly canvas the UI will open without complaint. The backend runs `er_xml` and
 # ignores this, but `save_program_as` requires the field, and a program with no canvas

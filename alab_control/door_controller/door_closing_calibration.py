@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import time
 
 from alab_control.door_controller import DoorController
@@ -10,8 +13,8 @@ def measure_keypress_duration():
     duration = end - start
     return duration
 
-print("Press enter to start measuring keypress duration.")
+logger.info('Press enter to start measuring keypress duration.')
 input()
 while True:
     duration = measure_keypress_duration()
-    print("Duration: ", duration, "seconds")
+    logger.info(str('Duration: ') + ' ' + str(duration) + ' ' + str('seconds'))

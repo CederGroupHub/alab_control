@@ -1,5 +1,10 @@
+
+
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
 import re
 import time
 from abc import ABC, abstractmethod
@@ -97,13 +102,13 @@ class BaseGcodeRobot(ABC):
 
         self._set_defaults()
 
-        print("Connected to robot!")
+        logger.info('Connected to robot!')
 
     def disconnect(self) -> None:
         """Disconnects from the robot."""
         self._handle.close()
         del self._handle
-        print("Disconnected from robot!")
+        logger.info('Disconnected from robot!')
 
     def moveto(
         self,
@@ -397,7 +402,7 @@ def select_port_cli() -> str:
     """
     ports = lp.comports()
     for i, p in enumerate(ports):
-        print(f"[{i}] {p}, {p.hwid}")
+        logger.info(f'[{i}] {p}, {p.hwid}')
     selection = int(input("Select a port: "))
     if selection < 0 or selection > i:
         raise ValueError("Invalid selection")

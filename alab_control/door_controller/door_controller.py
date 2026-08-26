@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import time
 from enum import Enum
 import socket
@@ -81,7 +84,7 @@ class DoorController(BaseArduinoDevice):
         
         self.send_request("Open "+name+"\n")
         time.sleep(1)
-        print(f"{self.get_current_time()} Opening Door {name}")
+        logger.info(f'{self.get_current_time()} Opening Door {name}')
         while self.get_state() == DoorControllerState.RUNNING and self.get_state() != DoorControllerState.ERROR:
             time.sleep(1)
         if self.get_state() == DoorControllerState.ERROR:
@@ -105,7 +108,7 @@ class DoorController(BaseArduinoDevice):
         
         self.send_request("Close "+name+"\n")
         time.sleep(1)
-        print(f"{self.get_current_time()} Closing Door {name}")
+        logger.info(f'{self.get_current_time()} Closing Door {name}')
         while self.get_state() == DoorControllerState.RUNNING and self.get_state() != DoorControllerState.ERROR:
             time.sleep(1)
         if self.get_state() == DoorControllerState.ERROR:

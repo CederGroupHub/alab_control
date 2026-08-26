@@ -34,9 +34,8 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Callable
 
-from .clients import ABILITY_HOST
-
 logger = logging.getLogger(__name__)
+from .clients import ABILITY_HOST
 
 DEFAULT_PATH = "/ability"
 

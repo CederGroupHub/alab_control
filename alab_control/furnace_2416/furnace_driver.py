@@ -7,9 +7,8 @@ from pathlib import Path
 from threading import Lock
 from typing import NamedTuple, Optional, Dict, Any, Callable, List
 
-from pymodbus.client.sync import ModbusSerialClient
-
 logger = logging.getLogger(__name__)
+from pymodbus.client.sync import ModbusSerialClient
 
 
 @unique
@@ -306,7 +305,7 @@ class FurnaceController(FurnaceRegister):
         """
         self.configure_segments(*segments)
         self.play()
-        print(f"{self.get_current_time()} Running Program on port {self._port}")
+        logger.info(f'{self.get_current_time()} Running Program on port {self._port}')
 
     def play(self):
         """

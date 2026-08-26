@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import time
 from enum import Enum
 
@@ -46,7 +49,7 @@ class CapDispenser(BaseArduinoDevice):
             raise ValueError("name must be one of the specified names in the initialization"+str(self.names))
         if self.get_state() == CapDispenserState.RUNNING:
             raise RuntimeError("Cannot open the cap dispenser while it is running")
-        print(f"{self.get_current_time()} Opening a cap dispenser")
+        logger.info(f'{self.get_current_time()} Opening a cap dispenser')
         self.send_request(self.ENDPOINTS[f"open n={self.MAP[name]}"], method="GET", suppress_error=True, max_retries=10, timeout=10)
         time.sleep(0.2)
         while self.get_state() == CapDispenserState.RUNNING:
@@ -60,7 +63,7 @@ class CapDispenser(BaseArduinoDevice):
             raise ValueError("name must be one of the specified names in the initialization"+str(self.names))
         if self.get_state() == CapDispenserState.RUNNING:
             raise RuntimeError("Cannot open the cap dispenser while it is running")
-        print(f"{self.get_current_time()} Closing a cap dispenser")
+        logger.info(f'{self.get_current_time()} Closing a cap dispenser')
         self.send_request(self.ENDPOINTS[f"close n={self.MAP[name]}"], method="GET", suppress_error=True, max_retries=10, timeout=10)
         time.sleep(0.2)
         while self.get_state() == CapDispenserState.RUNNING:

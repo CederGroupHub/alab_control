@@ -6,6 +6,7 @@ from pathlib import Path
 from subprocess import Popen
 from typing import Optional, Dict, Any
 
+logger = logging.getLogger(__name__)
 import requests
 
 try:
@@ -16,8 +17,6 @@ except:
         client = None
 
     win32com = DummyClient()
-
-logger = logging.getLogger(__name__)
 
 
 class FlangeError(Exception):

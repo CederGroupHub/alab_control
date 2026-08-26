@@ -5,6 +5,7 @@ import threading
 import time
 from typing import Literal
 
+logger = logging.getLogger(__name__)
 from pydantic import BaseModel
 
 from alab_control.dh_linear_rail.dh_linear_rail import LinearRailController
@@ -14,8 +15,6 @@ from alab_control.dh_robotic_gripper.dh_robotic_gripper import (
 )
 from alab_control.gripper_shaker.gripper_shaker import GripperShaker
 from alab_control.ohaus_scale.ohaus_scale_gpss import OhausScale
-
-logger = logging.getLogger(__name__)
 
 
 class XRDDispenserResult(BaseModel):

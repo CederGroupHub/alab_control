@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 from typing import List
 from alab_control.webcam.webcam import WebCam
 
@@ -8,7 +11,7 @@ def get_all_webcams() -> List[WebCam]:
     """
     webcams = []
     for i in range(10):
-        print(i)
+        logger.info(i)
         try:
             webcam = WebCam(f"test_{i}", i)
             webcams.append(webcam)

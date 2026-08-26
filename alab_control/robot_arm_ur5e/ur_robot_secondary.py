@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import time
 from typing import List, Union
 
@@ -110,5 +113,5 @@ end""",
 
 if __name__ == "__main__":
     robot = URRobotSecondary("192.168.0.22")
-    print(robot.check_home())
+    logger.info(robot.check_home())
     robot.close()

@@ -31,6 +31,7 @@ import time
 from dataclasses import dataclass
 from typing import Any, Callable
 
+logger = logging.getLogger(__name__)
 from .clients import (
     AbilityClient,
     AbilityRosClient,
@@ -39,8 +40,6 @@ from .clients import (
     is_error_state,
 )
 from .errors import MaintenanceRequired
-
-logger = logging.getLogger(__name__)
 
 MUTE_SERVICE = "/mobile/mute_protective_fields"
 

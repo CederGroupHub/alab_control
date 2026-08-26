@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 from enum import Enum
 import abc
 import os
@@ -116,9 +119,9 @@ class PhenomDriver():
 
         # Optionally, verify the license installation
         for license in ppi.GetLicenses():
-            print('Phenom-ID:', license.instrumentId)
-            print('Username:', license.username)
-            print('Password:', license.password)
+            logger.info(str('Phenom-ID:') + ' ' + str(license.instrumentId))
+            logger.info(str('Username:') + ' ' + str(license.username))
+            logger.info(str('Password:') + ' ' + str(license.password))
 
     def connect(self):
         """
@@ -133,10 +136,10 @@ class PhenomDriver():
             else:
                 self.phenom = ppi.Phenom()
             self.is_connected = True
-            print("Phenom connected successfully.")
+            logger.info('Phenom connected successfully.')
             return True
         except ImportError:
-            print("Failed to connect to Phenom.")
+            logger.error('Failed to connect to Phenom.')
             self.is_connected = False
             return False
 
@@ -145,7 +148,7 @@ class PhenomDriver():
         Disconnect from the Phenom device.
         """
         self.is_connected = False
-        print("Phenom disconnected.")
+        logger.info('Phenom disconnected.')
         return True
     
     def reset_have_just_move_to_SEM(self):
@@ -161,13 +164,13 @@ class PhenomDriver():
         if self.is_connected:
             try:
                 mode = self.phenom.GetInstrumentMode()
-                print(f"Instrument mode: {mode}")
+                logger.info(f'Instrument mode: {mode}')
                 return True, str(mode)
             except ImportError:
-                print("Error getting instrument mode")
+                logger.error('Error getting instrument mode')
                 return False, None
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False, None
 
     def get_operational_mode(self) -> str:
@@ -180,13 +183,13 @@ class PhenomDriver():
         if self.is_connected:
             try:
                 mode = self.phenom.GetOperationalMode()
-                print(f"Operational mode: {mode}")
+                logger.info(f'Operational mode: {mode}')
                 return True, str(mode)
             except ImportError:
-                print("Error getting operational mode")
+                logger.error('Error getting operational mode')
                 return False, None
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False, None
 
     def activate(self):
@@ -194,11 +197,11 @@ class PhenomDriver():
         Activate the Phenom, transitioning it to operational mode.
         """
         if self.is_connected:
-            print("Device is connected.")
+            logger.info('Device is connected.')
             self.phenom.Activate()
             return True
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False
     
     def load(self):
@@ -208,15 +211,15 @@ class PhenomDriver():
         This changes the OperationalMode to LiveNavCam.
         """
         if self.is_connected:
-            print(str(self.get_instrument_mode()))
+            logger.info(str(self.get_instrument_mode()))
             if self.get_instrument_mode() == InstrumentMode("Operational") and self.get_operational_mode() == OperationalMode("Loadpos"): #"Operational"
                 self.phenom.Load()
                 return True
             else:
-                print("Instrument mode is not in Operational and operational mode is not in Loadpos, activate first.")
+                logger.info('Instrument mode is not in Operational and operational mode is not in Loadpos, activate first.')
                 return False
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False
 
     def unload(self):
@@ -228,10 +231,10 @@ class PhenomDriver():
                 self.phenom.Unload()
                 return True
             else:
-                print("Device is not in Loadpos operational mode.")
+                logger.info('Device is not in Loadpos operational mode.')
                 return False
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False
     
     def standby(self):
@@ -242,7 +245,7 @@ class PhenomDriver():
             self.phenom.Standby()
             return True
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False
 
     def to_nav(self):
@@ -250,14 +253,14 @@ class PhenomDriver():
         Switches the Phenom device to use the navigation camera.
         """
         if not self.is_connected:
-            print("Device is not connected. Please connect the device first.")
+            logger.info('Device is not connected. Please connect the device first.')
             return False
         try:
             self.phenom.MoveToNavCam()
-            print("Successfully switched to navigation camera.")
+            logger.info('Successfully switched to navigation camera.')
             return True
         except ImportError:
-            print("Failed to switch to navigation camera")
+            logger.error('Failed to switch to navigation camera')
             return False
 
     def to_SEM(self, max_retries):
@@ -272,16 +275,16 @@ class PhenomDriver():
             while retries < max_retries:
                 try:
                     self.phenom.MoveToSem()
-                    print("Successfully switched to SEM view.")
+                    logger.info('Successfully switched to SEM view.')
                     return True
                 except:
                     retries += 1
-                    print(f'Failed to switch to SEM view. Attempt {retries} of {max_retries}.\nWaiting {wait_time} seconds before retrying.')
+                    logger.error(f'Failed to switch to SEM view. Attempt {retries} of {max_retries}.\nWaiting {wait_time} seconds before retrying.')
                     time.sleep(wait_time)
-            print("Maximum retries reached. Failed to switch to SEM view.")
+            logger.error('Maximum retries reached. Failed to switch to SEM view.')
             return False
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False
 
     def auto_focus(self):
@@ -291,13 +294,13 @@ class PhenomDriver():
         if self.is_connected:
             try:
                 self.phenom.SemAutoFocus()
-                print("Auto-focus completed.")
+                logger.info('Auto-focus completed.')
                 return True
             except ImportError:
-                print("Auto-focus failed")
+                logger.error('Auto-focus failed')
                 return False
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False
 
     def auto_contrast_brightness(self):
@@ -307,13 +310,13 @@ class PhenomDriver():
         if self.is_connected:
             try:
                 self.phenom.SemAutoContrastBrightness()
-                print("Auto-contrast and brightness optimization completed.")
+                logger.info('Auto-contrast and brightness optimization completed.')
                 return True
             except ImportError:
-                print("Failed to optimize contrast and brightness")
+                logger.error('Failed to optimize contrast and brightness')
                 return False
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False
 
     def adjust_focus(self, new_wd):
@@ -323,13 +326,13 @@ class PhenomDriver():
         if self.is_connected:
             try:
                 self.phenom.SetSemWD(new_wd * 0.001)
-                print("Focus adjusted.")
+                logger.info('Focus adjusted.')
                 return True
             except ImportError:
-                print("Failed to adjust focus")
+                logger.error('Failed to adjust focus')
                 return False
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False
 
     def move_to(self, x, y):
@@ -341,13 +344,13 @@ class PhenomDriver():
         if self.is_connected:
             try:
                 self.phenom.MoveTo(x * 0.001, y * 0.001)
-                print("Movement completed.")
+                logger.info('Movement completed.')
                 return True
             except ImportError:
-                print("Failed to move")
+                logger.error('Failed to move')
                 return False
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False
 
     def move_by(self, delta_x, delta_y):
@@ -361,13 +364,13 @@ class PhenomDriver():
         if self.is_connected:
             try:
                 self.phenom.MoveBy(delta_x * 0.001, delta_y * 0.001)
-                print("Movement completed.")
+                logger.info('Movement completed.')
                 return True
             except ImportError:
-                print("Failed to move")
+                logger.error('Failed to move')
                 return False
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False
 
     #TODO: CHK DTYPE
@@ -378,13 +381,13 @@ class PhenomDriver():
         if self.is_connected:
             try:
                 pos = self.phenom.GetCurrentPos()
-                print(f"Current position: {pos}")
+                logger.info(f'Current position: {pos}')
                 return True, (float(position) for position in pos)
             except ImportError:
-                print("Failed to get position")
+                logger.error('Failed to get position')
                 return False, None
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False, None
 
     def get_sem_high_tension(self):
@@ -393,10 +396,10 @@ class PhenomDriver():
         """
         if self.is_connected:
             value = - self.phenom.GetSemHighTension()
-            print(f"SEM high tension is: {value} Volts.")
+            logger.info(f'SEM high tension is: {value} Volts.')
             return True, float(value)
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False, None
        
     def set_sem_high_tension(self, value):
@@ -405,10 +408,10 @@ class PhenomDriver():
         """
         if self.is_connected:
             self.phenom.SetSemHighTension(-value)
-            print(f"Setting the SEM high tension to {value} Volts.")
+            logger.info(f'Setting the SEM high tension to {value} Volts.')
             return True
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False
 
     def get_sem_spot_size(self):
@@ -417,10 +420,10 @@ class PhenomDriver():
         """
         if self.is_connected:
             value=self.phenom.GetSemSpotSize()
-            print(f"SEM Beam intensity (spot size) is: {value} Amps / Volt½")
+            logger.info(f'SEM Beam intensity (spot size) is: {value} Amps / Volt½')
             return True, float(value)
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False, None
     
     def set_sem_spot_size(self,value):
@@ -431,14 +434,14 @@ class PhenomDriver():
         """
         if self.is_connected:
             if value < 2.1 or value > 5.1:
-                print("SEM Beam intensity (spot size) value out of range. Please use a value between 2.1 and 5.1 Amps / Volt½.")
+                logger.info('SEM Beam intensity (spot size) value out of range. Please use a value between 2.1 and 5.1 Amps / Volt½.')
                 return False
             self.phenom.SetSemSpotSize(value)
             value_get=self.phenom.GetSemSpotSize()
-            print(f"SEM Beam intensity (spot size) set to {value_get} Amps / Volt½")
+            logger.info(f'SEM Beam intensity (spot size) set to {value_get} Amps / Volt½')
             return True
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False
    
     def get_frame_width(self):
@@ -448,13 +451,13 @@ class PhenomDriver():
         if self.is_connected:
             try:
                 value=self.phenom.GetHFW()
-                print(f"Frame width (FW) is: {value} mm.")
+                logger.info(f'Frame width (FW) is: {value} mm.')
                 return True, float(value)
             except ImportError:
-                print("Failed to get frame width")
+                logger.error('Failed to get frame width')
                 return False, None
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False, None
 
     def zoom(self, amt):
@@ -466,13 +469,13 @@ class PhenomDriver():
                 current_width = self.phenom.GetHFW()
                 new_width = amt * current_width
                 self.phenom.SetHFW(new_width)
-                print("Zoom adjusted.")
+                logger.info('Zoom adjusted.')
                 return True
             except ImportError:
-                print("Failed to adjust zoom")
+                logger.error('Failed to adjust zoom')
                 return False
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False
 
     def get_magnification(self):
@@ -485,7 +488,7 @@ class PhenomDriver():
             magnification = ppi.MagnificationFromFieldWidth(self.phenom.GetHFW())
             return True, float(magnification)
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False, None
     
     def framewidth(self):
@@ -494,7 +497,7 @@ class PhenomDriver():
             current_width = self.phenom.GetHFW()
             return True, current_width
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False, None
 
     def save_image(self, fname, res_x, res_y, frame_avg):
@@ -507,13 +510,13 @@ class PhenomDriver():
             try:
                 acq = self.phenom.SemAcquireImage(res_x, res_y, frame_avg)
                 ppi.Save(acq, fname)
-                print(f"Image saved as {fname}.")
+                logger.info(f'Image saved as {fname}.')
                 return True
             except ImportError:
-                print("Failed to save image")
+                logger.error('Failed to save image')
                 return False
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False
 
     def get_image_metadata(self, res_x, res_y, frame_avg):
@@ -529,10 +532,10 @@ class PhenomDriver():
                 pixel_size_height = acq.metadata.pixelSize.height
                 return True, int(frame_width), int(frame_height), float(pixel_size_width), float(pixel_size_height)
             except ImportError:
-                print("Failed to get image data")
+                logger.error('Failed to get image data')
                 return False, None
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False, None
 
     def get_pressure(self):
@@ -541,10 +544,10 @@ class PhenomDriver():
         """
         if self.is_connected:
             pressure = self.phenom.SemGetVacuumChargeReductionState().pressureEstimate
-            print(f"Current vacuum pressure: {pressure} Pa.")
+            logger.info(f'Current vacuum pressure: {pressure} Pa.')
             return True, float(pressure)
         else:
-            print("Device is not connected.")
+            logger.info('Device is not connected.')
             return False, None
 
     def set_detector(self, detector_name):
@@ -571,7 +574,7 @@ class PhenomDriver():
                         break
                     time.sleep(10)
                 if self.get_pressure() > 1:
-                    print("Cannot enable SED when vacuum pressure is above 1 Pa.")
+                    logger.info('Cannot enable SED when vacuum pressure is above 1 Pa.')
                     return False
             try:
                 if self.have_just_move_to_SEM:
@@ -582,7 +585,7 @@ class PhenomDriver():
                     self.phenom.SemEnableSed()
                 requested_mode = ppi.DetectorMode.Sed
             except ppi.Error as e:
-                print(f"Failed to enable SED detector. Error message: {e.args[0]}.")
+                logger.error(f'Failed to enable SED detector. Error message: {e.args[0]}.')
                 return False
         elif detector_name == "BSD A":
             requested_mode = ppi.DetectorMode.A
@@ -593,15 +596,15 @@ class PhenomDriver():
         elif detector_name == "BSD D":
             requested_mode = ppi.DetectorMode.D
         else:
-            print("Invalid viewing mode specified.")
+            logger.info('Invalid viewing mode specified.')
             return False
         try:
             viewingMode = self.phenom.GetSemViewingMode()
             viewingMode.scanParams.detector = requested_mode
             self.phenom.SetSemViewingMode(viewingMode)
-            print(f"Detector set to {detector_name}.")
+            logger.info(f'Detector set to {detector_name}.')
         except:
-            print("Failed to set detector.")
+            logger.error('Failed to set detector.')
             return False
         return True
 
@@ -618,7 +621,7 @@ class PhenomDriver():
         try:
             self.SEMEDXLauncher.launch_collection(samples)
         except:
-            print("Failed to launch SEMEDX collection.")
+            logger.error('Failed to launch SEMEDX collection.')
             return False
     
     # def hibernate(self):

@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -41,7 +44,7 @@ for program_doc in programs_collection.find({}):
             "program_string": escape(pick_program),
         })
         robot.ssh.compress_write_program(name + ".auto.urp", urp_program)
-        print(name)
+        logger.info(name)
 
         name = f"place_{program_doc['name']}" + (f"_{position_name}" if len(position_names) > 1 else "")
         config["name"] = name
@@ -54,4 +57,4 @@ for program_doc in programs_collection.find({}):
             "program_string": escape(place_program),
         })
         robot.ssh.compress_write_program(name + ".auto.urp", urp_program)
-        print(name)
+        logger.info(name)

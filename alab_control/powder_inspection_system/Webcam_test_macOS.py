@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import cv2
 import time
 import os
@@ -50,7 +53,7 @@ for i in range(ADJUST * -1, num_pics):
         cv2.imwrite(LOCAL_FOLDER_PATH + str(i) + ".jpg", image)
 
     time.sleep(period - TIME_ADJUST)
-    print(str(datetime.now()))
+    logger.info(str(datetime.now()))
 cam.open_to()
 cv2.destroyAllWindows()
 

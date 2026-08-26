@@ -17,10 +17,9 @@ import time
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping, Sequence
 
+logger = logging.getLogger(__name__)
 from .clients import AbilityRosClient, RobotApiError
 from .session import ProgrammingSession
-
-logger = logging.getLogger(__name__)
 
 JOYSTICK_START = "/ability_backend/system/start_joystick"
 JOYSTICK_STOP = "/ability_backend/system/stop_joystick"

@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import re
 import socket
 
@@ -42,5 +45,5 @@ class OhausScale:
 
 if __name__ == "__main__":
     scale = OhausScale("ohaus.gpss", timeout=0.1)
-    print(scale.get_mass_in_mg())
+    logger.info(scale.get_mass_in_mg())
     scale.close()

@@ -1,5 +1,10 @@
+
+
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
 import abc
 import logging
 import time
@@ -707,8 +712,4 @@ class MTAutoBalance:
 
 if __name__ == "__main__":
     mt_balance = MTAutoBalance(host="http://192.168.1.13:81", password="mt")
-    print(
-        mt_balance.automatic_dosing(
-            target_value_g=0.5, lower_tolerance_percent=0.1, upper_tolerance_percent=0.1
-        )
-    )
+    logger.info(mt_balance.automatic_dosing(target_value_g=0.5, lower_tolerance_percent=0.1, upper_tolerance_percent=0.1))

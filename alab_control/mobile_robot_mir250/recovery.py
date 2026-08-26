@@ -22,6 +22,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Callable
 
+logger = logging.getLogger(__name__)
 from .authored_program import undeploy
 from .clients import (
     STATE_IDLE,
@@ -42,8 +43,6 @@ from .safety import (
     wedge_prompt,
 )
 from .session import BridgeError, ProgrammingSession
-
-logger = logging.getLogger(__name__)
 
 ABILITY_HMI_URL = "http://192.168.1.207/"
 AUTHORED_PREFIX = "PyAuthored"

@@ -23,7 +23,7 @@ dependencies = [
     "opencv-python>=4.7.0.68",
     "ortools>=9.3.10497",
     "pandas>=1.4.3",
-    "paramiko~=2.7.2",
+    "paramiko>=3.4.1,<6",
     "phidget22>=1.22.20250106",
     "pyModbusTCP==0.1.10",
     "pydantic>=1.10.2",

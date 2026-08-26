@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import re
 import numpy as np
 import xmltodict
@@ -122,12 +125,12 @@ class Aeris:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.connect((self.ip, self.port))
             if self._debug:
-                print("sent: ", msg)
+                logger.info(str('sent: ') + ' ' + str(msg))
             msg_bytes = bytes(msg, encoding="utf-8")
             s.sendall(msg_bytes)
             data = s.recv(1024)
             if self._debug:
-                print("recv: ", repr(data))
+                logger.info(str('recv: ') + ' ' + str(repr(data)))
             time.sleep(
                 self.COMMUNICATION_DELAY
             )  # TODO do we actually need this here? seems unlikely
@@ -176,7 +179,7 @@ class Aeris:
 
         msg = f"@SAMPLE@MEASURE@SAMPLE_ID={sample_id}@APPLICATION={program}@END"
         reply = self._query(msg)
-        print(f"{self.get_current_time()} Starting XRD scan for sample {sample_id} using program {program}")
+        logger.info(f'{self.get_current_time()} Starting XRD scan for sample {sample_id} using program {program}')
         if "fatal" in reply:
             raise ScanFailed(
                 f"Scan failed for program {program} on sample_id {sample_id}! Aeris returned: {reply}"
@@ -216,7 +219,7 @@ class Aeris:
             ]["counts"]["#text"]
             intensities = np.array([float(val) for val in intensities.split()])
             angles = np.linspace(min_angle, max_angle, len(intensities))
-        print(f"{self.get_current_time()} Scan results for {sample_id} loaded successfully")
+        logger.info(f'{self.get_current_time()} Scan results for {sample_id} loaded successfully')
 
         return angles, intensities
 
@@ -245,7 +248,7 @@ class Aeris:
             scan_results=self.load_scan_results(sample_id)
             return scan_results, True
         except FileExportFailed:
-            print(f"AERIS file export failed for {sample_id}!")
+            logger.error(f'AERIS file export failed for {sample_id}!')
             return (None,None), False
 
     def add(
@@ -335,6 +338,6 @@ def write_spectrum(dir, sample_id, angles, intensities):
 
 if __name__ == "__main__":
     a = Aeris(debug=True)
-    print(a.add("test_remote", loc=1, default_program="10-100_8-minutes"))
-    print(a.scan_and_return_results("test_remote", program="10-100_8-minutes"))
-    print(a.remove("test_remote"))
+    logger.info(a.add('test_remote', loc=1, default_program='10-100_8-minutes'))
+    logger.info(a.scan_and_return_results('test_remote', program='10-100_8-minutes'))
+    logger.info(a.remove('test_remote'))

@@ -1,5 +1,10 @@
+
+
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
 import collections
 import datetime
 import pickle
@@ -1040,13 +1045,13 @@ class PIDTuner:
         Returns:
             None
         """
-        print("Finding system parameters using grid search...")
+        logger.info('Finding system parameters using grid search...')
         steady_state_wait_duration = self.ss_test_setting["steady_state_wait_duration"]
         maximum_time = self.ss_test_setting["maximum_time"]
         error_limit = self.ss_test_setting["error_limit"]
         cooldown_time = self.ss_test_setting["cooldown_time"]
-        print(f"Maximum time for the test: {maximum_time} seconds")
-        print("Date and time: ", datetime.datetime.now())
+        logger.info(f'Maximum time for the test: {maximum_time} seconds')
+        logger.info(str('Date and time: ') + ' ' + str(datetime.datetime.now()))
         t_steady, y_steady, t, y, no_PV = self.plant.get_time_to_steady_state(
             1,
             steady_state_wait_duration=steady_state_wait_duration,
@@ -1109,7 +1114,7 @@ class PIDTuner:
         assert (
             self.dt == self.plant.dt
         ), "The plant and the controller must have the same time step."
-        print("Finding ultimate gain and period using grid search...")
+        logger.info('Finding ultimate gain and period using grid search...')
         maximum_time = 0
         test_time = self.osc_test_setting["initial_time"]
         for _ in range(
@@ -1125,8 +1130,8 @@ class PIDTuner:
                     self.Kp_test_setting["Kp_increment"],
                 )
             )
-        print(f"Maximum time for the test: {maximum_time} seconds")
-        print("Date and time: ", datetime.datetime.now())
+        logger.info(f'Maximum time for the test: {maximum_time} seconds')
+        logger.info(str('Date and time: ') + ' ' + str(datetime.datetime.now()))
         sustained_oscillation_detected = False
         for duration in range(
             int(self.osc_test_setting["initial_time"]),
@@ -1261,11 +1266,9 @@ class PIDTuner:
         plt.title("Poles of the Closed Loop System")
         plt.show()
         if unstable_poles:
-            print("⚠️ WARNING: System is UNSTABLE (Right-half plane poles detected).")
+            logger.warning('⚠️ WARNING: System is UNSTABLE (Right-half plane poles detected).')
         else:
-            print(
-                "✅ Poles check: OK. System is STABLE. No right-half plane poles detected."
-            )
+            logger.info('✅ Poles check: OK. System is STABLE. No right-half plane poles detected.')
 
     def _nyquist_plot_check(self, open_loop_system: ctrl.TransferFunction) -> None:
         """
@@ -1276,13 +1279,9 @@ class PIDTuner:
         count = response.count
         cplt = response.plot()
         if count > 0:
-            print(
-                "⚠️ WARNING: System is UNSTABLE (Nyquist plot CW encirclements of -1 detected)."
-            )
+            logger.warning('⚠️ WARNING: System is UNSTABLE (Nyquist plot CW encirclements of -1 detected).')
         else:
-            print(
-                "✅ Nyquist plot check: OK. System is STABLE. No CW encirclements of -1 detected."
-            )
+            logger.info('✅ Nyquist plot check: OK. System is STABLE. No CW encirclements of -1 detected.')
 
     def _bode_plot_check(self, open_loop_system):
         """Performs Bode plot analysis and checks for stability margins."""
@@ -1292,32 +1291,20 @@ class PIDTuner:
         gm, pm, sm, wpc, wgc, wms = ctrl.stability_margins(open_loop_system)
         # Stability Warnings Based on Margins
         if gm < 6:
-            print(
-                f"⚠️ WARNING: Low Gain Margin (<6 dB =~ 4 in linear). System is prone to instability. Gain Margin: {gm:.2f}."
-            )
+            logger.warning(f'⚠️ WARNING: Low Gain Margin (<6 dB =~ 4 in linear). System is prone to instability. Gain Margin: {gm:.2f}.')
         else:
-            print(
-                f"✅ Gain Margin Check: OK (Greater than 6 dB =~ 4 in linear). Gain Margin: {gm:.2f}."
-            )
+            logger.info(f'✅ Gain Margin Check: OK (Greater than 6 dB =~ 4 in linear). Gain Margin: {gm:.2f}.')
 
         if pm < 45:
-            print(
-                f"⚠️ WARNING: Low Phase Margin (<45°). System is prone to oscillations. Phase Margin: {pm:.2f}°."
-            )
+            logger.warning(f'⚠️ WARNING: Low Phase Margin (<45°). System is prone to oscillations. Phase Margin: {pm:.2f}°.')
         else:
-            print(
-                f"✅ Phase Margin Check: OK (Greater than 45°). Phase Margin: {pm:.2f}°."
-            )
+            logger.info(f'✅ Phase Margin Check: OK (Greater than 45°). Phase Margin: {pm:.2f}°.')
 
         delay_margin = (pm / wgc) * (np.pi / 180)  # Phase margin in seconds
         if delay_margin < 2 * self.dt:
-            print(
-                f"⚠️ WARNING: Phase delay margin is less than twice of the sampling/control time. System can become unstable. Delay Margin: {delay_margin:.2f} seconds."
-            )
+            logger.warning(f'⚠️ WARNING: Phase delay margin is less than twice of the sampling/control time. System can become unstable. Delay Margin: {delay_margin:.2f} seconds.')
         else:
-            print(
-                f"✅ Phase Delay Margin Check: OK (Greater than the sampling/control time). Delay Margin: {delay_margin:.2f} seconds."
-            )
+            logger.info(f'✅ Phase Delay Margin Check: OK (Greater than the sampling/control time). Delay Margin: {delay_margin:.2f} seconds.')
 
     def stability_analysis(self) -> None:
         """
@@ -1460,7 +1447,7 @@ class DiscreteSetpointProfile:
         ):
             for i in range(len(time_points) - 1):
                 if time_points[i] >= time_points[i + 1]:
-                    print(f"Time point {i+1} is less than or equal to time point {i}.")
+                    logger.info(f'Time point {i + 1} is less than or equal to time point {i}.')
             raise ValueError("time_points must be in increasing order.")
         self.interpolated_time = np.arange(
             time_points[0],
@@ -1898,7 +1885,7 @@ def main():
     with open("pid_values.pkl", "wb") as f:
         pickle.dump(pid_dict, f)
     # print the kp, ki, kd values
-    print(f"Kp: {kp}, Ki: {ki}, Kd: {kd}")
+    logger.info(f'Kp: {kp}, Ki: {ki}, Kd: {kd}')
     # save most recent results into a csv file and figure
     import pandas as pd
 

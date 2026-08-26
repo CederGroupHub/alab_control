@@ -26,6 +26,7 @@ from contextlib import contextmanager
 from datetime import datetime
 from typing import Any, Callable, Iterator
 
+logger = logging.getLogger(__name__)
 from .clients import (
     ABILITY_HOST,
     MIR_HOST,
@@ -74,8 +75,6 @@ from .safety import (
     ensure_fields_unmuted,
     fields_muted,
 )
-
-logger = logging.getLogger(__name__)
 
 #: The station a recovery always drives to first. Everything is reachable from here.
 PARKING_STATION = "Home"

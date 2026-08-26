@@ -7,9 +7,8 @@ from pathlib import Path
 from threading import Lock
 from typing import NamedTuple, Optional, Dict, Any, Callable, List
 
-from pyModbusTCP.client import ModbusClient
-
 logger = logging.getLogger(__name__)
+from pyModbusTCP.client import ModbusClient
 
 
 @unique

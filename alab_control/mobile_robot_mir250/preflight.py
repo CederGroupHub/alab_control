@@ -42,6 +42,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
+logger = logging.getLogger(__name__)
 from .clients import (
     IDLE_STATES,
     STATE_IDLE,
@@ -63,8 +64,6 @@ from .safety import (
     mir_is_wedged,
     wedge_prompt,
 )
-
-logger = logging.getLogger(__name__)
 
 #: The arm posture ``Main`` records once the manipulator is parked.
 ARM_PARKED_POSE = "Home"

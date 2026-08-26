@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 import gzip
 import stat
 from pathlib import Path
@@ -145,5 +148,5 @@ class URRobotSSH:
 
 if __name__ == "__main__":
     ur_robot_ssh = URRobotSSH("192.168.0.23")
-    print(ur_robot_ssh.read_program("shaking.script", header_file_name="empty.script"))
+    logger.info(ur_robot_ssh.read_program('shaking.script', header_file_name='empty.script'))
     ur_robot_ssh.close()

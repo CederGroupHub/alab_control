@@ -1,5 +1,10 @@
+
+
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
 import time
 from enum import Enum
 
@@ -260,7 +265,7 @@ class GripperController:
 
             return self.read_rotation_status()
         except Exception as e:
-            print(f"An error occurred: {e}")
+            logger.error(f'An error occurred: {e}')
             self.stop_rotation()
             raise
 
@@ -321,6 +326,6 @@ if __name__ == "__main__":
         gripper.rotate(RotationDirection.CLOCKWISE, 180, force=100, check_gripper=False)
         gripper.open_to(position=925)
     except ModbusException as e:
-        print(f"An error occurred: {e}")
+        logger.error(f'An error occurred: {e}')
     finally:
         gripper.close()

@@ -26,6 +26,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any, Callable, Iterable, Sequence
 
+logger = logging.getLogger(__name__)
 from .clients import (
     ATTENDED_STATES,
     IDLE_STATES,
@@ -42,8 +43,6 @@ from .errors import (
     ObstructionHold,
 )
 from .mission import Leg, Mission, SampleMove
-
-logger = logging.getLogger(__name__)
 
 MAIN_PROGRAM = "Main"
 

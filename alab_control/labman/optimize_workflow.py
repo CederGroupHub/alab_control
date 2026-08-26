@@ -1,3 +1,6 @@
+import logging
+
+logger = logging.getLogger(__name__)
 from ortools.linear_solver import pywraplp
 from .components import InputFile
 from typing import Dict, List, Tuple
@@ -166,12 +169,12 @@ class BatchOptimizer:
             }
             n_powders_used = len([v for v in powder_utilization.values() if v > 0])
             if verbose:
-                print(f"Optimal solution found for quadrant {quadrant_index}")
-                print("Number of inputfiles loaded:", num_inputfiles)
-                print("Crucible utilization:", crucible_utilization)
-                print("Jar utilization:", jar_utilization)
-                print("Number of powders used:", n_powders_used)
-                print("Powder utilization:", powder_utilization)
+                logger.info(f'Optimal solution found for quadrant {quadrant_index}')
+                logger.info(str('Number of inputfiles loaded:') + ' ' + str(num_inputfiles))
+                logger.info(str('Crucible utilization:') + ' ' + str(crucible_utilization))
+                logger.info(str('Jar utilization:') + ' ' + str(jar_utilization))
+                logger.info(str('Number of powders used:') + ' ' + str(n_powders_used))
+                logger.info(str('Powder utilization:') + ' ' + str(powder_utilization))
             return {
                 "quadrant": quadrant_index,
                 "inputfiles": [
@@ -187,7 +190,7 @@ class BatchOptimizer:
             }
 
         else:
-            print("No optimal solution found.")
+            logger.info('No optimal solution found.')
             return None
 
     def solve(self, verbose: bool = False):
@@ -207,7 +210,7 @@ class BatchOptimizer:
         for q in self.quadrant_indices:
             results = self.solve_for_one_quadrant(q, verbose=verbose)
             if verbose and q != self.quadrant_indices[-1]:
-                print("================")
+                logger.info('================')
             if results is None:
                 continue
             if best is None:

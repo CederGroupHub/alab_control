@@ -1,5 +1,10 @@
+
+
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
 import re
 import socket
 import time
@@ -55,7 +60,7 @@ class MettlerToledoAutoBalance:
 
     def get_door_status(self) -> DoorStatus:
         response = self.send_request("WS")
-        print(response)
+        logger.info(response)
         return DoorStatus(int(response[2]))
 
     def set_target_weight_tolerance(self, target_weight_g: float | None = None,
@@ -96,4 +101,4 @@ if __name__ == '__main__':
     #     tolerance_neg_percent=0.1
     # )
     # print(auto_balance.get_target_weight_tolerance())
-    print(auto_balance.send_request("I0"))
+    logger.info(auto_balance.send_request('I0'))

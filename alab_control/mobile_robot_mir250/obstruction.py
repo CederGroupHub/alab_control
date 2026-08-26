@@ -47,10 +47,9 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from typing import Any, Callable, Mapping, Sequence
 
+logger = logging.getLogger(__name__)
 from .clients import RobotApiError
 from .safety import MUTE_SETTLE_S, emergency_stop, ensure_fields_unmuted
-
-logger = logging.getLogger(__name__)
 
 #: Ability publishes here when the base cannot proceed. Present on the cell since the
 #: beginning and read by nothing until now, so it is treated as a corroborating signal

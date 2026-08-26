@@ -1,5 +1,10 @@
+
+
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
 import threading
 import time
 from enum import Enum
@@ -84,7 +89,7 @@ class ShakerWMC(BaseArduinoDevice):
         Close the gripper to hold the container
         """
         state = self.get_state()
-        print(f"{self.get_current_time()} Gripping the container")
+        logger.info(f'{self.get_current_time()} Gripping the container')
         self.send_request(
             self.ENDPOINTS["close gripper"],
             suppress_error=True,
@@ -106,7 +111,7 @@ class ShakerWMC(BaseArduinoDevice):
         Open the gripper to release the container
         """
         state = self.get_state()
-        print(f"{self.get_current_time()} Releasing the gripper")
+        logger.info(f'{self.get_current_time()} Releasing the gripper')
         self.send_request(
             self.ENDPOINTS["open gripper"],
             suppress_error=True,

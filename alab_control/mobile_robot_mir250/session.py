@@ -38,6 +38,7 @@ import time
 import xml.etree.ElementTree as ET
 from typing import Any, Callable
 
+logger = logging.getLogger(__name__)
 from .ability_xml import (
     ProgramArchive,
     assign_instruction,
@@ -57,8 +58,6 @@ from .clients import (
     is_error_state,
     main_arguments,
 )
-
-logger = logging.getLogger(__name__)
 
 # Main's dispatch, re-expressed in Python. Reading these two tables against the
 # extracted BaseHandler is the whole of what the block program decided.

@@ -10,10 +10,9 @@ from enum import auto, Enum, unique
 from threading import Lock
 from typing import Optional
 
+logger = logging.getLogger(__name__)
 from alab_control.robot_arm_ur5e.program_list import PREDEFINED_PROGRAM
 from alab_control.robot_arm_ur5e.ur_robot_primary import URRobotPrimary
-
-logger = logging.getLogger(__name__)
 
 
 @unique
@@ -408,7 +407,7 @@ class URRobotDashboard:
             name: the name of the variable
         """
         response = self.send_cmd("getVariable {}".format(name))
-        print(response)
+        logger.info(response)
         return response.split(": ")[1].strip("\n")
 
     @staticmethod
