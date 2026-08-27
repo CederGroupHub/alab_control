@@ -40,6 +40,17 @@ class MRAState(Enum):
     SAFEGUARD_STOP = "safeguard_stop"
 
 
+#: Controller states, as reported by http://<ip>:8082/v2/status. See
+#: https://docs.alabos.com/alabOS/api/mobile-robot-arm/. Anything not listed here is treated as an
+#: error, because acting on a state the driver does not understand is worse than stopping.
+IDLE_STATES = {"Idle", "Ready"}
+RUNNING_STATES = {"Executing", "Finishing Execution"}
+SAFEGUARD_STATES = {"Safeguard Stop Active"}
+#: "Entity Error Active" is what the controller reports when a component it owns -- typically the
+#: manipulator failing its healthcheck -- is faulted.
+ERROR_STATES = {"Execution Error Active", "Emergency Stop Active", "Entity Error Active"}
+
+
 def retry_request(max_retries=3, timeout=10):
     """
     Decorator to retry HTTP requests with timeout.
@@ -161,22 +172,23 @@ class MobileRobotArm():
         """
         response = self.request_status()
         state = response["state"]
-        if state == "Idle" or state == "Ready":
-            parsed = MRAState.IDLE, response["message"]
-        elif state == "Executing":
-            parsed = MRAState.RUNNING, response["message"]
-        elif state == "Execution Error Active":
-            parsed = MRAState.ERROR, response["message"]
-        elif state == "Finishing Execution":
-            parsed = MRAState.RUNNING, response["message"]
-        elif state == "Emergency Stop Active":
-            parsed = MRAState.ERROR, response["message"]
-        elif state == "Safeguard Stop Active":
-            parsed = MRAState.SAFEGUARD_STOP, response["message"]
+        message = response.get("message") or ""
+        if state in IDLE_STATES:
+            parsed = MRAState.IDLE, message
+        elif state in RUNNING_STATES:
+            parsed = MRAState.RUNNING, message
+        elif state in SAFEGUARD_STATES:
+            parsed = MRAState.SAFEGUARD_STOP, message
+        elif state in ERROR_STATES:
+            # The controller's own message is the only description of what actually failed, so it
+            # is kept and labelled with the state rather than replaced.
+            parsed = MRAState.ERROR, f"{state}: {message}" if message else state
         else:
             parsed = (
                 MRAState.ERROR,
-                f"Unknown state: {state}. Please check the API documentation for the full list of states.",
+                f"{state}: {message}" if message else
+                f"Unrecognised state {state!r}. See "
+                "https://docs.alabos.com/alabOS/api/mobile-robot-arm/ for the full list of states.",
             )
         self._trace_state_change(
             parsed[0],
