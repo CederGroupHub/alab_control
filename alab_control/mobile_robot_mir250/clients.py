@@ -813,6 +813,22 @@ class AbilityRosClient:
         except ValueError:
             return raw
 
+    def edit_variable(self, name: str, value: Any, scope: str = "global") -> None:
+        """Write a persisted Ability variable the way the HMI does.
+
+        Assign+SaveVariable through execute_instruction reports success and does
+        not change the global store. edit_variable does.
+        """
+        reply = self.call_service(
+            f"/ability_backend/persistent/{scope}/edit_variable",
+            {"name": name, "value": json.dumps(value)},
+        )
+        if not reply.get("success", True):
+            raise RobotApiError(
+                f"could not persist {name}={value!r}: {reply.get('error_message')}",
+                url=f"{self.url}/persistent/{scope}/edit_variable",
+            )
+
     def base_position(self) -> str:
         """The station `Main` believes the base is parked at.
 

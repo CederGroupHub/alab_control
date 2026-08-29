@@ -51,6 +51,50 @@ SAFEGUARD_STATES = {"Safeguard Stop Active"}
 ERROR_STATES = {"Execution Error Active", "Emergency Stop Active", "Entity Error Active"}
 
 
+def ability_cell_snapshot(ip: str) -> dict:
+    """Read REST + ROS together. This is what the 8082 status page does not show."""
+    from alab_control.mobile_robot_mir250.clients import AbilityClient, AbilityRosClient
+
+    ability = AbilityClient(host=ip)
+    ros = AbilityRosClient(host=ip)
+    status = ability.status() or {}
+    program = status.get("current_program") or {}
+    snap = {
+        "rest_state": status.get("state"),
+        "rest_message": status.get("message") or "",
+        "battery": status.get("battery"),
+        "program_name": program.get("name"),
+        "program_started_at": program.get("started_at"),
+        "program_state": program.get("state"),
+        "robot_pose": None,
+        "base_position": None,
+        "ros_program_state": None,
+    }
+    try:
+        snap["robot_pose"] = ros.robot_pose()
+    except Exception as exc:
+        snap["robot_pose"] = f"<error: {exc}>"
+    try:
+        snap["base_position"] = ros.base_position()
+    except Exception as exc:
+        snap["base_position"] = f"<error: {exc}>"
+    try:
+        snap["ros_program_state"] = ros.program_state()
+    except Exception as exc:
+        snap["ros_program_state"] = {"error": str(exc)}
+    return snap
+
+
+def format_cell_snapshot(snap: dict) -> str:
+    ros = snap.get("ros_program_state") or {}
+    executing = ros.get("executing_name") if isinstance(ros, dict) else None
+    return (
+        f"REST={snap.get('rest_state')!r} RobotPose={snap.get('robot_pose')!r} "
+        f"BasePosition={snap.get('base_position')!r} program={snap.get('program_name')!r} "
+        f"started_at={snap.get('program_started_at')!r} executing={executing!r}"
+    )
+
+
 def retry_request(max_retries=3, timeout=10):
     """
     Decorator to retry HTTP requests with timeout.
@@ -199,6 +243,12 @@ class MobileRobotArm():
 
     @retry_request(max_retries=3, timeout=10)
     def acknowledge_error(self):
+        raw = self.request_status()
+        state = raw.get("state")
+        if state in IDLE_STATES:
+            # PUT Ready from Idle is rejected as "couldn't process event: Stop".
+            _mra_trace("acknowledge_error skipped; controller is already %s", state)
+            return
         _mra_trace("acknowledging error")
         time.sleep(5)
         response = requests.put(
@@ -278,6 +328,44 @@ class MobileRobotArm():
                 f"Failed to start program. Status code: {response.status_code}. Response: {response.text}"
             )
         _mra_trace("program started")
+
+    def wait_until_running(self, timeout: float = 10.0) -> None:
+        """Fail if Ability accepted start but never entered Executing.
+
+        A 200 from PUT Executing is not enough: Main can stay Idle when the
+        loaded program is a no-op (target already equals BasePosition) or when
+        start did not take. The logs then look like a successful 8s move.
+        """
+        deadline = time.monotonic() + timeout
+        last_state = None
+        last_message = ""
+        while time.monotonic() < deadline:
+            last_state, last_message = self.get_state_and_message()
+            if last_state == MRAState.RUNNING:
+                _mra_trace("wait_until_running saw %s", last_state)
+                return
+            if last_state == MRAState.ERROR:
+                raise ValueError(
+                    f"Program entered error before it started running. Message: {last_message}"
+                )
+            time.sleep(0.25)
+        program = None
+        try:
+            program = self.get_current_program()
+        except Exception:
+            pass
+        extra = ""
+        try:
+            extra = " " + format_cell_snapshot(ability_cell_snapshot(self.ip))
+        except Exception:
+            pass
+        raise ValueError(
+            f"Main was told to start but the controller stayed "
+            f"{last_state.name if last_state is not None else 'unknown'} "
+            f"(message={last_message!r}, program={program!r}). "
+            "The robot did not move."
+            f"{extra}"
+        )
 
     @retry_request(max_retries=3, timeout=10)
     def stop_program(self):
@@ -395,6 +483,121 @@ class MobileRobotArm():
                 f"Unknown state: {self.state}. Please check the API documentation for the full list of states."
             )
 
+    def _reject_stale_base_position(self, claimed: str | None, live, ros=None) -> str | None:
+        """Align BasePosition with the live pose, or refuse Main if we cannot.
+
+        BasePosition is a persisted Ability variable. Main writes it when a station
+        approach finishes, and never again until the next one. A pendant dock or a
+        cancelled move leaves the last station name in place. Main then retreats
+        as if it were still there.
+
+        The charging dock is uniquely identifiable from the live pose, so a stale
+        station name there is rewritten to Charging. Any other mismatch is still
+        refused: we do not guess a workstation.
+        """
+        from alab_control.mobile_robot_mir250.poses import StationPoses
+
+        if not claimed or claimed in ("Unknown", "None"):
+            return None
+        poses = StationPoses()
+        on_recorded_charger = poses.charger is not None and not poses.check_charger(live)
+        on_recorded_charging = (
+            poses.known("Charging") is not None and not poses.check("Charging", live)
+        )
+        on_charger = on_recorded_charger or on_recorded_charging
+        if on_charger and claimed not in ("Charging", "ChargingNoWait"):
+            if ros is None:
+                raise ValueError(
+                    f"BasePosition is {claimed!r} but the live pose is the charging dock "
+                    f"(Ability Base x={live.x:.3f} y={live.y:.3f}, "
+                    f"yaw={live.yaw_deg:.1f} deg). Main last wrote {claimed} when it "
+                    "arrived at that station and never updated the variable after the "
+                    "robot was docked. Starting Main now would retreat as if leaving "
+                    f"{claimed}. Update BasePosition to Charging to match the dock; "
+                    "do not start a base move until it does."
+                )
+            logger.warning(
+                "BasePosition is %r but the live pose is the charging dock "
+                "(Ability Base x=%.3f y=%.3f, yaw=%.1f deg); persisting Charging",
+                claimed,
+                live.x,
+                live.y,
+                live.yaw_deg,
+            )
+            ros.edit_variable("BasePosition", "Charging")
+            written = str(ros.base_position())
+            if written not in ("Charging", "ChargingNoWait"):
+                raise ValueError(
+                    f"BasePosition is {claimed!r} but the live pose is the charging dock "
+                    f"(Ability Base x={live.x:.3f} y={live.y:.3f}, "
+                    f"yaw={live.yaw_deg:.1f} deg). Tried to persist Charging but it "
+                    f"reads {written!r}. Do not start a base move until it matches."
+                )
+            return written
+        mismatch = poses.check(claimed, live)
+        if mismatch:
+            raise ValueError(
+                f"BasePosition is {claimed!r} but {mismatch}. "
+                "Main would drive the retreat for a station the robot is not in."
+            )
+        return None
+
+    def _prepare_for_main(self, target_base_position: str) -> dict:
+        """Settle Ability to Idle and refuse a base move Main cannot run."""
+        snap: dict = {}
+        try:
+            from alab_control.mobile_robot_mir250.clients import (
+                AbilityClient,
+                AbilityRosClient,
+            )
+
+            ability = AbilityClient(host=self.ip)
+            ros = AbilityRosClient(host=self.ip)
+            state = str((ability.status() or {}).get("state", ""))
+            if state == "Recovery":
+                logger.warning(
+                    "Ability is in Recovery; releasing the stranded programming token"
+                )
+                ros.force_token_release()
+                time.sleep(3)
+            try:
+                settled = ability.wait_until_loadable()
+                logger.info("Ability settled to %s before loading Main", settled)
+            except Exception as exc:
+                logger.warning("Ability did not settle to Idle before load: %s", exc)
+            snap = ability_cell_snapshot(self.ip)
+        except Exception as exc:
+            logger.warning("Could not snapshot Ability before Main: %s", exc)
+            return snap
+
+        logger.info("Ability before Main: %s", format_cell_snapshot(snap))
+        try:
+            live = ability.transform()
+            corrected = self._reject_stale_base_position(
+                snap.get("base_position"), live, ros
+            )
+            if corrected:
+                snap["base_position"] = corrected
+        except ValueError:
+            raise
+        except Exception as exc:
+            logger.warning("Could not reconcile BasePosition with the live pose: %s", exc)
+        base_move = target_base_position not in (None, "None", "none", "")
+        pose = snap.get("robot_pose")
+        if (
+            base_move
+            and pose not in (None, "Home")
+            and not str(pose).startswith("<error")
+        ):
+            raise ValueError(
+                f"Main will not move the base: RobotPose is {pose!r} (need Home), "
+                f"BasePosition is {snap.get('base_position')!r}, "
+                f"Ability is {snap.get('rest_state')!r}. "
+                "The arm is not at Home. Run HomeRobotArm so the arm actually "
+                "folds, then retry. Do not mark RobotPose=Home unless the fold finished."
+            )
+        return snap
+
     def run_main_program(
         self,
         target_base_position: str,
@@ -421,6 +624,7 @@ class MobileRobotArm():
                 raise ValueError(
                     f"The MRA is still running after 30 seconds. Current state: {self.get_state_and_message()[0]}"
                 )
+        self._prepare_for_main(target_base_position)
         self.load_main_program(
             target_base_position,
             source_region,
@@ -428,15 +632,33 @@ class MobileRobotArm():
             destination_region,
             destination_slot,
         )
+        try:
+            loaded = self.get_current_program()
+            _mra_trace("run_main_program loaded Main current_program=%r", loaded)
+        except Exception:
+            _mra_trace("run_main_program loaded Main; could not read current_program")
         _mra_trace("run_main_program loaded Main; waiting 3s")
         time.sleep(3)
         self.start_program()
-        _mra_trace("run_main_program started; waiting 3s before polling")
-        time.sleep(3)
+        self.wait_until_running()
+        running_started_at = time.monotonic()
         self.wait_for_program_to_finish()
+        ran_for = time.monotonic() - running_started_at
+        arm_only = target_base_position in (None, "None", "none") and source_region not in (
+            None,
+            "None",
+            "none",
+        )
+        if arm_only and ran_for < 5.0:
+            raise ValueError(
+                f"Main returned to idle after {ran_for:.1f}s for an arm move "
+                f"{source_region}/{source_slot} -> {destination_region}/{destination_slot}. "
+                "A real pick or place takes much longer; the robot did not move."
+            )
         _mra_trace(
-            "run_main_program complete (%.2fs total)",
+            "run_main_program complete (%.2fs total, %.2fs after running)",
             time.monotonic() - started_at,
+            ran_for,
         )
 
     def charge(self):
