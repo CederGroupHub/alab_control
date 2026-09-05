@@ -349,19 +349,5 @@ max_samples = 16
 max_carriers = 4
 return_carrier_to = "LABMAN"
 
-[[route]]
-source = "LABMAN"
-destination = "DASH"
-description = "Dosed crucibles from Labman straight to characterization, carried in their own Labman subracks."
-max_samples = 16
-max_carriers = 4
-return_carrier_to = "LABMAN"
-
-[[route]]
-source = "BFT"
-destination = "DASH"
-description = "Fired crucibles from the furnaces to characterization. Labman has no part in this, so the subracks are borrowed from storage."
-max_samples = 16
-max_carriers = 4
-carrier_from = "SRS"
-return_carrier_to = "SRS"
+# LABMAN → DASH and BFT → DASH are no longer mobile-robot hops.
+# LABMAN stages on BFT_input_rack (route above); Prometheus then places on DASH_input_rack.
