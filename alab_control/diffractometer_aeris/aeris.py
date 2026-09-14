@@ -7,7 +7,7 @@ import xmltodict
 import socket
 import time
 import os
-from typing import List, Tuple, Union, Dict
+from typing import Dict, List, Optional, Tuple, Union
 from enum import Enum
 
 ### Exceptions
@@ -44,7 +44,9 @@ class Aeris:
         # 3: 4,
     }  # slot locations that are allowed for ALab samples
     COMMUNICATION_DELAY: float = 0.2  # time to wait between sending a message to Aeris and searching for a response
-    FILEWRITE_TIMEOUT: float = 10  # seconds to wait after trying to read a file before considering it a failure
+    # Shared-folder export to D:\AerisData can lag the Aeris idle signal.
+    FILEWRITE_TIMEOUT: float = 120  # seconds to wait for {sample_id}.xrdml / {sample_id}_N.xrdml
+    QUERY_TIMEOUT: float = 8.0  # socket timeout so wipe/status cannot hang forever
     XRD_ERROR_TIMEOUT: float = 3600  # seconds to wait after scanning before considering it as a failure
 
     # Replace IP, port, and directory paths with your own info
@@ -123,6 +125,7 @@ class Aeris:
             str: Aeris reply
         """
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(self.QUERY_TIMEOUT)
             s.connect((self.ip, self.port))
             if self._debug:
                 logger.info(str('sent: ') + ' ' + str(msg))
@@ -136,6 +139,57 @@ class Aeris:
             )  # TODO do we actually need this here? seems unlikely
 
         return str(data)
+
+    @staticmethod
+    def find_result_filename(results_dir: str, sample_id: str) -> Optional[str]:
+        """Return the Aeris export filename for sample_id, if present.
+
+        Prefers ``{sample_id}.xrdml``. Also accepts:
+        - ``{sample_id}_N.xrdml`` (Aeris clash copy of the same id)
+        - ``{prefix}_N_{uuid}.xrdml`` when sample_id is ``{prefix}_{uuid}``
+          (AlabOS duplicate-name suffix inserted before the uuid)
+        """
+        try:
+            names = os.listdir(results_dir)
+        except OSError:
+            return None
+        exact = f"{sample_id}.xrdml"
+        if exact in names:
+            return exact
+        prefix = f"{sample_id}_"
+        clashes: list[tuple[int, str]] = []
+        for name in names:
+            if not (name.startswith(prefix) and name.lower().endswith(".xrdml")):
+                continue
+            rest = name[len(prefix) : -len(".xrdml")]
+            if rest.isdigit():
+                clashes.append((int(rest), name))
+        if clashes:
+            clashes.sort()
+            return clashes[-1][1]
+
+        uuid_re = re.compile(
+            r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+            re.I,
+        )
+        if uuid_re.search(sample_id):
+            head, uuid = sample_id.rsplit("_", 1)
+            renamed: list[tuple[float, str]] = []
+            for name in names:
+                if not name.lower().endswith(".xrdml"):
+                    continue
+                stem = name[: -len(".xrdml")]
+                m = re.fullmatch(
+                    rf"{re.escape(head)}_\d+_{re.escape(uuid)}(?:_\d+)?",
+                    stem,
+                    re.I,
+                )
+                if m:
+                    renamed.append((os.path.getmtime(os.path.join(results_dir, name)), name))
+            if renamed:
+                renamed.sort()
+                return renamed[-1][1]
+        return None
 
     def is_slot_empty(self, loc: Union[str, int]) -> bool:
         """Check if a given slot is empty. This checks the Aeris' proximity sensor results (ie checks if a sample is physically present in the slot, regardless of whether a sample has been added to the Aeris database at this slot)
@@ -185,6 +239,18 @@ class Aeris:
                 f"Scan failed for program {program} on sample_id {sample_id}! Aeris returned: {reply}"
             )
 
+    def wait_until_scan_idle(self, sample_id: str) -> None:
+        """Block until the XRD reports idle after MEASURE (or raise ScanFailed)."""
+        time.sleep(10)  # wait for the sample to be loaded and the scan to start
+        t_start = time.time()
+        while self.xrd_is_busy:
+            if (time.time() - t_start) > self.XRD_ERROR_TIMEOUT:
+                raise ScanFailed(
+                    f"XRD scan for sample {sample_id} timed out! AERIS might have an error."
+                )
+            time.sleep(2)
+        time.sleep(5)  # wait for the gripper to fully stop
+
     def load_scan_results(self, sample_id: str) -> Tuple[np.array, np.array]:
         """Load scan results from Aeris
 
@@ -194,9 +260,12 @@ class Aeris:
         Returns:
             Tuple[np.array, np.array]: arrays of 2theta and intensity values
         """
-        filename = f"{sample_id}.xrdml"
         t_start = time.time()
-        while filename not in os.listdir(self.results_dir):
+        filename = None
+        while True:
+            filename = self.find_result_filename(self.results_dir, sample_id)
+            if filename is not None:
+                break
             if (time.time() - t_start) > self.FILEWRITE_TIMEOUT:
                 raise FileExportFailed(f"Scan results for {sample_id} not found!")
             time.sleep(self.FILEWRITE_TIMEOUT / 10)
@@ -237,19 +306,9 @@ class Aeris:
             bool: True if scan was successful, False otherwise
         """
         self.scan(sample_id, program)
-        time.sleep(10) #wait for the sample to be loaded and the scan to start
-        t_start = time.time()
-        while self.xrd_is_busy:
-            if (time.time() - t_start) > self.XRD_ERROR_TIMEOUT:
-                raise ScanFailed(f"XRD scan for sample {sample_id} timed out! AERIS might have an error.")
-            time.sleep(2)
-        time.sleep(5)  # wait for the gripper to fully stop
-        try:
-            scan_results=self.load_scan_results(sample_id)
-            return scan_results, True
-        except FileExportFailed:
-            logger.error(f'AERIS file export failed for {sample_id}!')
-            return (None,None), False
+        self.wait_until_scan_idle(sample_id)
+        scan_results = self.load_scan_results(sample_id)
+        return scan_results, True
 
     def add(
         self,

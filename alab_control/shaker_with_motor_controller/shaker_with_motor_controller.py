@@ -52,6 +52,11 @@ class ShakerWMC(BaseArduinoDevice):
 
     FREQUENCY = 51  # the frequency of the shaker
 
+    # FSR is ~1000 unloaded. Arduino may stop close on a small relative drop
+    # (FORCE_DROP_DELTA) well above the old Python absolute limit of 200, which
+    # rejected valid grips. Only treat near-unloaded readings as a lost grip.
+    FORCE_UNLOADED_MIN = 900
+
     ENDPOINTS = {
         "close gripper": "/gripper-close",
         "open gripper": "/gripper-open",
@@ -84,53 +89,122 @@ class ShakerWMC(BaseArduinoDevice):
             return True
         return False
 
-    def close_gripper(self):
+    def close_gripper(self, check_force: bool = True):
         """
-        Close the gripper to hold the container
+        Close the gripper to hold the container.
+
+        Arduino firmware still stops the jaws when its FSR limit is hit.
+        When check_force is True (default), Python also rejects CLOSE+ERROR or
+        near-unloaded force readings. When False, wait for CLOSE then return
+        even if the FSR trip never happened (so shaking can still run).
         """
         state = self.get_state()
-        logger.info(f'{self.get_current_time()} Gripping the container')
+        if SystemState(state["system_status"]) == SystemState.ERROR:
+            logger.warning(
+                f"{self.get_current_time()} Arduino in ERROR before grip; resetting"
+            )
+            self.reset()
+            state = self.get_state()
+
+        logger.info(f"{self.get_current_time()} Gripping the container")
         self.send_request(
             self.ENDPOINTS["close gripper"],
             suppress_error=True,
             timeout=10,
             max_retries=3,
         )
-        while not (GripperWMCState(state["gripper_status"]) == GripperWMCState.CLOSE):
+        while GripperWMCState(state["gripper_status"]) != GripperWMCState.CLOSE:
             state = self.get_state()
             if SystemState(state["system_status"]) == SystemState.ERROR:
-                raise ShakerWMCError(
-                    "Shaker machine is in error state. Failed to grip."
-                )
+                # Firmware sets CLOSE+ERROR together when max travel is hit
+                # without an FSR trip; exit the wait and decide below.
+                if GripperWMCState(state["gripper_status"]) == GripperWMCState.CLOSE:
+                    break
+                if check_force:
+                    force = state.get("force_reading")
+                    raise ShakerWMCError(
+                        f"Shaker machine is in error state. Failed to grip "
+                        f"(force_reading={force}). Try reset, then close again."
+                    )
+                break
             time.sleep(1)
-        if int(state["force_reading"]) > 200:
-            raise ShakerWMCError("Gripper is not fully closed or has lost grip.")
 
-    def open_gripper(self):
+        state = self.get_state()
+        force = int(state["force_reading"])
+        if not check_force:
+            logger.info(
+                f"{self.get_current_time()} Close done without force check "
+                f"(gripper={state['gripper_status']}, "
+                f"system={state['system_status']}, force_reading={force})"
+            )
+            return
+
+        if force >= self.FORCE_UNLOADED_MIN:
+            raise ShakerWMCError(
+                f"Gripper reports CLOSE but force_reading={force} still looks "
+                f"unloaded (expected a drop well below {self.FORCE_UNLOADED_MIN})."
+            )
+        if SystemState(state["system_status"]) == SystemState.ERROR:
+            # Firmware sets ERROR when close hits MAG_MIN without an FSR trip,
+            # even when the jaws are clearly holding (force already dropped a lot).
+            # Keep the grip and continue; mill shake is Phidget-side.
+            logger.warning(
+                f"{self.get_current_time()} Arduino ERROR after close but "
+                f"force_reading={force} looks gripped; continuing"
+            )
+        else:
+            logger.info(
+                f"{self.get_current_time()} Grip OK "
+                f"(force_reading={force}, status={state['system_status']})"
+            )
+
+    def open_gripper(self, check_force: bool = True):
         """
-        Open the gripper to release the container
+        Open the gripper to release the container.
+
+        When check_force is False, wait for OPEN (or ERROR) and return without
+        validating the unloaded force reading.
         """
         state = self.get_state()
-        logger.info(f'{self.get_current_time()} Releasing the gripper')
+        if SystemState(state["system_status"]) == SystemState.ERROR:
+            logger.warning(
+                f"{self.get_current_time()} Arduino in ERROR before open; resetting"
+            )
+            self.reset()
+            state = self.get_state()
+
+        logger.info(f"{self.get_current_time()} Releasing the gripper")
         self.send_request(
             self.ENDPOINTS["open gripper"],
             suppress_error=True,
             timeout=10,
             max_retries=3,
         )
-        while not (GripperWMCState(state["gripper_status"]) == GripperWMCState.OPEN):
+        while GripperWMCState(state["gripper_status"]) != GripperWMCState.OPEN:
             state = self.get_state()
             if SystemState(state["system_status"]) == SystemState.ERROR:
-                raise ShakerWMCError(
-                    "Shaker machine is in error state. Failed to release."
-                )
+                if check_force:
+                    raise ShakerWMCError(
+                        "Shaker machine is in error state. Failed to release."
+                    )
+                break
             time.sleep(1)
-        if int(state["force_reading"]) < 200:
+        if not check_force:
+            return
+        state = self.get_state()
+        force = int(state["force_reading"])
+        if force < self.FORCE_UNLOADED_MIN:
             raise ShakerWMCError(
-                "Gripper is not fully open or something is attached to the upper part."
+                f"Gripper reports OPEN but force_reading={force} still looks "
+                f"loaded (expected >= {self.FORCE_UNLOADED_MIN})."
             )
 
-    def shaking(self, duration_sec: float, frequency: int = FREQUENCY):
+    def shaking(
+        self,
+        duration_sec: float,
+        frequency: int = FREQUENCY,
+        ignore_arduino_error: bool = False,
+    ):
         """
         Run the mill for a given duration (seconds) and frequency via Phidget USB.
         Shakes whether or not an object is detected in the gripper.
@@ -138,6 +212,8 @@ class ShakerWMC(BaseArduinoDevice):
         Args:
             duration_sec: duration of shaking in seconds.
             frequency: frequency of the shaker in Hz.
+            ignore_arduino_error: if True, never abort on Arduino ERROR (use when
+                shaking after a close that may not have hit the FSR trip).
         """
         self.stop_event.clear()
         generator = DiscreteSpeedProfileGenerator(
@@ -160,7 +236,22 @@ class ShakerWMC(BaseArduinoDevice):
                     return
                 state = self.get_state()
                 if SystemState(state["system_status"]) == SystemState.ERROR:
-                    raise ShakerWMCError("Shaker machine is in error state.")
+                    if ignore_arduino_error:
+                        time.sleep(0.1)
+                        continue
+                    # Arduino ERROR is usually a grip/FSR false fail; mill is Phidget.
+                    # Only abort if the jaws look unloaded while we expect a hold.
+                    force = int(state.get("force_reading", 0))
+                    grip = GripperWMCState(state["gripper_status"])
+                    if grip != GripperWMCState.CLOSE or force >= self.FORCE_UNLOADED_MIN:
+                        raise ShakerWMCError(
+                            f"Shaker machine is in error state "
+                            f"(gripper={grip.value}, force_reading={force})."
+                        )
+                    logger.warning(
+                        f"{self.get_current_time()} Ignoring Arduino ERROR during "
+                        f"shake (gripper CLOSE, force_reading={force})"
+                    )
                 time.sleep(0.1)
         except ShakerWMCError:
             self.motor_controller.stop()
@@ -169,6 +260,7 @@ class ShakerWMC(BaseArduinoDevice):
         finally:
             self.motor_controller.stop()
             thread.join(timeout=10)
+            self.stop_event.clear()
 
     def close_gripper_and_shake(self, duration_sec: int, frequency: int = FREQUENCY):
         """
@@ -194,11 +286,13 @@ class ShakerWMC(BaseArduinoDevice):
 
     def stop(self):
         """
-        Stop the shaker machine
+        Stop the shaker machine.
+
+        Leaves stop_event set so shaking()'s wait loop can see it; that loop
+        returns and finishes cleanup. Clearing here raced Ctrl+C shutdown.
         """
         self.stop_event.set()
         self.motor_controller.stop()
-        self.stop_event.clear()
 
     def is_running(self):
         return self.get_state()["system_status"] == SystemState.RUNNING.value

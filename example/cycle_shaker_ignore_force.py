@@ -1,23 +1,17 @@
 """
-Close the DASH shaker gripper, shake in 10-minute bursts with 1-minute rests,
-then open the gripper.
+Same as cycle_shaker.py, but Python never aborts on grip force / Arduino ERROR.
 
-Total active shake time is X (rests do not count toward X). Frequency is Y.
+Arduino firmware still stops the jaws when its FSR limit is hit. If that trip
+never happens (CLOSE + ERROR, soft force reading), this script still shakes.
 
 Example:
-  python example/cycle_shaker.py --duration-min 30 --frequency 25
-  -> close, shake 10, rest 1, shake 10, rest 1, shake 10, open
-
-Ctrl+C: stop mill, wait 5 s, open gripper.
-Must set FOR_DISABLE_CONSOLE_CTRL_HANDLER before NumPy/SciPy load, otherwise
-Intel Fortran aborts the process on Ctrl+C (forrtl error 200).
+  python example/cycle_shaker_ignore_force.py --duration-min 3 --frequency 45
 """
 
 from __future__ import annotations
 
 import os
 
-# Disable Intel Fortran Ctrl+C abort (pulled in via NumPy/SciPy). Must be first.
 os.environ["FOR_DISABLE_CONSOLE_CTRL_HANDLER"] = "1"
 
 import argparse
@@ -27,8 +21,8 @@ import time
 from alab_control.shaker_with_motor_controller import ShakerWMC
 
 DEFAULT_IP = "192.168.1.189"
-SHAKE_CHUNK_SEC = 10 * 60  # 10 minutes of shaking per interval
-REST_SEC = 60  # 1 minute pause between intervals
+SHAKE_CHUNK_SEC = 10 * 60
+REST_SEC = 60
 CTRL_C_OPEN_DELAY_SEC = 5
 
 
@@ -60,7 +54,6 @@ def cycle_shaker(
     chunk_index = 0
 
     def _on_sigint(signum, frame):
-        # Ask the Phidget profile thread to stop, then let KeyboardInterrupt unwind.
         print("\nCtrl+C: stopping shaker...")
         try:
             shaker.stop()
@@ -75,32 +68,28 @@ def cycle_shaker(
         f"in chunks of {_format_duration(shake_chunk_sec)} "
         f"with {_format_duration(rest_sec)} rests (rests not counted)."
     )
-    print(f"Arduino gripper: {ip_address} | Phidget mill via ShakerWMC")
+    print(
+        f"Arduino gripper: {ip_address} | Phidget mill via ShakerWMC "
+        "| ignore Python grip-force checks"
+    )
     state = shaker.get_state()
     print(f"State before: {state}")
 
-    # Stale ERROR blocks shaking; reset before deciding whether to re-close.
     if state.get("system_status") == "ERROR":
         print("Arduino in ERROR; resetting before grip...")
         shaker.reset()
         state = shaker.get_state()
         print(f"State after reset: {state}")
 
-    force = int(state.get("force_reading", 0))
-    already_closed = (
-        state.get("gripper_status") == "CLOSE"
-        and state.get("system_status") == "IDLE"
-        and force < ShakerWMC.FORCE_UNLOADED_MIN
-    )
-    if already_closed:
+    if state.get("gripper_status") == "CLOSE":
         print(
-            f"Gripper already CLOSE with force_reading={force}; "
+            f"Gripper already CLOSE (force_reading={state.get('force_reading')}); "
             "skipping close_gripper()."
         )
     else:
-        print("Closing gripper...")
-        shaker.close_gripper()
-        print(f"Gripper closed: {shaker.get_state()}")
+        print("Closing gripper (Arduino FSR stop still active; no Python force abort)...")
+        shaker.close_gripper(check_force=False)
+        print(f"Gripper after close: {shaker.get_state()}")
 
     interrupted = False
     try:
@@ -112,7 +101,11 @@ def cycle_shaker(
                 f"at {frequency} Hz "
                 f"({_format_duration(remaining - this_chunk)} left after) ==="
             )
-            shaker.shaking(duration_sec=this_chunk, frequency=frequency)
+            shaker.shaking(
+                duration_sec=this_chunk,
+                frequency=frequency,
+                ignore_arduino_error=True,
+            )
             remaining -= this_chunk
 
             if remaining > 0:
@@ -130,14 +123,13 @@ def cycle_shaker(
         print(
             f"Waiting {CTRL_C_OPEN_DELAY_SEC} seconds before opening gripper..."
         )
-        # Ignore further Ctrl+C during the delay so cleanup can finish.
         signal.signal(signal.SIGINT, signal.SIG_IGN)
         time.sleep(CTRL_C_OPEN_DELAY_SEC)
     finally:
         signal.signal(signal.SIGINT, previous_handler)
         print("\nOpening gripper...")
         try:
-            shaker.open_gripper()
+            shaker.open_gripper(check_force=False)
         except Exception as exc:
             print(f"open_gripper failed: {exc}")
             try:
@@ -153,8 +145,8 @@ def cycle_shaker(
 def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
-            "Close gripper, shake total time X at frequency Y in 10-minute "
-            "intervals with 1-minute rests, then open gripper."
+            "Close gripper (Arduino FSR still stops the jaws), then shake even "
+            "if the FSR trip / Python force check did not pass."
         )
     )
     parser.add_argument(

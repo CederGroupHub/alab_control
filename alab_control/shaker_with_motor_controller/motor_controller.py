@@ -245,19 +245,24 @@ class Motor:
 
     def stop(self) -> None:
         """
-        Stops the motor.
+        Stops the motor without re-opening the Phidget channel.
+
+        Re-open-on-failure raced with Ctrl+C / profile-thread cleanup and left
+        the channel Closed or "multiple opens", so the next shake never started.
         """
+        motor = getattr(self, "dcMotor", None)
+        self.running = False
+        if motor is None:
+            return
         try:
-            self.set_speed(0)
-            self.dcMotor.close()
-            self.running = False
-        except:
-            self.dcMotor = DCMotor()
-            self.dcMotor.setDeviceSerialNumber(PHIDGET_SERIAL_NUMBER)
-            self.dcMotor.openWaitForAttachment(1000)
-            self.dcMotor.setTargetVelocity(0)
-            self.dcMotor.close()
-            self.running = False
+            if motor.getAttached():
+                motor.setTargetVelocity(0)
+        except Exception:
+            pass
+        try:
+            motor.close()
+        except Exception:
+            pass
 
     def scale_to_control(self, speed: float) -> float:
         """
@@ -394,6 +399,11 @@ class SpeedSensor:
         """
         Starts the sensor.
         """
+        if self.running:
+            return
+        # New channel object after close(); reusing a closed Phidget fails attach.
+        self.encoder = Encoder()
+        self.encoder.setOnPositionChangeHandler(self._onPositionChange)
         self.encoder.setDeviceSerialNumber(PHIDGET_SERIAL_NUMBER)
         self.encoder.openWaitForAttachment(5000)
         self.encoder.setDataInterval(self.sampling_interval)
@@ -401,9 +411,16 @@ class SpeedSensor:
 
     def stop(self) -> None:
         """
-        Stops the sensor.
+        Stops the sensor and closes the encoder channel.
         """
         self.running = False
+        encoder = getattr(self, "encoder", None)
+        if encoder is None:
+            return
+        try:
+            encoder.close()
+        except Exception:
+            pass
 
     def read_PV(self) -> float:
         """

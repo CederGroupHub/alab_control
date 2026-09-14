@@ -15,10 +15,14 @@ from pymodbus.client.sync import ModbusSerialClient
 class ProgramMode(Enum):
     """
     The current state of machine (if it is running a program)
+
+    Eurotherm 2416 programmer status is a bitfield-like set of values.
+    Status 8 is holdback (program active but waiting for PV to catch SP).
     """
     OFF = 1
     RUN = 2
     HOLD = 4
+    HOLDBACK = 8
     STOP = 16
 
 
@@ -316,6 +320,17 @@ class FurnaceController(FurnaceRegister):
         """
         if self["Operator.RUN.Prg"] != 1:
             self["Operator.RUN.Prg"] = 1
+        # Program-level holdback with Hb_V=0 freezes ramps (StAt=HOLDBACK) forever.
+        # Clear it before starting so profiles actually advance.
+        try:
+            if self["Programmer.Program_01.Hb"] != 0:
+                self["Programmer.Program_01.Hb"] = 0
+            if self["Programmer.Program_01.Hb_V"] != 0:
+                self["Programmer.Program_01.Hb_V"] = 0
+            if self["Operator.SP.Hbkdis"] != 1:
+                self["Operator.SP.Hbkdis"] = 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Could not clear program holdback before play: %s", exc)
         if self.is_running():
             raise FurnaceError("A program is still running")
         self.program_mode = ProgramMode.RUN
@@ -345,8 +360,11 @@ class FurnaceController(FurnaceRegister):
         """
         Whether the program is running
         """
-        return (self.program_mode == ProgramMode.RUN
-                or self.current_temperature >= self._SAFETY_TEMPERATURE)
+        return (
+            self.program_mode
+            in {ProgramMode.RUN, ProgramMode.HOLD, ProgramMode.HOLDBACK}
+            or self.current_temperature >= self._SAFETY_TEMPERATURE
+        )
 
     def _read_segment_i(self, i: int) -> Dict[str, Any]:
         return {
