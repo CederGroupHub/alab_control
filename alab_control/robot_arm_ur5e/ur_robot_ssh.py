@@ -18,7 +18,14 @@ class URRobotSSH:
         self.ip = ip
         self._ssh = paramiko.SSHClient()
         self._ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self._ssh.connect(self.ip, username="root", password="easybot")
+        self._ssh.connect(
+            self.ip,
+            username="root",
+            password="easybot",
+            timeout=10,
+            banner_timeout=10,
+            auth_timeout=10,
+        )
 
     def read_file(self, file_path: str):
         with self._ssh.open_sftp() as sftp:
