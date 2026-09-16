@@ -60,6 +60,7 @@ class ShakerWMC(BaseArduinoDevice):
     ENDPOINTS = {
         "close gripper": "/gripper-close",
         "open gripper": "/gripper-open",
+        "tighten gripper": "/more",
         "state": "/state",
         "reset": "/reset",
     }
@@ -157,6 +158,38 @@ class ShakerWMC(BaseArduinoDevice):
                 f"{self.get_current_time()} Grip OK "
                 f"(force_reading={force}, status={state['system_status']})"
             )
+
+    def tighten_gripper(self, steps: int = 1):
+        """
+        After a normal FSR stop, retract a few more MAG_DELTA steps (HTTP /more).
+
+        Requires the sep15+ Arduino sketch that exposes GET /more. One step is a
+        small extra squeeze past the force trip; firmware caps pending at 20.
+        """
+        steps = max(1, min(int(steps), 20))
+        logger.info(
+            f"{self.get_current_time()} Tightening gripper by {steps} extra step(s)"
+        )
+        for _ in range(steps):
+            self.send_request(
+                self.ENDPOINTS["tighten gripper"],
+                suppress_error=True,
+                timeout=10,
+                max_retries=3,
+            )
+        # Each step is ~500 ms on the Arduino; wait until IDLE again.
+        deadline = time.time() + max(10.0, steps * 2.0 + 5.0)
+        state = self.get_state()
+        while time.time() < deadline:
+            if SystemState(state["system_status"]) == SystemState.IDLE:
+                break
+            state = self.get_state()
+        logger.info(
+            f"{self.get_current_time()} Tighten done "
+            f"(mag={state.get('mag')}, force_reading={state.get('force_reading')}, "
+            f"status={state.get('system_status')})"
+        )
+        return state
 
     def open_gripper(self, check_force: bool = True):
         """

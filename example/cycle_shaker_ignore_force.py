@@ -43,6 +43,7 @@ def cycle_shaker(
     ip_address: str = DEFAULT_IP,
     shake_chunk_sec: float = SHAKE_CHUNK_SEC,
     rest_sec: float = REST_SEC,
+    tighten_steps: int = 2,
 ) -> None:
     if duration_sec <= 0:
         raise ValueError("duration must be positive")
@@ -90,6 +91,9 @@ def cycle_shaker(
         print("Closing gripper (Arduino FSR stop still active; no Python force abort)...")
         shaker.close_gripper(check_force=False)
         print(f"Gripper after close: {shaker.get_state()}")
+
+    print(f"Tightening grip by {tighten_steps} extra step(s) (/more)...")
+    print(f"Gripper after tighten: {shaker.tighten_gripper(steps=tighten_steps)}")
 
     interrupted = False
     try:
@@ -179,6 +183,12 @@ def main() -> None:
         default=1.0,
         help="Rest minutes between intervals (default 1).",
     )
+    parser.add_argument(
+        "--tighten-steps",
+        type=int,
+        default=2,
+        help="Extra /more retract steps after FSR stop (default 2).",
+    )
     args = parser.parse_args()
 
     cycle_shaker(
@@ -187,6 +197,7 @@ def main() -> None:
         ip_address=args.ip,
         shake_chunk_sec=args.chunk_min * 60.0,
         rest_sec=args.rest_min * 60.0,
+        tighten_steps=args.tighten_steps,
     )
 
 
