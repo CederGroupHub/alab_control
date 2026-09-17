@@ -116,15 +116,22 @@ class MobileRobotArm():
         
     @retry_request(max_retries=3, timeout=10)
     def acknowledge_error(self):
-        # send a put request to http://192.168.1.207:8082/v2/status with the following body:
-        # {
-        #     "state": "Ready"
-        # }
-        time.sleep(5) # wait for 5 seconds to make sure the MRA is ready to acknowledge the error
-        response = requests.put(f"http://{self.ip}:8082/v2/status", json={"state": "Ready"}, timeout=self.timeout)
+        """Clear a latched Ability error.
+
+        The Ability UI clears many faults by flipping Automatic on then immediately
+        back to Manual. Do that first, then request Ready over REST.
+        """
+        self.clear_error_with_auto_manual_handshake()
+        time.sleep(5)  # wait for the MRA to accept the Ready transition
+        response = requests.put(
+            f"http://{self.ip}:8082/v2/status", json={"state": "Ready"}, timeout=self.timeout
+        )
         if response.status_code != 200:
-            raise ValueError(f"Failed to acknowledge error. Status code: {response.status_code}. Response: {response.text}")
-        
+            raise ValueError(
+                f"Failed to acknowledge error. Status code: {response.status_code}. "
+                f"Response: {response.text}"
+            )
+        self.ensure_manual_mode()        
     def get_battery_level(self) -> float:
         # send a get request to http://192.168.1.207:8082/v2/status
         # this is an example response:
@@ -263,6 +270,8 @@ class MobileRobotArm():
 
         Ability rejects ``ActivateProgramming`` while stuck in ``Ready`` with a
         stranded programming token. Release the token once, then wait for Idle.
+        Also ensures Ability stays in Manual (Automatic off). Code-driven control runs
+        with Automatic off; the Auto→Manual toggle is only used to clear latched errors.
         """
         patience = 30
         while self.is_running() and patience > 0:
@@ -280,32 +289,135 @@ class MobileRobotArm():
             if raw == "Ready":
                 self._force_token_release()
                 time.sleep(1)
+        self.ensure_manual_mode()
 
-    def _force_token_release(self) -> None:
-        """Clear a stranded programming token that leaves the controller in Ready."""
+    def _call_ros_service(self, service: str, args: dict | None = None) -> dict | None:
+        """Call one Ability rosbridge service; return the response values or None."""
         try:
             import websocket
         except ImportError:
-            return
+            return None
+        sid = "mra"
         try:
-            ws = websocket.create_connection(f"ws://{self.ip}:9090", timeout=10)
+            ws = websocket.create_connection(f"ws://{self.ip}:9090", timeout=self.timeout)
             ws.send(
                 json.dumps(
                     {
                         "op": "call_service",
-                        "id": "ftr",
-                        "service": "/ability_backend/program/force_token_release",
-                        "args": {},
+                        "id": sid,
+                        "service": service,
+                        "args": args or {},
                     }
                 )
             )
             while True:
                 msg = json.loads(ws.recv())
-                if msg.get("op") == "service_response" and msg.get("id") == "ftr":
-                    break
-            ws.close()
+                if msg.get("op") == "service_response" and msg.get("id") == sid:
+                    values = msg.get("values")
+                    ws.close()
+                    return values if isinstance(values, dict) else {}
         except Exception:
-            pass
+            return None
+        return None
+
+    def _force_token_release(self) -> None:
+        """Clear a stranded programming token that leaves the controller in Ready."""
+        self._call_ros_service("/ability_backend/program/force_token_release")
+
+    def _system_region(self) -> str:
+        """Current Ability ``system.region`` from ``/ability_backend/system_state``."""
+        try:
+            import websocket
+        except ImportError:
+            return ""
+        try:
+            ws = websocket.create_connection(f"ws://{self.ip}:9090", timeout=self.timeout)
+            ws.send(
+                json.dumps(
+                    {
+                        "op": "subscribe",
+                        "id": "sys",
+                        "topic": "/ability_backend/system_state",
+                        "type": "state_machine_controller/SystemState",
+                        "queue_length": 1,
+                    }
+                )
+            )
+            deadline = time.time() + min(float(self.timeout), 8.0)
+            region = ""
+            while time.time() < deadline:
+                ws.settimeout(2)
+                try:
+                    msg = json.loads(ws.recv())
+                except Exception:
+                    continue
+                if msg.get("op") == "publish" and msg.get("topic") == "/ability_backend/system_state":
+                    system = (msg.get("msg") or {}).get("system") or {}
+                    region = str(system.get("region") or "")
+                    break
+            try:
+                ws.send(
+                    json.dumps(
+                        {
+                            "op": "unsubscribe",
+                            "id": "sys",
+                            "topic": "/ability_backend/system_state",
+                        }
+                    )
+                )
+            except Exception:
+                pass
+            ws.close()
+            return region
+        except Exception:
+            return ""
+
+    def is_automatic_mode(self) -> bool:
+        """True when the Ability dashboard Automatic switch would show as on."""
+        return self._system_region() == "queue"
+
+    def is_manual_mode(self) -> bool:
+        """True when Automatic is off — the mode code-driven control should stay in."""
+        return not self.is_automatic_mode()
+
+    def set_automatic_mode(self, enabled: bool, *, release_token: bool = True) -> bool:
+        """Match the Ability UI Automatic toggle via activate/deactivate_queue."""
+        if enabled:
+            if release_token:
+                self._force_token_release()
+            self._call_ros_service("/ability_backend/system/activate_queue")
+        else:
+            self._call_ros_service("/ability_backend/system/deactivate_queue")
+        deadline = time.time() + min(float(self.timeout), 10.0)
+        while time.time() < deadline:
+            if self.is_automatic_mode() is bool(enabled):
+                return True
+            time.sleep(0.2)
+        return self.is_automatic_mode() is bool(enabled)
+
+    def ensure_manual_mode(self) -> bool:
+        """Leave Ability in Manual (Automatic off). No-op when already Manual."""
+        try:
+            if self.is_manual_mode():
+                return True
+            return self.set_automatic_mode(False)
+        except Exception:
+            return False
+
+    def clear_error_with_auto_manual_handshake(self) -> bool:
+        """Flip Automatic on, then immediately back to Manual — clears many latched faults.
+
+        Code control must end in Manual. Returns True when Manual is restored.
+        """
+        try:
+            self.set_automatic_mode(True)
+            time.sleep(0.3)
+            return self.set_automatic_mode(False)
+        except Exception:
+            try:
+                return self.ensure_manual_mode()
+            except Exception:
+                return False
 
     def run_program(self, program_name: str, arguments: dict[str, str] | None = None):
         """Load a program by name, run it, and wait for it to finish.
