@@ -1,3 +1,4 @@
+import json
 import time
 from enum import Enum
 from functools import wraps
@@ -258,28 +259,56 @@ class MobileRobotArm():
             raise ValueError(f"Unknown state: {self.state}. Please check the API documentation for the full list of states.")
         
     def wait_until_loadable(self):
-        # a program can only be loaded once the previous one has finished.
-        while self.is_running():
-            patience = 30
-            while self.is_running() and patience > 0:
-                patience -= 1
-                time.sleep(1)
-            if patience == 0:
-                raise ValueError(f"The MRA is still running after 30 seconds. Current state: {self.get_state_and_message()[0]}")
+        """Wait until a previous run has finished so the next load can be accepted.
 
-    def run_main_program(self, target_base_position: str, source_region: str, source_slot: str, destination_region: str, destination_slot: str):
-        self.wait_until_loadable()
-        self.load_main_program(target_base_position, source_region, source_slot, destination_region, destination_slot)
-        time.sleep(3) # wait for the program to load.
-        # start the program
-        self.start_program()
-        time.sleep(3) # wait for the program to start.
-        # wait for the program to finish
-        self.wait_for_program_to_finish()
+        Ability rejects ``ActivateProgramming`` while stuck in ``Ready`` with a
+        stranded programming token. Release the token once, then wait for Idle.
+        """
+        patience = 30
+        while self.is_running() and patience > 0:
+            patience -= 1
+            time.sleep(1)
+        if patience == 0:
+            raise ValueError(
+                f"The MRA is still running after 30 seconds. "
+                f"Current state: {self.get_state_and_message()[0]}"
+            )
+        state, _ = self.get_state_and_message()
+        if state == MRAState.IDLE:
+            # Ready is also mapped to IDLE by get_state_and_message; distinguish via REST.
+            raw = self.request_status().get("state")
+            if raw == "Ready":
+                self._force_token_release()
+                time.sleep(1)
+
+    def _force_token_release(self) -> None:
+        """Clear a stranded programming token that leaves the controller in Ready."""
+        try:
+            import websocket
+        except ImportError:
+            return
+        try:
+            ws = websocket.create_connection(f"ws://{self.ip}:9090", timeout=10)
+            ws.send(
+                json.dumps(
+                    {
+                        "op": "call_service",
+                        "id": "ftr",
+                        "service": "/ability_backend/program/force_token_release",
+                        "args": {},
+                    }
+                )
+            )
+            while True:
+                msg = json.loads(ws.recv())
+                if msg.get("op") == "service_response" and msg.get("id") == "ftr":
+                    break
+            ws.close()
+        except Exception:
+            pass
 
     def run_program(self, program_name: str, arguments: dict[str, str] | None = None):
-        """
-        Load a program by name, run it, and wait for it to finish.
+        """Load a program by name, run it, and wait for it to finish.
 
         Used by the split programs, where each movement is its own program rather than a
         branch inside Main. Arguments are named and all string typed (type 0).
@@ -287,13 +316,24 @@ class MobileRobotArm():
         self.wait_until_loadable()
         self.load_program(
             program_name,
-            [{"name": name, "type": 0, "value": str(value)} for name, value in (arguments or {}).items()],
+            [
+                {"name": name, "type": 0, "value": str(value)}
+                for name, value in (arguments or {}).items()
+            ],
         )
-        time.sleep(3) # wait for the program to load.
+        time.sleep(3)
         self.start_program()
-        time.sleep(3) # wait for the program to start.
+        time.sleep(3)
         self.wait_for_program_to_finish()
-    
+
+    def run_main_program(self, target_base_position: str, source_region: str, source_slot: str, destination_region: str, destination_slot: str):
+        self.wait_until_loadable()
+        self.load_main_program(target_base_position, source_region, source_slot, destination_region, destination_slot)
+        time.sleep(3)
+        self.start_program()
+        time.sleep(3)
+        self.wait_for_program_to_finish()
+
     def charge(self):
         self.run_main_program("Charging", "None", "None", "None", "None")
 
