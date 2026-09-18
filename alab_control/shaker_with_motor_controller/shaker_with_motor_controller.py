@@ -52,6 +52,11 @@ class ShakerWMC(BaseArduinoDevice):
 
     FREQUENCY = 51  # the frequency of the shaker
 
+    # Extra /more retract steps after FSR stop — matches cycle_shaker_ignore_force
+    # default (2). Used by grip_for_shake / close_gripper_and_shake so every
+    # AlabOS shake path clamps as tightly as the manual cycle scripts.
+    DEFAULT_TIGHTEN_STEPS = 2
+
     # FSR is ~1000 unloaded. Arduino may stop close on a small relative drop
     # (FORCE_DROP_DELTA) well above the old Python absolute limit of 200, which
     # rejected valid grips. Only treat near-unloaded readings as a lost grip.
@@ -159,13 +164,16 @@ class ShakerWMC(BaseArduinoDevice):
                 f"(force_reading={force}, status={state['system_status']})"
             )
 
-    def tighten_gripper(self, steps: int = 1):
+    def tighten_gripper(self, steps: int | None = None):
         """
         After a normal FSR stop, retract a few more MAG_DELTA steps (HTTP /more).
 
         Requires the sep15+ Arduino sketch that exposes GET /more. One step is a
         small extra squeeze past the force trip; firmware caps pending at 20.
+        Default steps = DEFAULT_TIGHTEN_STEPS (2), matching cycle_shaker scripts.
         """
+        if steps is None:
+            steps = self.DEFAULT_TIGHTEN_STEPS
         steps = max(1, min(int(steps), 20))
         logger.info(
             f"{self.get_current_time()} Tightening gripper by {steps} extra step(s)"
@@ -190,6 +198,25 @@ class ShakerWMC(BaseArduinoDevice):
             f"status={state.get('system_status')})"
         )
         return state
+
+    def grip_for_shake(
+        self,
+        *,
+        check_force: bool = False,
+        tighten_steps: int | None = None,
+    ):
+        """
+        Standard AlabOS shake grip: close jaws, then /more tighten.
+
+        Matches example/cycle_shaker_ignore_force.py (check_force=False,
+        tighten_steps=DEFAULT_TIGHTEN_STEPS). Arduino FSR still stops the
+        close; Python does not abort on soft force / ERROR after close.
+        """
+        if tighten_steps is None:
+            tighten_steps = self.DEFAULT_TIGHTEN_STEPS
+        self.close_gripper(check_force=check_force)
+        time.sleep(1)
+        return self.tighten_gripper(steps=tighten_steps)
 
     def open_gripper(self, check_force: bool = True):
         """
@@ -295,19 +322,36 @@ class ShakerWMC(BaseArduinoDevice):
             thread.join(timeout=10)
             self.stop_event.clear()
 
-    def close_gripper_and_shake(self, duration_sec: int, frequency: int = FREQUENCY):
+    def close_gripper_and_shake(
+        self,
+        duration_sec: int,
+        frequency: int = FREQUENCY,
+        *,
+        tighten_steps: int | None = None,
+        check_force: bool = False,
+    ):
         """
-        Grip the container, shake it and then release it.
+        Grip the container (tight, with /more), shake it, then release it.
+
+        Grip matches cycle_shaker_ignore_force.py: close without Python force
+        abort, then DEFAULT_TIGHTEN_STEPS extra /more retracts, then shake
+        with ignore_arduino_error so a soft FSR trip does not abort the mill.
 
         Args:
             duration_sec: duration of shaking in seconds
             frequency: frequency of the shaker in Hz.
+            tighten_steps: extra /more steps (default DEFAULT_TIGHTEN_STEPS).
+            check_force: passed to close_gripper (default False).
         """
-        self.close_gripper()
+        self.grip_for_shake(check_force=check_force, tighten_steps=tighten_steps)
         time.sleep(3)
-        self.shaking(duration_sec=duration_sec, frequency=frequency)
+        self.shaking(
+            duration_sec=duration_sec,
+            frequency=frequency,
+            ignore_arduino_error=True,
+        )
         time.sleep(3)
-        self.open_gripper()
+        self.open_gripper(check_force=False)
 
     def reset(self):
         """
