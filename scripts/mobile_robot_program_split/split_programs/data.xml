@@ -1,0 +1,373 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Archive>
+ <ApplicationData>
+  <References>
+   <Reference>
+    <Name>BFT_1</Name>
+    <Uid>BFT_1_XD6cCK5dl2Bevkcj</Uid>
+    <InternalFrameName>BFT_1_XD6cCK5dl2Bevkcj</InternalFrameName>
+    <ParentName>BFT_CALIBRATION_YAmHFYgGteIOED9U</ParentName>
+    <ToolUid>Manip.Flange</ToolUid>
+    <Transform>
+     <Pos>-0.4508306576161302 0.04168461629313236 -0.1639215357975232</Pos>
+     <Rotation3D>0.73381229964048544 0.67900071253631533 -0.021852717714701264 -0.67931453057437485 0.73373087418322291 -0.013068007531381562 0.007160827246848943 0.024434333334458904 0.99967579039788768</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>BFT_2</Name>
+    <Uid>BFT_2_URjhkmKVoT7hDhRi</Uid>
+    <InternalFrameName>BFT_2_URjhkmKVoT7hDhRi</InternalFrameName>
+    <ParentName>BFT_CALIBRATION_YAmHFYgGteIOED9U</ParentName>
+    <ToolUid>Manip.Flange</ToolUid>
+    <Transform>
+     <Pos>-0.4474826877673947 -0.008195130375091342 -0.1630064097242422</Pos>
+     <Rotation3D>0.73394025884537628 0.67886347398781677 -0.021819260555182064 -0.67917709194502807 0.73385658437764167 -0.013152617331780076 0.0070833765307871241 0.024472377301240262 0.99967541158425455</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>BFT_4</Name>
+    <Uid>BFT_4_X8Nbsh8tNF7xcJL7</Uid>
+    <InternalFrameName>BFT_4_X8Nbsh8tNF7xcJL7</InternalFrameName>
+    <ParentName>BFT_CALIBRATION_YAmHFYgGteIOED9U</ParentName>
+    <ToolUid>Manip.Flange</ToolUid>
+    <Transform>
+     <Pos>-0.4017194919954588 0.04419171239787234 -0.1654273955516251</Pos>
+     <Rotation3D>0.73386460955412636 0.67894520095510136 -0.021820837380966768 -0.67925853119512825 0.7337820037588223 -0.01310796545328991 0.007112147538304762 0.024441461898270813 0.99967596364905609</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>BFT_CALIBRATION</Name>
+    <Uid>BFT_CALIBRATION_YAmHFYgGteIOED9U</Uid>
+    <InternalFrameName>BFT_CALIBRATION_YAmHFYgGteIOED9U</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>Manip.Flange</ToolUid>
+    <Transform>
+     <Pos>-0.3601602666735645 -0.5629917060357083 0.3814884879178102</Pos>
+     <Rotation3D>-0.99997783294322684 0.0066490442260882052 0.00035189920067609176 0.0066491242090955405 0.99997786865273175 0.00022660977949761076 -0.00035038467422673442 0.00022894457772014003 -0.99999991240747632</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>CrucibleSubRackA_1</Name>
+    <Uid>CrucibleSubRackA_1_20xTteFRh6uZJP8L</Uid>
+    <InternalFrameName>CrucibleSubRackA_1_20xTteFRh6uZJP8L</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>Manip.Flange</ToolUid>
+    <Transform>
+     <Pos>0.3985594164563396 0.1760257102748234 -0.1046014592088141</Pos>
+     <Rotation3D>0.72752785267399356 -0.68606042780503751 -0.0049308197631743114 -0.68604844323879377 -0.7275444422931715 0.0040765203232354507 -0.0063841297915616449 0.0004169991452714318 -0.9999795342898361</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>CrucibleSubRackA_2</Name>
+    <Uid>CrucibleSubRackA_2_RPw7vVLC08pdEIwD</Uid>
+    <InternalFrameName>CrucibleSubRackA_2_RPw7vVLC08pdEIwD</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>Manip.Flange</ToolUid>
+    <Transform>
+     <Pos>0.4435340250004159 0.1760208581274045 -0.1046040979447431</Pos>
+     <Rotation3D>0.72753758962293125 -0.68604972838621958 -0.0049825562565512854 -0.68603773548349467 -0.72755451248512548 0.0040812810745950888 -0.0064250430608586611 0.00044893621557896591 -0.9999792584238637</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>CrucibleSubRackA_3</Name>
+    <Uid>CrucibleSubRackA_3_MLNx6Zsf9s0TCxId</Uid>
+    <InternalFrameName>CrucibleSubRackA_3_MLNx6Zsf9s0TCxId</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>Manip.Flange</ToolUid>
+    <Transform>
+     <Pos>0.3985457028297502 0.1310057481414293 -0.1046077868143362</Pos>
+     <Rotation3D>0.72750999612555922 -0.6860790342483587 -0.0049763744059532653 -0.68606707327075345 -0.72752687739767918 0.0040759830329331406 -0.0064168926351723752 0.00044880822369480707 -0.99997931081602232</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>CrucibleSubRackB_1</Name>
+    <Uid>CrucibleSubRackB_1_GFlGQUScdEO5uMT3</Uid>
+    <InternalFrameName>CrucibleSubRackB_1_GFlGQUScdEO5uMT3</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>Manip.Flange</ToolUid>
+    <Transform>
+     <Pos>0.5035638912588957 0.1760252856330574 -0.1045989486034219</Pos>
+     <Rotation3D>0.72754006453316589 -0.68604764778073024 -0.0049070840225011432 -0.68603578525385167 -0.72755649413769197 0.0040557600029763885 -0.0063526254578551329 0.00041570734638672526 -0.99997973546327146</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>CrucibleSubRackC_1</Name>
+    <Uid>CrucibleSubRackC_1_HsIhMkHxwf3q0Wt4</Uid>
+    <InternalFrameName>CrucibleSubRackC_1_HsIhMkHxwf3q0Wt4</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>Manip.Flange</ToolUid>
+    <Transform>
+     <Pos>0.3985578544132716 0.07103494002837871 -0.1046279223683213</Pos>
+     <Rotation3D>0.72752440181764666 -0.68606354278404758 -0.0050059986492886569 -0.68605135246357318 -0.72754149037472926 0.0041135831363450113 -0.0064642511381749245 0.00044164003317874039 -0.99997900898534053</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>CrucibleSubRackD_1</Name>
+    <Uid>CrucibleSubRackD_1_6By9CN0Cs0yep394</Uid>
+    <InternalFrameName>CrucibleSubRackD_1_6By9CN0Cs0yep394</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>Manip.Flange</ToolUid>
+    <Transform>
+     <Pos>0.5035598562220057 0.07103818607012435 -0.104603703920928</Pos>
+     <Rotation3D>0.72753249204680448 -0.68605561414202643 -0.0049160268889939501 -0.68604367833054647 -0.72754898368797571 0.0040678934705105484 -0.0063674515200457631 0.00041308449571581955 -0.99997964225395075</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>DASHTagForMoving</Name>
+    <Uid>DASHTagForMoving_Toyd7CJwnKwQfpj2</Uid>
+    <InternalFrameName>DASHTagForMoving_Toyd7CJwnKwQfpj2</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>CH3</ToolUid>
+    <Transform>
+     <Pos>-0.6318517924398037 0.3491021183352701 -0.0005101902740385356</Pos>
+     <Rotation3D>-0.99849196077868918 -0.045257220651540288 -0.031073915736940839 -0.046042509615857333 0.99862562700486401 0.025038857749819347 0.029898019476252757 0.026431819234396234 -0.99920341640897015</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>DASHTag</Name>
+    <Uid>DASHTag_5djSQL5cksLzHtWi</Uid>
+    <InternalFrameName>DASHTag_5djSQL5cksLzHtWi</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>CH3</ToolUid>
+    <Transform>
+     <Pos>-0.3504308465580649 0.4320567464475386 -0.007895713277387861</Pos>
+     <Rotation3D>-0.99762099781297842 -0.068748965423631112 -0.0050916083723708842 -0.068513429752176863 0.99695700103848839 -0.037183975364891812 0.007632474450055435 -0.036746671053630553 -0.99929546556573812</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>DASH_1</Name>
+    <Uid>DASH_1_hSLmeciSxcqaQXdV</Uid>
+    <InternalFrameName>DASH_1_hSLmeciSxcqaQXdV</InternalFrameName>
+    <ParentName>DASHTag_5djSQL5cksLzHtWi</ParentName>
+    <ToolUid>Manip.Flange</ToolUid>
+    <Transform>
+     <Pos>0.5457908397467865 -0.5599838511708591 -0.2456589837982188</Pos>
+     <Rotation3D>0.7052014842557538 -0.51598206428553151 0.48626471796658605 0.70845107480746661 0.53996329742590821 -0.4544631030535764 -0.028070290479924508 0.66498281689723515 0.74633096681284161</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>DASH_2</Name>
+    <Uid>DASH_2_BKwbg1COsXN7Otp6</Uid>
+    <InternalFrameName>DASH_2_BKwbg1COsXN7Otp6</InternalFrameName>
+    <ParentName>DASHTag_5djSQL5cksLzHtWi</ParentName>
+    <ToolUid>Manip.Flange</ToolUid>
+    <Transform>
+     <Pos>0.5463640897554012 -0.4971737897827492 -0.2473989061920729</Pos>
+     <Rotation3D>0.70513862434931218 -0.51601760988349699 0.48631815382615806 0.70851438335167771 0.53988836804248996 -0.45445342845687586 -0.028051542462963184 0.66501607224377668 0.74630203980888898</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>DASH_5</Name>
+    <Uid>DASH_5_J8qyjZOe9EEZmp5v</Uid>
+    <InternalFrameName>DASH_5_J8qyjZOe9EEZmp5v</InternalFrameName>
+    <ParentName>DASHTag_5djSQL5cksLzHtWi</ParentName>
+    <ToolUid>Manip.Flange</ToolUid>
+    <Transform>
+     <Pos>0.4830422470034706 -0.5597842084714356 -0.245057348385467</Pos>
+     <Rotation3D>0.70517223231238979 -0.51624099232816922 0.48603226293692475 0.70848798527884393 0.53997791718045884 -0.45438818610630494 -0.027872880925470054 0.66476995028165986 0.74652797383047476</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>FurnaceStationWorkbenchTagForMoving</Name>
+    <Uid>FurnaceStationWorkbenchTagForMoving_nC0l51ETQSyattb0</Uid>
+    <InternalFrameName>FurnaceStationWorkbenchTagForMoving_nC0l51ETQSyattb0</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>CH3</ToolUid>
+    <Transform>
+     <Pos>-0.6110376910876298 -0.6717404682763585 0.115978684059078</Pos>
+     <Rotation3D>0.99795526082585018 -0.051771421294915181 -0.03748356075820071 -0.050725701835304282 -0.9983106755916763 0.028331928508428483 -0.038887023071008261 -0.026372617177582085 -0.99889553232551775</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>FurnaceStationTag</Name>
+    <Uid>FurnaceStationWorkbenchTag_qoYe4kLX3i8FcNCN</Uid>
+    <InternalFrameName>FurnaceStationWorkbenchTag_qoYe4kLX3i8FcNCN</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>CH3</ToolUid>
+    <Transform>
+     <Pos>-0.5675012768400552 -0.5354207398340075 0.1194434036109844</Pos>
+     <Rotation3D>0.99786432117808033 -0.058304111638219122 -0.029452115134349241 -0.057709306736347506 -0.99811967305828164 0.020658029190583266 -0.03060118356892489 -0.018914249128815955 -0.99935269987330999</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>IXRDTag</Name>
+    <Uid>IXRDTag_fANdACLQc1hGBNEh</Uid>
+    <InternalFrameName>IXRDTag_fANdACLQc1hGBNEh</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>CH3</ToolUid>
+    <Transform>
+     <Pos>0.2502361967858005 0.614055010287434 -0.003129338248813895</Pos>
+     <Rotation3D>0.042827927376115738 0.99766077663288666 -0.053279859280327371 0.99907743959949569 -0.042935886932634205 -0.00088277778856964443 -0.0031683307879854512 -0.053192897848992796 -0.99857922935460885</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>LABMAN_CALIBRATION</Name>
+    <Uid>LABMAN_CALIBRATION_8NHRsePTDUvdfRSq</Uid>
+    <InternalFrameName>LABMAN_CALIBRATION_8NHRsePTDUvdfRSq</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>Manip.Flange</ToolUid>
+    <Transform>
+     <Pos>0.01979680124001756 0.5238636889128711 0.5289126395394524</Pos>
+     <Rotation3D>0.99972979881083834 -0.023215139937103828 -0.0011775599098620784 -0.023216548966442232 -0.99972974258131753 -0.001197352237779921 -0.00114944496580643 0.0012243675890896597 -0.99999858984914436</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>LabmanBasePositioning</Name>
+    <Uid>LabmanBasePositioning_msx3yv1VQRGV9Qu3</Uid>
+    <InternalFrameName>LabmanBasePositioning_msx3yv1VQRGV9Qu3</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>CH3</ToolUid>
+    <Transform>
+     <Pos>-0.4875357772840767 0.6777513399336095 0.1585188994351263</Pos>
+     <Rotation3D>0.012568109390153171 -0.015804064726180289 -0.99979611629796206 0.01523954671118305 0.99976198323088616 -0.015611953826574931 0.99980488038536541 -0.015040226872495776 0.01280596475198344</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>LabmanTag</Name>
+    <Uid>LabmanTag_7zFZpIEhUJObCuEz</Uid>
+    <InternalFrameName>LabmanTag_7zFZpIEhUJObCuEz</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>CH3</ToolUid>
+    <Transform>
+     <Pos>-0.1552661556808864 0.4986896525178018 0.2702756802213666</Pos>
+     <Rotation3D>-0.10795591654677449 0.99405348251091441 0.014254612954024269 0.9940478535087609 0.10814428634593612 -0.013178704995297146 -0.014641892540609604 0.012747048232879145 -0.99981154611465539</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>PrometheusTag</Name>
+    <Uid>PrometheusTag_m0B7CQQrniDjCYkm</Uid>
+    <InternalFrameName>PrometheusTag_m0B7CQQrniDjCYkm</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>CH3</ToolUid>
+    <Transform>
+     <Pos>0.6222908023649963 -0.9780501253459714 -0.04979659203157649</Pos>
+     <Rotation3D>0.99955690973422939 -0.0082184271098136672 -0.028608419362110334 -0.028312511617847761 0.034109924495545875 -0.99901697419853552 0.0091861792082957618 0.99938429570748655 0.03386212640700869</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>SubRackStationTagForMoving</Name>
+    <Uid>SubRackStationTagForMoving_qmKiRQamfhkF05MT</Uid>
+    <InternalFrameName>SubRackStationTagForMoving_qmKiRQamfhkF05MT</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>CH3</ToolUid>
+    <Transform>
+     <Pos>0.7865221918349941 -0.7776834337057874 0.1111423981082972</Pos>
+     <Rotation3D>-0.019749250925111993 -0.99978345141084979 -0.00655876306217447 -0.99979684169932459 0.019775108889285201 -0.0039013326534191742 0.0040301880790707938 0.0064803821975015176 -0.99997088069134366</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+   <Reference>
+    <Name>SubRackStationTag</Name>
+    <Uid>SubRackStationTag_U5AEqShevmM6UlpK</Uid>
+    <InternalFrameName>SubRackStationTag_U5AEqShevmM6UlpK</InternalFrameName>
+    <ParentName>Base</ParentName>
+    <ToolUid>CH3</ToolUid>
+    <Transform>
+     <Pos>0.415389743049958 -0.6299903920224337 0.1096265403089371</Pos>
+     <Rotation3D>-0.018829426527973349 -0.9998144485992928 0.0040646117550799275 -0.99981837597108003 0.018817218401086477 -0.0030211524618546826 0.0029441071956726734 -0.0041207600922272729 -0.99998717570230999</Rotation3D>
+    </Transform>
+    <TransformCam>
+     <Pos>0 0 0</Pos>
+     <Rotation3D>1 0 0 0 1 0 0 0 1</Rotation3D>
+    </TransformCam>
+   </Reference>
+  </References>
+ </ApplicationData>
+ <MetaData>
+  <ERVersion>2.12.0</ERVersion>
+  <ERMajorVersion>2</ERMajorVersion>
+  <ERMinorVersion>12</ERMinorVersion>
+  <ERPatchVersion>0</ERPatchVersion>
+ </MetaData>
+</Archive>

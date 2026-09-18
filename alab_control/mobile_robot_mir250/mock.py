@@ -181,6 +181,11 @@ class FakeRos:
         self.joystick_active = False
         self.teach_active = False
         self.manual_mode = False
+        #: Ability dashboard Automatic switch: system.region == "queue".
+        #: Code control stays Manual (False); True only during the error handshake.
+        self.automatic = False
+        self.activate_queue_calls = 0
+        self.deactivate_queue_calls = 0
         #: How many times the base was told to stop, so a test can prove the wheels were
         #: stopped before anything else was attempted.
         self.base_stops = 0
@@ -197,6 +202,44 @@ class FakeRos:
 
     def is_charging(self) -> bool:
         return self.charging
+
+    def is_automatic_mode(self) -> bool:
+        return bool(self.automatic)
+
+    def activate_queue(self) -> dict[str, Any]:
+        self.activate_queue_calls += 1
+        self.automatic = True
+        return {"success": True}
+
+    def deactivate_queue(self) -> dict[str, Any]:
+        self.deactivate_queue_calls += 1
+        self.automatic = False
+        return {"success": True}
+
+    def set_automatic_mode(
+        self, enabled: bool, *, release_token: bool = True
+    ) -> dict[str, Any]:
+        if enabled:
+            if release_token:
+                self.force_token_release()
+            return self.activate_queue()
+        return self.deactivate_queue()
+
+    def ensure_manual_mode(self) -> dict[str, Any]:
+        if not self.automatic:
+            return {"automatic": False, "changed": False}
+        self.deactivate_queue()
+        return {"automatic": False, "changed": True}
+
+    def clear_error_with_auto_manual_handshake(self) -> dict[str, Any]:
+        was = self.automatic
+        self.activate_queue()
+        self.deactivate_queue()
+        return {
+            "was_automatic": was,
+            "automatic": False,
+            "manual": True,
+        }
 
     def system_stop(self) -> dict[str, Any]:
         self.stops += 1

@@ -13,21 +13,24 @@ The checks, in the order they run and roughly in order of how cheap they are:
 3. ``Recovery`` is a stranded programming token and is cleared with
    ``force_token_release``, never with ``stop()``: REST rejects every state request from
    ``Recovery`` and ``/er/system/stop`` cannot process a Stop there.
-4. A latched error is cleared with a stop request. ``Entity Error Active`` alongside a MiR
+4. A latched error is cleared with a stop request plus the Auto→Manual handshake
+   (Automatic on, then immediately Manual). ``Entity Error Active`` alongside a MiR
    that cannot be reached is the one case with no software recovery -- the MiR API wedge --
    and raises :class:`MaintenanceRequired` instead of being retried.
-5. The MiR key switch is in ``auto`` and it reports no errors.
-6. A MiR ``Pause`` is only a problem when it still names a mission. Ability parks the base
+5. Ability stays in Manual (Automatic off / not in the queue region). Code-driven
+   control does not run under Automatic; if Automatic is on, preflight turns it off.
+6. The MiR key switch is in ``auto`` and it reports no errors.
+7. A MiR ``Pause`` is only a problem when it still names a mission. Ability parks the base
    in ``Pause`` after every drive block and resumes it itself, so refusing all pauses
    blocks work for no reason.
-7. The protective fields are not muted. A mute outlives the process that set it, so one
+8. The protective fields are not muted. A mute outlives the process that set it, so one
    found here was left behind by a run that died. Preflight clears it (ROS unmute, then
    MiR setting 2137) and only fails if the MiR still reports muted afterwards.
-8. ``RobotPose`` is ``Home``. There is no safe-home interlock on this cell, so this
+9. ``RobotPose`` is ``Home``. There is no safe-home interlock on this cell, so this
    variable plus recorded-pose agreement is the only gate on the arm being parked.
-9. ``BasePosition`` agrees with a pose recorded at that station, cross-checked between two
+10. ``BasePosition`` agrees with a pose recorded at that station, cross-checked between two
    independent pose sources. A mismatch aborts rather than moves.
-10. The battery is above the floor for the work about to be done.
+11. The battery is above the floor for the work about to be done.
 
 Nothing here commands motion. Side effects are the documented recoveries: releasing a
 stranded token, clearing a latched execution error, and unmuting leftover protective
@@ -271,7 +274,10 @@ def preflight(
             )
             report.wedged = True
         elif clear_latched_error:
-            say(f"Ability has a latched error ({state}); clearing it with a stop request")
+            say(
+                f"Ability has a latched error ({state}); "
+                "stop + Auto→Manual handshake to clear it"
+            )
             try:
                 ability.stop()
             except RobotApiError as exc:
@@ -287,6 +293,10 @@ def preflight(
                             needs_maintenance=True,
                         )
                     )
+            try:
+                ros.clear_error_with_auto_manual_handshake()
+            except RobotApiError as hand_exc:
+                say(f"Auto→Manual handshake failed: {hand_exc}")
             time.sleep(CLEAR_SETTLE_S)
             status = ability.status()
             state = str(status.get("state", ""))
@@ -295,7 +305,7 @@ def preflight(
                 Check(
                     "ability_error_cleared",
                     not is_error_state(state),
-                    f"state after the stop request: {state!r} "
+                    f"state after stop + Auto→Manual: {state!r} "
                     f"message={status.get('message')!r}",
                 )
             )
@@ -315,6 +325,26 @@ def preflight(
             "ability_idle",
             state == STATE_IDLE or state == "No Program",
             f"controller is {state!r}; a program can only be loaded from Idle",
+        )
+    )
+
+    # Code-driven control stays in Manual (Automatic off). Automatic is only flipped
+    # briefly during the error-clear handshake above.
+    try:
+        if ros.is_automatic_mode():
+            say("Ability Automatic is on; leaving Manual via deactivate_queue")
+            ros.ensure_manual_mode()
+        manual = not ros.is_automatic_mode()
+    except RobotApiError as exc:
+        manual = False
+        say(f"could not read/set Ability Manual: {exc}")
+    add(
+        Check(
+            "ability_manual_mode",
+            manual,
+            "Ability Manual (Automatic off) for code control"
+            if manual
+            else "Ability Automatic is still on; turn it off for code-driven control",
         )
     )
 

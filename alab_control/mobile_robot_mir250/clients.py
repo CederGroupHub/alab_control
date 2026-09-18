@@ -769,6 +769,96 @@ class AbilityRosClient:
         """
         return self.call_service("/ability_backend/program/force_token_release")
 
+    def activate_queue(self) -> dict[str, Any]:
+        """Turn Ability Automatic mode on (``system.region == "queue"``).
+
+        This is what the dashboard ``system_automatic_switch`` calls after confirming
+        the modal. The UI first releases any programming token; callers that want the
+        same ritual should use :meth:`set_automatic_mode`.
+        """
+        return self.call_service("/ability_backend/system/activate_queue")
+
+    def deactivate_queue(self) -> dict[str, Any]:
+        """Turn Ability Automatic mode off (leave the queue region)."""
+        return self.call_service("/ability_backend/system/deactivate_queue")
+
+    def system_state(self, *, timeout: float | None = None) -> dict[str, Any]:
+        """Latest ``/ability_backend/system_state`` message (safety/system/execution/…)."""
+        for message in self.topic_messages(
+            "/ability_backend/system_state",
+            count=1,
+            timeout=timeout,
+            message_type="state_machine_controller/SystemState",
+        ):
+            return message
+        raise RobotApiError(
+            "no /ability_backend/system_state message within timeout",
+            url=f"{self.url}/ability_backend/system_state",
+        )
+
+    def is_automatic_mode(self) -> bool:
+        """True when the dashboard Automatic switch would show as on (queue region)."""
+        system = self.system_state().get("system") or {}
+        return str(system.get("region") or "") == "queue"
+
+    def set_automatic_mode(
+        self, enabled: bool, *, release_token: bool = True
+    ) -> dict[str, Any]:
+        """Match the Ability UI Automatic toggle.
+
+        Enabling mirrors the UI: optional ``force_token_release``, then
+        ``activate_queue``. Disabling calls ``deactivate_queue``.
+        """
+        if enabled:
+            if release_token:
+                try:
+                    self.force_token_release()
+                except RobotApiError:
+                    pass
+            reply = self.activate_queue()
+        else:
+            reply = self.deactivate_queue()
+        # Region updates asynchronously on the state topic.
+        deadline = time.monotonic() + min(self.timeout, 10.0)
+        while time.monotonic() < deadline:
+            if self.is_automatic_mode() is bool(enabled):
+                break
+            time.sleep(0.2)
+        return reply
+
+    def reactivate_automatic(self) -> dict[str, Any]:
+        """Auto on then Manual — the post-error handshake in the Ability UI.
+
+        Code-driven control stays in Manual. Flipping Automatic on and immediately
+        back to Manual clears many latched faults; this method ends in Manual.
+        """
+        return self.clear_error_with_auto_manual_handshake()
+
+    def clear_error_with_auto_manual_handshake(self) -> dict[str, Any]:
+        """Turn Automatic on, then immediately back to Manual."""
+        was_on = self.is_automatic_mode()
+        on = self.set_automatic_mode(True)
+        time.sleep(0.3)
+        off = self.set_automatic_mode(False)
+        return {
+            "was_automatic": was_on,
+            "activate": on,
+            "deactivate": off,
+            "automatic": self.is_automatic_mode(),
+            "manual": not self.is_automatic_mode(),
+        }
+
+    def ensure_manual_mode(self) -> dict[str, Any]:
+        """Leave Ability in Manual (Automatic off)."""
+        if not self.is_automatic_mode():
+            return {"automatic": False, "changed": False}
+        reply = self.set_automatic_mode(False)
+        return {
+            "automatic": self.is_automatic_mode(),
+            "changed": True,
+            "reply": reply,
+        }
+
     def system_status(self) -> dict[str, Any]:
         return self.call_service("/er/system/get_status").get("data") or {}
 
@@ -918,13 +1008,20 @@ class AbilityRosClient:
         return self._name_guid_pairs("/er/mobile/get_charging_stations")
 
     def topic_messages(
-        self, topic: str, *, count: int = 1, timeout: float | None = None
+        self,
+        topic: str,
+        *,
+        count: int = 1,
+        timeout: float | None = None,
+        message_type: str | None = None,
     ) -> Iterator[dict[str, Any]]:
         """Yield up to `count` messages from a ROS topic, then unsubscribe.
 
         Ability's topics are latched only in the sense that they publish on change, so
         a quiet topic yields nothing within the timeout. That absence is itself a
         finding: it means the value is not observable from outside while idle.
+
+        Pass ``message_type`` when rosbridge requires it (e.g. system_state).
         """
         try:
             import websocket
@@ -938,9 +1035,15 @@ class AbilityRosClient:
         connection = websocket.create_connection(self.url, timeout=limit)
         subscription = f"py-sub-{int(time.time() * 1000)}"
         try:
-            connection.send(
-                json.dumps({"op": "subscribe", "topic": topic, "id": subscription})
-            )
+            subscribe: dict[str, Any] = {
+                "op": "subscribe",
+                "topic": topic,
+                "id": subscription,
+                "queue_length": 1,
+            }
+            if message_type:
+                subscribe["type"] = message_type
+            connection.send(json.dumps(subscribe))
             deadline = time.monotonic() + limit
             seen = 0
             while seen < count and time.monotonic() < deadline:
