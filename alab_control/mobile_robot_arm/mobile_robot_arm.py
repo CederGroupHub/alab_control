@@ -446,6 +446,87 @@ class MobileRobotArm():
         time.sleep(3)
         self.wait_for_program_to_finish()
 
+    def is_actually_charging(self) -> bool | None:
+        """Whether the MiR is drawing charge (``/mobile/is_charging``).
+
+        Returns ``None`` when rosbridge is unreachable so callers can fall back.
+        """
+        values = self._call_ros_service("/mobile/is_charging")
+        if values is None:
+            return None
+        if "response" in values:
+            return bool(values.get("response"))
+        if "data" in values:
+            return bool(values.get("data"))
+        return bool(values) if values else None
+
+    def _charging_station_guid(self) -> str:
+        """First charging-station GUID from Ability, or empty if none."""
+        values = self._call_ros_service("/er/mobile/get_charging_stations")
+        if not values:
+            return ""
+        stations = values.get("stations") or values.get("data") or values.get("response")
+        if isinstance(stations, list) and stations:
+            first = stations[0]
+            if isinstance(first, dict):
+                return str(first.get("guid") or first.get("id") or first.get("data") or "")
+            return str(first)
+        if isinstance(stations, dict):
+            for value in stations.values():
+                if isinstance(value, str) and value:
+                    return value
+                if isinstance(value, dict):
+                    guid = value.get("guid") or value.get("id")
+                    if guid:
+                        return str(guid)
+        for key in ("guid", "data", "id"):
+            if values.get(key):
+                return str(values[key])
+        return ""
+
+    def redock_on_charger(self) -> bool:
+        """Dock via MiR's own charging mission (survives Ability program teardown)."""
+        guid = self._charging_station_guid()
+        if not guid:
+            return False
+        self._call_ros_service("/er/mobile/move_to_charging_station", {"data": guid})
+        deadline = time.time() + 150.0
+        while time.time() < deadline:
+            if self.is_actually_charging() is True:
+                return True
+            time.sleep(3.0)
+        return self.is_actually_charging() is True
+
+    def settle_on_charge(
+        self, *, settle_s: float = 25.0, redock_attempts: int = 1
+    ) -> bool:
+        """Confirm charging holds after a dock; redock over ROS if Ability aborts it.
+
+        Ability often tears down the MiR docking mission after the program ends, so a
+        single ``is_charging`` read right after ``charge_no_waiting`` can pass and then
+        flip to Pause / not charging within ~30 s.
+        """
+        for attempt in range(redock_attempts + 1):
+            stable_until = time.time() + max(0.0, float(settle_s))
+            dropped = False
+            while time.time() < stable_until:
+                live = self.is_actually_charging()
+                if live is False:
+                    dropped = True
+                    break
+                time.sleep(2.0)
+            if not dropped:
+                live = self.is_actually_charging()
+                if live is False:
+                    dropped = True
+                else:
+                    return True
+            if attempt >= redock_attempts:
+                break
+            if not self.redock_on_charger():
+                break
+        return self.is_actually_charging() is True
+
     def charge(self):
         self.run_main_program("Charging", "None", "None", "None", "None")
 
