@@ -59,6 +59,11 @@ GOTO: dict[str, str] = {
     "IXRD": "base_IXRD",
 }
 
+#: Charging and ChargingNoWait are the same physical pad. Treating them as different
+#: stations made idle auto-dock (target ChargingNoWait while BasePosition is Charging)
+#: run OUTFROM→Home then GOTO→Charging — leave the dock and re-enter for no reason.
+CHARGER_POSITIONS = frozenset({"Charging", "ChargingNoWait"})
+
 #: Current station -> program that backs out of it (and typically ends at Home).
 OUTFROM: dict[str, str] = {
     "LABMAN": "base_LABMAN",
@@ -182,6 +187,8 @@ def resolve_base_move(current: str, target: str) -> list[tuple[str, dict[str, st
             f"known targets are {sorted(GOTO)}"
         )
     if current == target:
+        return []
+    if current in CHARGER_POSITIONS and target in CHARGER_POSITIONS:
         return []
 
     steps: list[tuple[str, dict[str, str]]] = []

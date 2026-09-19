@@ -42,6 +42,12 @@ class TestBaseMoves:
     def test_already_there_is_a_no_op(self) -> None:
         assert resolve_base_move("DASH", "DASH") == []
 
+    def test_charger_aliases_are_already_there(self) -> None:
+        # Idle auto-dock targets ChargingNoWait while BasePosition is often Charging.
+        assert resolve_base_move("Charging", "ChargingNoWait") == []
+        assert resolve_base_move("ChargingNoWait", "Charging") == []
+        assert resolve_base_move("Charging", "Charging") == []
+
     def test_home_and_charging_carry_no_action(self) -> None:
         assert resolve_base_move(HOME, "Charging") == [("base_Charging", {})]
         assert resolve_base_move(HOME, HOME) == []
