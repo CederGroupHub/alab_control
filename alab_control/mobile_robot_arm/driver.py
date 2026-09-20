@@ -24,6 +24,14 @@ logger = logging.getLogger(__name__)
 DEFAULT_IP = "192.168.1.207"
 ROSBRIDGE_PORT = 9090
 
+#: Ability global that holds the last successful Labman marker pose (6 floats).
+LABMAN_TAG_VARIABLE = "LabmanTag"
+#: Ability global that GetIntoLabman checks before CalibrateToMarker.
+LABMAN_TAG_CALIBRATED_VARIABLE = "IsLabmanTagCalibrated"
+LABMAN_ARM_PROGRAM = "robotarm_LABMAN"
+#: Anything this close to the origin is treated as "no saved pose".
+_ZERO_POSE_EPS = 1e-6
+
 
 class Transport(Protocol):
     """Whatever can load a named program and wait for it to finish."""
@@ -39,6 +47,17 @@ class PositionSource(Protocol):
 
     def base_position(self) -> str:
         ...
+
+
+def usable_labman_tag(tag: Any) -> bool:
+    """True when ``tag`` is a 6-vector pose that is not the origin."""
+    if not isinstance(tag, (list, tuple)) or len(tag) != 6:
+        return False
+    try:
+        values = [float(value) for value in tag]
+    except (TypeError, ValueError):
+        return False
+    return any(abs(value) > _ZERO_POSE_EPS for value in values)
 
 
 class RosBasePosition:
@@ -93,6 +112,21 @@ class RosBasePosition:
         except ValueError:
             return raw
 
+    def edit_variable(self, name: str, value: Any) -> None:
+        """Write a persisted Ability variable the way the HMI does.
+
+        Only ``IsLabmanTagCalibrated`` is written from this driver, and only to
+        skip a Labman camera re-detect when a saved ``LabmanTag`` pose exists.
+        """
+        reply = self.call_service(
+            "/ability_backend/persistent/global/edit_variable",
+            {"name": name, "value": json.dumps(value)},
+        )
+        if not reply.get("success", True):
+            raise RuntimeError(
+                f"could not persist {name}={value!r}: {reply.get('error_message')}"
+            )
+
     def base_position(self) -> str:
         return str(self.variable("BasePosition"))
 
@@ -130,7 +164,50 @@ class SplitProgramRobot:
     def run(self, program: str, arguments: dict[str, str]) -> None:
         """Run one entry program. Prefer the movement methods below."""
         logger.info("running %s with %s", program, arguments)
+        if program == LABMAN_ARM_PROGRAM:
+            self._trust_saved_labman_tag()
         self.transport.run_program(program, arguments)
+
+    def _trust_saved_labman_tag(self) -> None:
+        """If Ability still has a LabmanTag pose, skip the CH3 camera re-detect.
+
+        ``base_LABMAN`` always clears ``IsLabmanTagCalibrated``. The taught pose
+        stays in ``LabmanTag``. Restoring the flag lets GetIntoLabman apply that
+        pose via LoadAllVariables instead of CalibrateToMarker.
+        """
+        positions = self.positions
+        variable = getattr(positions, "variable", None)
+        edit_variable = getattr(positions, "edit_variable", None)
+        if not callable(variable) or not callable(edit_variable):
+            return
+        try:
+            tag = variable(LABMAN_TAG_VARIABLE)
+        except Exception:
+            logger.warning(
+                "could not read %s; Labman camera re-detect will run",
+                LABMAN_TAG_VARIABLE,
+                exc_info=True,
+            )
+            return
+        if not usable_labman_tag(tag):
+            logger.info(
+                "no usable %s; Labman camera re-detect will run",
+                LABMAN_TAG_VARIABLE,
+            )
+            return
+        try:
+            edit_variable(LABMAN_TAG_CALIBRATED_VARIABLE, True)
+        except Exception:
+            logger.warning(
+                "could not set %s; Labman camera re-detect will run",
+                LABMAN_TAG_CALIBRATED_VARIABLE,
+                exc_info=True,
+            )
+            return
+        logger.info(
+            "using saved %s; skipping Labman camera re-detect",
+            LABMAN_TAG_VARIABLE,
+        )
 
     def move_base_to(self, target: str, current: str | None = None) -> list[str]:
         """Drive the base to ``target``, returning the programs that were run."""
