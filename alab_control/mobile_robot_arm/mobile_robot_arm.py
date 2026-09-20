@@ -140,8 +140,12 @@ class MobileRobotArm():
         self.state, self.message = self.get_state_and_message()
         self.battery_level = self.get_battery_level()
     
-    def _make_request_with_timeout(self, func, timeout, *args, **kwargs):
-        """Helper method to make requests with timeout."""
+    def _make_request_with_timeout(self, func, _request_timeout, *args, **kwargs):
+        """Helper method to make requests with timeout.
+
+        The decorator's timeout is positional here so a wrapped method that has its own
+        ``timeout=`` keyword (``wait_until_running``) does not collide with it.
+        """
         return func(self, *args, **kwargs)
 
     @retry_request(max_retries=3, timeout=10)
@@ -257,7 +261,7 @@ class MobileRobotArm():
             if response.status_code == 400 and "ActivateProgramming" in response.text:
                 try:
                     self.acknowledge_error()
-                except Exception as e:
+                except Exception:
                     pass
                 finally:
                     time.sleep(5) # wait for 5 seconds to make sure the MRA is ready to load the program
