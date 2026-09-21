@@ -191,6 +191,15 @@ class LabmanView:
         self.pending_inputfile_view = InputFileView()
         self.logging = LoggingView()
         self.API = LabmanAPI(url, port)
+        self._api_reachable = False
+        self._indexing_rack_status = None
+        self._robot_running = False
+        self._in_automated_mode = False
+        self._rack_under_robot_control = True
+        self._process_error_message = ""
+        self._current_outward_quadrant = None
+        self._heated_rack_temperature = None
+        self._pipette_tip_count = None
 
     ### status update methods
 
@@ -223,12 +232,16 @@ class LabmanView:
             self._current_outward_quadrant = status_dict["CurrentOutwardQuadrantNumber"]
             self._heated_rack_temperature = status_dict["HeatedRackTemperature"]
             self._in_automated_mode = status_dict["InAutomatedMode"]
+            self._indexing_rack_status = status_dict.get("IndexingRackStatus")
+            # True while Labman's own robot holds the indexing rack (not Alfred/API).
             self._rack_under_robot_control = (
                 status_dict["IndexingRackStatus"] != "UserControl"
             )
             self._pipette_tip_count = status_dict["PipetteTipCount"]
             self._robot_running = status_dict["RobotRunning"]
             self._process_error_message = status_dict["ProcessErrorMessage"]
+            self.last_updated_at = time.time()
+            self._api_reachable = True
 
             for d in status_dict["QuadrantStatuses"]:
                 idx = d["QuadrantNumber"]
@@ -237,6 +250,14 @@ class LabmanView:
 
         except Exception as e:
             logger.error(f'Got error: {e}.\n\nLabman API timed out. Check if the Labman GUI is frozen.')
+            self._api_reachable = False
+            self._robot_running = False
+            self._in_automated_mode = False
+            # Treat as not available for Alfred until status is readable again.
+            self._rack_under_robot_control = True
+            self._indexing_rack_status = None
+            self._process_error_message = f"Labman API unreachable: {e}"
+            self.last_updated_at = time.time()
             for q in self.quadrants.values():
                 # set quadrants to unknown to ensure robot arm doesn't try to pick from the quadrant while we are unsure of the labman state.
                 q.status = QuadrantStatus.UNKNOWN
@@ -260,6 +281,28 @@ class LabmanView:
     def rack_under_robot_control(self):
         self.__update_status(force=True)
         return self._rack_under_robot_control
+
+    @property
+    def api_reachable(self) -> bool:
+        """True when the last status poll reached the Labman API."""
+        self.__update_status(force=True)
+        return bool(self._api_reachable)
+
+    @property
+    def indexing_rack_status(self) -> Union[str, None]:
+        """Raw ``IndexingRackStatus`` from Labman (``UserControl`` / ``RobotControl``)."""
+        self.__update_status(force=True)
+        return self._indexing_rack_status
+
+    def is_ready_for_robot_handoff(self) -> bool:
+        """Labman is up, automated, and running — safe to request indexing-rack control."""
+        self.__update_status(force=True)
+        return bool(
+            self._api_reachable
+            and self._robot_running
+            and self._in_automated_mode
+            and not (self._process_error_message or "").strip()
+        )
 
     @property
     def available_pipette_tips(self):
@@ -380,7 +423,18 @@ class Labman(LabmanView):
         self.API.unload_powder(dosinghead_index)  # change powder in Labman database
 
     ### quadrant control
-    def take_quadrant(self, index: int):
+    def take_quadrant(
+        self,
+        index: int,
+        timeout_s: float = 120.0,
+        rerequest_every_s: float = 5.0,
+    ):
+        """Request Alfred/API control of the indexing rack for ``index``.
+
+        Polls Labman status and re-issues ``request_indexing_rack_control`` until
+        ``IndexingRackStatus`` becomes ``UserControl`` (Alfred holds the rack), or
+        ``timeout_s`` elapses.
+        """
         if index not in [1, 2, 3, 4]:
             raise ValueError(
                 f"Invalid quadrant index: {index}. Must be one of [1,2,3,4]"
@@ -390,16 +444,28 @@ class Labman(LabmanView):
             message=f"Requested control of quadrant {index} under ALab control.",
             quadrant_index=index,
         )
-        self.API.request_indexing_rack_control(index)
-
-        # wait for the labman rack to no longer be under robot control
-        while self.rack_under_robot_control:
+        deadline = time.time() + max(0.0, float(timeout_s))
+        last_request_at = 0.0
+        while True:
+            now = time.time()
+            if now - last_request_at >= float(rerequest_every_s):
+                self.API.request_indexing_rack_control(index)
+                last_request_at = now
+            # UserControl => Alfred/API holds the rack (property is True while Labman robot holds it).
+            if not self.rack_under_robot_control:
+                self.logging.info(
+                    category="labman-quadrant-take",
+                    message=f"Quadrant {index} taken under ALab control.",
+                    quadrant_index=index,
+                )
+                return
+            if now >= deadline:
+                raise TimeoutError(
+                    f"Labman did not yield indexing rack control for quadrant {index} "
+                    f"within {timeout_s:.0f}s "
+                    f"(IndexingRackStatus={self.indexing_rack_status!r})."
+                )
             time.sleep(1)
-        self.logging.info(
-            category="labman-quadrant-take",
-            message=f"Quadrant {index} taken under ALab control.",
-            quadrant_index=index,
-        )
 
     def release_quadrant(self):
         self.logging.debug(

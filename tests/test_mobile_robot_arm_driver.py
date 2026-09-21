@@ -97,3 +97,29 @@ def test_unknown_target_raises_before_running() -> None:
 def test_unknown_pose_still_routes_via_home() -> None:
     r = robot(UNKNOWN)
     assert r.move_base_to("BFT") == ["base_Home", "base_BFT"]
+
+
+class HomingTransport(FakeTransport):
+    def __init__(self) -> None:
+        super().__init__()
+        self.homes = 0
+
+    def home_robot_arm(self) -> None:
+        self.homes += 1
+        self.ran.append(("HomeRobotArm", {}))
+
+
+def test_move_base_folds_arm_before_driving() -> None:
+    transport = HomingTransport()
+    r = SplitProgramRobot(transport=transport, positions=FakePositions("Home"))
+    assert r.move_base_to("LABMAN") == ["base_LABMAN"]
+    assert transport.names == ["HomeRobotArm", "base_LABMAN"]
+    assert transport.homes == 1
+
+
+def test_already_at_target_does_not_fold() -> None:
+    transport = HomingTransport()
+    r = SplitProgramRobot(transport=transport, positions=FakePositions("Home"))
+    assert r.move_base_to("Home") == []
+    assert transport.homes == 0
+    assert transport.names == []

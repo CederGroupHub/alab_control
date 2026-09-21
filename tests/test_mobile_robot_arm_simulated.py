@@ -43,6 +43,7 @@ def test_split_robot_routes_and_base_position_follows(tmp_path) -> None:
     sim = _sim(tmp_path)
     robot = SplitProgramRobot(transport=sim, positions=sim)
     assert robot.move_base_to("LABMAN") == ["base_Home", "base_LABMAN"]
+    assert sim.programs_run[0][0] == "HomeRobotArm"
     assert sim.base_position() == "LABMAN"
     assert sim.is_actually_charging() is False
     assert robot.move_base_to("BFT") == ["base_LABMAN", "base_BFT"]

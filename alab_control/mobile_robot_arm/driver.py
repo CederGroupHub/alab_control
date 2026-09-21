@@ -132,14 +132,31 @@ class SplitProgramRobot:
         logger.info("running %s with %s", program, arguments)
         self.transport.run_program(program, arguments)
 
+    def ensure_arm_home(self) -> None:
+        """Fold the manipulator before any base program if the transport can.
+
+        Live Helper / charge / auto-dock fold in ``RobotArmMobile._drive_base``
+        first. This is the same fold for simulated transports and any caller that
+        uses ``SplitProgramRobot.move_base_to`` directly.
+        """
+        home = getattr(self.transport, "home_robot_arm", None)
+        if callable(home):
+            logger.info("folding the arm before moving the base")
+            home()
+
     def move_base_to(self, target: str, current: str | None = None) -> list[str]:
-        """Drive the base to ``target``, returning the programs that were run."""
+        """Drive the base to ``target``, returning the programs that were run.
+
+        The arm is folded to Home before the first base program. Do not skip that.
+        """
         with self._lock:
             if current is None:
                 current = self.base_position()
             steps = P.resolve_base_move(current, target)
             if not steps:
                 logger.info("base is already at %s, nothing to run", target)
+            else:
+                self.ensure_arm_home()
             for program, arguments in steps:
                 self.run(program, arguments)
             return [program for program, _ in steps]
