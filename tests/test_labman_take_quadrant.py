@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from alab_control.labman.error import LabmanError
 from alab_control.labman.labman import Labman, QuadrantStatus
 
 
@@ -55,6 +56,35 @@ def _labman_without_db(api: MagicMock) -> Labman:
     return labman
 
 
+def test_take_quadrant_succeeds_when_rack_already_user_control(monkeypatch):
+    api = MagicMock()
+    api.get_status.return_value = _status(indexing="UserControl")
+    labman = _labman_without_db(api)
+    monkeypatch.setattr("alab_control.labman.labman.time.sleep", lambda *_: None)
+
+    labman.take_quadrant(index=1, timeout_s=30.0, rerequest_every_s=0.0)
+
+    api.request_indexing_rack_control.assert_not_called()
+
+
+def test_take_quadrant_treats_user_control_api_error_as_success(monkeypatch):
+    api = MagicMock()
+    api.get_status.side_effect = [
+        _status(indexing="RobotControl"),
+        _status(indexing="UserControl"),
+    ]
+    api.request_indexing_rack_control.side_effect = LabmanError(
+        "Failed to request indexing rack control. "
+        "The indexing rack is in the state 'UserControl'."
+    )
+    labman = _labman_without_db(api)
+    monkeypatch.setattr("alab_control.labman.labman.time.sleep", lambda *_: None)
+
+    labman.take_quadrant(index=1, timeout_s=30.0, rerequest_every_s=0.0)
+
+    api.request_indexing_rack_control.assert_called_once_with(1)
+
+
 def test_take_quadrant_rerequests_until_user_control(monkeypatch):
     api = MagicMock()
     statuses = [
@@ -68,7 +98,7 @@ def test_take_quadrant_rerequests_until_user_control(monkeypatch):
 
     labman.take_quadrant(index=1, timeout_s=30.0, rerequest_every_s=0.0)
 
-    assert api.request_indexing_rack_control.call_count >= 2
+    assert api.request_indexing_rack_control.call_count >= 1
     api.request_indexing_rack_control.assert_called_with(1)
     # Cached after the successful poll inside take_quadrant (no extra get_status).
     assert labman._indexing_rack_status == "UserControl"

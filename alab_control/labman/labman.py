@@ -422,6 +422,12 @@ class Labman(LabmanView):
 
         self.API.unload_powder(dosinghead_index)  # change powder in Labman database
 
+    @staticmethod
+    def _indexing_rack_already_under_user_control(error: LabmanError) -> bool:
+        """True when Labman rejects a control request because Alfred already holds the rack."""
+        message = str(error).casefold()
+        return "usercontrol" in message and "indexing rack" in message
+
     ### quadrant control
     def take_quadrant(
         self,
@@ -448,10 +454,31 @@ class Labman(LabmanView):
         last_request_at = 0.0
         while True:
             now = time.time()
+            # UserControl => Alfred/API already holds the rack; do not re-request.
+            if not self.rack_under_robot_control:
+                self.logging.info(
+                    category="labman-quadrant-take",
+                    message=f"Quadrant {index} taken under ALab control.",
+                    quadrant_index=index,
+                )
+                return
             if now - last_request_at >= float(rerequest_every_s):
-                self.API.request_indexing_rack_control(index)
+                try:
+                    self.API.request_indexing_rack_control(index)
+                except LabmanError as exc:
+                    if self._indexing_rack_already_under_user_control(exc):
+                        if not self.rack_under_robot_control:
+                            self.logging.info(
+                                category="labman-quadrant-take",
+                                message=(
+                                    f"Quadrant {index} already under ALab control "
+                                    f"(IndexingRackStatus=UserControl)."
+                                ),
+                                quadrant_index=index,
+                            )
+                            return
+                    raise
                 last_request_at = now
-            # UserControl => Alfred/API holds the rack (property is True while Labman robot holds it).
             if not self.rack_under_robot_control:
                 self.logging.info(
                     category="labman-quadrant-take",
