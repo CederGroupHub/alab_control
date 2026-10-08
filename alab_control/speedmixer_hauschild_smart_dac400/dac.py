@@ -8,8 +8,6 @@ from typing import Literal
 from serial import Serial
 from serial.serialutil import SerialException
 
-logging.basicConfig(level=logging.DEBUG)
-
 
 class DACError(Exception):
     pass
