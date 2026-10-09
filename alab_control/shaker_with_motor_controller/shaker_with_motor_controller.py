@@ -78,13 +78,39 @@ class ShakerWMC(BaseArduinoDevice):
 
     def get_state(self):
         """
-        Get current status of the shaker machine and the gripper
+        Get current status of the shaker machine and the gripper.
+
+        Each call tries GET /state immediately. A failure waits 30 seconds
+        and tries again until one hour has passed. The first successful
+        reply returns immediately.
         """
-        response = self.send_request(
-            self.ENDPOINTS["state"], suppress_error=True, timeout=10, max_retries=5
-        )
-        time.sleep(1)
-        return response
+        wait_sec = 30
+        give_up_sec = 60 * 60
+        deadline = time.time() + give_up_sec
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                response = self.send_request(
+                    self.ENDPOINTS["state"],
+                    suppress_error=True,
+                    timeout=10,
+                    max_retries=1,
+                )
+            except Exception as exc:
+                remaining = deadline - time.time()
+                if remaining <= 0:
+                    raise
+                wait = min(float(wait_sec), remaining)
+                print(
+                    f"  /state failed ({exc}). Waiting {wait:.0f}s then retrying "
+                    f"(attempt {attempt}, giving up after 1 hour)...",
+                    flush=True,
+                )
+                time.sleep(wait)
+                continue
+            time.sleep(1)
+            return response
 
     def is_gripper_closed(self) -> bool:
         """
