@@ -1,54 +1,7 @@
-# Capper
-Control code for holding the vial so that we can add/remove cap from the vial.
+# Capper (DASH)
 
-## APIs
-- `/open`
-  
-  Open the capper and release the vial. 
-  - When opened successfully, the capper will return a `200` status code with 
-    ```json
-    {
-      "status": "success"
-    }
-    ```
-  - When the capper is open, the capper will return a `400` status code with
-      ```json
-      {
-        "status": "error",
-        "reason": "The capper is already open."
-      }
-      ```
+P1AM firmware for the ALab One DASH vial capper: top/bottom pneumatic grippers and spin motor.
 
-- `/close`
-  
-    Close the capper and hold the vial.
-    - When closed successfully, the capper will return a `200` status code with 
-        ```json
-        {
-          "status": "success"
-        }
-        ```
-      - When the capper is closed, the capper will return a `400` status code with
-          ```json
-          {
-            "status": "error",
-            "reason": "The capper is already closed."
-          }
-          ```
-- `/state`
+Python driver: ``alab_control.capper.Capper``.
 
-    Get the current state of the capper.
-    - When the capper is closed, the capper will return a `200` status code with
-        ```json
-        {
-          "status": "success",
-          "state": "closed"
-        }
-        ```
-    - When the capper is open, the capper will return a `200` status code with
-        ```json
-        {
-          "status": "success",
-          "state": "open"
-        }
-        ```
+Main sketch: ``capper.ino`` (also mirrored under ``main/main/main.ino`` for the Arduino IDE).

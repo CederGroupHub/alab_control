@@ -8,7 +8,7 @@ from typing import Tuple
 from alab_control.robot_arm_ur5e.robots import CharDummy
 from alab_control.shaker import Shaker
 from alab_control.ball_dispenser import BallDispenser
-from alab_control.capper import Capper
+from alab_control.legacy_servo_capper import LegacyServoCapper as Capper
 from alab_control.ohaus_scale import OhausScale
 from alab_control.diffractometer_aeris import Aeris
 from alab_control.cap_dispenser import CapDispenser

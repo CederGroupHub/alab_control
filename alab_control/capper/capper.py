@@ -1,43 +1,111 @@
-import logging
+"""DASH vial capper: pneumatic grippers + spin motor (P1AM / HTTP API)."""
 
-logger = logging.getLogger(__name__)
+from __future__ import annotations
+
+import time
 from enum import Enum
 
 from alab_control._base_arduino_device import BaseArduinoDevice
 
 
 class CapperState(Enum):
-    OPEN = "open"
-    CLOSE = "closed"
+    RUNNING = "RUNNING"
+    STOPPED = "STOPPED"
 
 
 class Capper(BaseArduinoDevice):
     ENDPOINTS = {
         "state": "/state",
-        "open": "/open",
-        "close": "/close",
+        "open-top-gripper": "/open-top-gripper",
+        "close-top-gripper": "/close-top-gripper",
+        "open-bottom-gripper": "/open-bottom-gripper",
+        "close-bottom-gripper": "/close-bottom-gripper",
+        "cw-motor": "/cw-motor",
+        "ccw-motor": "/ccw-motor",
     }
 
-    def get_state(self):
-        """
-        Get the current state of the capper
-        """
-        return CapperState[self.send_request(self.ENDPOINTS["state"], suppress_error=True, method="GET", max_retries=5, timeout=10)["state"].upper()]
+    def __init__(self, ip_address: str, port: int = 80):
+        super().__init__(ip_address, port)
 
-    def open(self):
-        """
-        Open the capper
-        """
-        if self.get_state() == CapperState.OPEN:
-            return
-        self.send_request("/open", suppress_error=True, method="GET", timeout=30, max_retries=3)
-        logger.info(f'{self.get_current_time()} Opening Capping Gripper')
+    def get_state(self) -> CapperState:
+        """Return whether the capper motor/command loop is running or idle."""
+        state = str(
+            self.send_request(
+                self.ENDPOINTS["state"],
+                method="GET",
+                suppress_error=True,
+                max_retries=10,
+                timeout=10,
+            )["system_status"].upper()
+        )
+        if state == "RUNNING":
+            return CapperState.RUNNING
+        if state == "IDLE":
+            return CapperState.STOPPED
+        raise ValueError(f"Unknown capper system_status: {state!r}")
 
-    def close(self):
-        """
-        Close the capper
-        """
-        if self.get_state() == CapperState.CLOSE:
-            return
-        self.send_request("/close", suppress_error=True, method="GET", timeout=30, max_retries=3)
-        logger.info(f'{self.get_current_time()} Closing Capping Gripper')
+    def open_top_gripper(self):
+        for _ in range(3):
+            self.send_request(
+                self.ENDPOINTS["open-top-gripper"],
+                method="GET",
+                suppress_error=True,
+                max_retries=10,
+                timeout=10,
+            )
+
+    def close_top_gripper(self):
+        for _ in range(3):
+            self.send_request(
+                self.ENDPOINTS["close-top-gripper"],
+                method="GET",
+                suppress_error=True,
+                max_retries=10,
+                timeout=10,
+            )
+
+    def open_bottom_gripper(self):
+        for _ in range(3):
+            self.send_request(
+                self.ENDPOINTS["open-bottom-gripper"],
+                method="GET",
+                suppress_error=True,
+                max_retries=10,
+                timeout=10,
+            )
+
+    def close_bottom_gripper(self):
+        for _ in range(3):
+            self.send_request(
+                self.ENDPOINTS["close-bottom-gripper"],
+                method="GET",
+                suppress_error=True,
+                max_retries=10,
+                timeout=10,
+            )
+
+    def cw_motor(self, rpm: int, revolutions: float):
+        params = {"rpm": rpm, "rev": revolutions}
+        self.send_request(
+            self.ENDPOINTS["cw-motor"],
+            method="GET",
+            params=params,
+            suppress_error=True,
+            max_retries=10,
+            timeout=10,
+        )
+        while self.get_state() == CapperState.RUNNING:
+            time.sleep(0.1)
+
+    def ccw_motor(self, rpm: int, revolutions: float):
+        params = {"rpm": rpm, "rev": revolutions}
+        self.send_request(
+            self.ENDPOINTS["ccw-motor"],
+            method="GET",
+            params=params,
+            suppress_error=True,
+            max_retries=10,
+            timeout=10,
+        )
+        while self.get_state() == CapperState.RUNNING:
+            time.sleep(0.1)
