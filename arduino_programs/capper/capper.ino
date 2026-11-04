@@ -24,7 +24,7 @@ volatile int steps = 0; // Make steps volatile as it's modified in functions cal
 // --- Communication configuration ---
 #define serialwaitingtime 5 //time in seconds to wait for the serial connection to be stablished, or it will be canceled
 byte mymac[] = { 0x74, 0x69, 0x30, 0x2F, 0x22, 0x36 }; // MAC address of the device
-IPAddress ip(192, 168, 1, 177); // Optional: Define a static IP address as fallback
+IPAddress ip(192, 168, 1, 194); // Static fallback (same as DHCP reservation / AlabOS)
 IPAddress gateway(192, 168, 1, 1); // Optional: Define gateway
 IPAddress subnet(255, 255, 255, 0); // Optional: Define subnet mask
 EthernetServer server(80);     // Create a server object listening on port 80
@@ -102,7 +102,10 @@ static void sendHTTPJSONReply(EthernetClient client, int httpStatusCode, const c
     client.println(" "); // Add status text if desired
   }
   client.println("Content-Type: application/json");
-  client.println("Connection: close"); // Advise client to close connection
+  // Close after each reply. This board only handles one client; a keep-alive
+  // that outlives the PC's socket leaves the next GUI click blocked until the
+  // idle timeout, so every button felt like a multi-second hang.
+  client.println("Connection: close");
   client.println(); // End of headers
 
   // Send JSON body
@@ -118,13 +121,37 @@ void resetSystemState() {
 
 // --- Hardware Control Functions ---
 void performStep(bool clockwise) {
-  // Set the direction
+  // Short pulse only. The gap between steps is the microsecondsPerStep
+  // schedule in serviceMotor(). A pulse as wide as the step period blocks
+  // the HTTP server and caps the motor well below the requested RPM.
   digitalWrite(dirPin, clockwise ? HIGH : LOW);
-  // Generate one step pulse
   digitalWrite(stepPin, HIGH);
-  delayMicroseconds(stepPulseDelayMicroseconds); // Duration of the HIGH phase
+  delayMicroseconds(20);
   digitalWrite(stepPin, LOW);
-  delayMicroseconds(stepPulseDelayMicroseconds); // Duration of the LOW phase
+}
+
+void serviceMotor() {
+  if (!(systemState == RUNNING && (command == commands[4] || command == commands[5]))) {
+    return;
+  }
+  time_micros = micros();
+  if (steps >= totalStepsNeeded) {
+    Serial.print("Motor Rotation Finished. Steps taken: ");
+    Serial.println(steps);
+    resetSystemState();
+    return;
+  }
+  if ((unsigned long)(time_micros - timePrev_micros) < microsecondsPerStep) {
+    return;
+  }
+  timePrev_micros = time_micros;
+  performStep(command == commands[4]);
+  steps++;
+  if (steps >= totalStepsNeeded) {
+    Serial.print("Motor Rotation Finished. Steps taken: ");
+    Serial.println(steps);
+    resetSystemState();
+  }
 }
 
 // --- Action Trigger Functions (called by handlers) ---
@@ -273,31 +300,9 @@ COROUTINE(BottomGripper) {
 
 COROUTINE(Motor) {
   COROUTINE_LOOP() {
-    if (systemState == RUNNING && (command == commands[4] || command == commands[5])) {
-        time_micros = micros();
-        // Check if enough time has passed *and* if we still need to step
-        if ((steps < totalStepsNeeded) && (time_micros - timePrev_micros >= microsecondsPerStep)) {
-            timePrev_micros = time_micros; // Update time *before* stepping
-
-            if (command == commands[4]) { // CW
-                 performStep(true);
-            } else { // CCW
-                 performStep(false);
-            }
-            steps++; // Increment step count
-        }
-
-        // Check if the target number of steps has been reached
-        if (steps >= totalStepsNeeded) {
-            Serial.print("Motor Rotation Finished. Steps taken: "); Serial.println(steps);
-            resetSystemState();
-        } else {
-             COROUTINE_YIELD(); // Yield to allow other tasks
-        }
-    } else {
-        COROUTINE_DELAY(5); // Delay if not running motor
-    }
-  } // End COROUTINE_LOOP
+    serviceMotor();
+    COROUTINE_YIELD();
+  }
 }
 
 
@@ -444,76 +449,102 @@ void loop() {
     String requestUrl = ""; // To store the first line (request line)
     bool firstLine = true;
 
-    while (client.connected()) { // Loop while the client's connected
-      if (client.available()) {  // If there's bytes to read from the client,
-        char c = client.read();  // Read a byte
-        Serial.write(c);       // Print it out the serial monitor (optional)
-        if (c == '\n') {       // If the byte is a newline character
-          if (currentLine.length() == 0) { // If the current line is blank, end of request
-            Serial.println("Received end of HTTP request.");
-            // --- Route the request based on the URL ---
-            String path = "";
-            int spaceIndex = requestUrl.indexOf(' ');
-            if (spaceIndex != -1) {
-                int secondSpaceIndex = requestUrl.indexOf(' ', spaceIndex + 1);
-                if (secondSpaceIndex != -1) {
-                    path = requestUrl.substring(spaceIndex + 1, secondSpaceIndex);
-                }
+    // Bound how long we wait for the HTTP request itself, then always stop so
+    // the next PC connection is accepted immediately (single-client stack).
+    unsigned long requestStart = millis();
+    bool replied = false;
+    while (client.connected() && !replied) {
+      serviceMotor();
+      if (!client.available()) {
+        if (millis() - requestStart > 2000) {
+          break;
+        }
+        continue;
+      }
+      requestStart = millis();
+      char c = client.read();
+      if (c == '\n') {
+        if (currentLine.length() == 0) {
+          String path = "";
+          int spaceIndex = requestUrl.indexOf(' ');
+          if (spaceIndex != -1) {
+            int secondSpaceIndex = requestUrl.indexOf(' ', spaceIndex + 1);
+            if (secondSpaceIndex != -1) {
+              path = requestUrl.substring(spaceIndex + 1, secondSpaceIndex);
             }
-             Serial.print("Request path: "); Serial.println(path);
+          }
 
-            if (path.startsWith("/open-top-gripper")) {
-              OpenTopGripperAction();
-              sendHTTPJSONReply(client, 200, "SUCCESS", "Open Top Gripper command received.");
-            } else if (path.startsWith("/close-top-gripper")) {
-              CloseTopGripperAction();
-              sendHTTPJSONReply(client, 200, "SUCCESS", "Close Top Gripper command received.");
-            } else if (path.startsWith("/open-bottom-gripper")) {
-              OpenBottomGripperAction();
-              sendHTTPJSONReply(client, 200, "SUCCESS", "Open Bottom Gripper command received.");
-            } else if (path.startsWith("/close-bottom-gripper")) {
-              CloseBottomGripperAction();
-              sendHTTPJSONReply(client, 200, "SUCCESS", "Close Bottom Gripper command received.");
-            } else if (path.startsWith("/cw-motor")) {
-              int rpm_temp = getIntArg(path, "rpm", 10); // Provide default values
-              float rev_temp = getFloatArg(path, "rev", 1.0f);
-              CWRotationAction(rpm_temp, rev_temp);
-              sendHTTPJSONReply(client, 200, "SUCCESS", "CW Motor command received.");
-            } else if (path.startsWith("/ccw-motor")) {
-              int rpm_temp = getIntArg(path, "rpm", 10);
-              float rev_temp = getFloatArg(path, "rev", 1.0f);
-              CCWRotationAction(rpm_temp, rev_temp);
-              sendHTTPJSONReply(client, 200, "SUCCESS", "CCW Motor command received.");
-            } else if (path.startsWith("/estop")) {
-              EmergencyStopAction();
-              sendHTTPJSONReply(client, 200, "SUCCESS", "Emergency Stop command received.");
-            } else if (path.startsWith("/state")) { // RENAMED from /get-state
-               sendHTTPJSONReply(client, 200, "SUCCESS", "Current system state queried."); // Message kept same
-            }
-            else {
-              sendHTTPJSONReply(client, 404, "FAILED", "Requested endpoint not found.");
-            }
-            break; // Exit the while loop after sending the response
-          } else { currentLine = ""; } // Clear currentLine for next line
-        } else if (c != '\r') { currentLine += c; if(firstLine) { requestUrl += c; } } // Add char to line/URL
-        if (c == '\n' && firstLine) { firstLine = false; } // Finished reading the first line (URL)
-      } // end if client.available()
-    }   // end while client.connected()
-    delay(1); // Give client time to receive data
-    client.stop(); // Close connection
-    Serial.println("Client disconnected.");
+          if (path.startsWith("/open-top-gripper")) {
+            OpenTopGripperAction();
+            sendHTTPJSONReply(client, 200, "SUCCESS", "Open Top Gripper command received.");
+          } else if (path.startsWith("/close-top-gripper")) {
+            CloseTopGripperAction();
+            sendHTTPJSONReply(client, 200, "SUCCESS", "Close Top Gripper command received.");
+          } else if (path.startsWith("/open-bottom-gripper")) {
+            OpenBottomGripperAction();
+            sendHTTPJSONReply(client, 200, "SUCCESS", "Open Bottom Gripper command received.");
+          } else if (path.startsWith("/close-bottom-gripper")) {
+            CloseBottomGripperAction();
+            sendHTTPJSONReply(client, 200, "SUCCESS", "Close Bottom Gripper command received.");
+          } else if (path.startsWith("/cw-motor")) {
+            int rpm_temp = getIntArg(path, "rpm", 10);
+            float rev_temp = getFloatArg(path, "rev", 1.0f);
+            CWRotationAction(rpm_temp, rev_temp);
+            sendHTTPJSONReply(client, 200, "SUCCESS", "CW Motor command received.");
+          } else if (path.startsWith("/ccw-motor")) {
+            int rpm_temp = getIntArg(path, "rpm", 10);
+            float rev_temp = getFloatArg(path, "rev", 1.0f);
+            CCWRotationAction(rpm_temp, rev_temp);
+            sendHTTPJSONReply(client, 200, "SUCCESS", "CCW Motor command received.");
+          } else if (path.startsWith("/estop")) {
+            EmergencyStopAction();
+            sendHTTPJSONReply(client, 200, "SUCCESS", "Emergency Stop command received.");
+          } else if (path.startsWith("/state")) {
+            sendHTTPJSONReply(client, 200, "SUCCESS", "Current system state queried.");
+          } else {
+            sendHTTPJSONReply(client, 404, "FAILED", "Requested endpoint not found.");
+          }
+          replied = true;
+        } else {
+          currentLine = "";
+        }
+      } else if (c != '\r') {
+        currentLine += c;
+        if (firstLine) {
+          requestUrl += c;
+        }
+      }
+      if (c == '\n' && firstLine) {
+        firstLine = false;
+      }
+    }
+    client.flush();
+    client.stop();
   } // end if(client)
 
-  // --- Update Valve Outputs based on desired state (Executed Every Loop) ---
-  P1.writeDiscrete(valve1_desiredState, 1, 1);  // Pin 1 (Bottom Close)
-  P1.writeDiscrete(valve1_desiredState, 1, 9);  // Pin 1+8
-  P1.writeDiscrete(valve2_desiredState, 1, 2);  // Pin 2 (Top Close)
-  P1.writeDiscrete(valve2_desiredState, 1, 10); // Pin 2+8
-  P1.writeDiscrete(valve3_desiredState, 1, 3);  // Pin 3 (Top Open)
-  P1.writeDiscrete(valve3_desiredState, 1, 11); // Pin 3+8
-  P1.writeDiscrete(valve4_desiredState, 1, 4);  // Pin 4 (Bottom Open)
-  P1.writeDiscrete(valve4_desiredState, 1, 12); // Pin 4+8
-  // --- End Valve Update ---
+  // Write a valve pair only when its desired state changes. Writing all
+  // eight outputs every loop was slower than the step period at 25 rpm.
+  static int lastValve1 = -1, lastValve2 = -1, lastValve3 = -1, lastValve4 = -1;
+  if (valve1_desiredState != lastValve1) {
+    P1.writeDiscrete(valve1_desiredState, 1, 1);
+    P1.writeDiscrete(valve1_desiredState, 1, 9);
+    lastValve1 = valve1_desiredState;
+  }
+  if (valve2_desiredState != lastValve2) {
+    P1.writeDiscrete(valve2_desiredState, 1, 2);
+    P1.writeDiscrete(valve2_desiredState, 1, 10);
+    lastValve2 = valve2_desiredState;
+  }
+  if (valve3_desiredState != lastValve3) {
+    P1.writeDiscrete(valve3_desiredState, 1, 3);
+    P1.writeDiscrete(valve3_desiredState, 1, 11);
+    lastValve3 = valve3_desiredState;
+  }
+  if (valve4_desiredState != lastValve4) {
+    P1.writeDiscrete(valve4_desiredState, 1, 4);
+    P1.writeDiscrete(valve4_desiredState, 1, 12);
+    lastValve4 = valve4_desiredState;
+  }
 
   // Run Coroutines for background tasks
   TopGripper.runCoroutine();

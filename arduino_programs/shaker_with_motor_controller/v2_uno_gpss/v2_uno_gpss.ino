@@ -254,6 +254,7 @@ void setup()
   if (ether.begin(sizeof Ethernet::buffer, mymac) == 0)
     Serial.println(F("Failed to access Ethernet controller"));
   ether.dhcpSetup();
+  ether.persistTcpConnection(true);
   actuator.attach(output5); // attach the actuator to Arduino pin output5 (PWM)
   pinMode(analogIn, INPUT_PULLUP);
   actuator.writeMicroseconds(mag);

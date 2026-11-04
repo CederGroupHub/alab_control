@@ -4,4 +4,4 @@ P1AM firmware for the ALab One DASH vial capper: top/bottom pneumatic grippers a
 
 Python driver: ``alab_control.capper.Capper``.
 
-Main sketch: ``capper.ino`` (also mirrored under ``main/main/main.ino`` for the Arduino IDE).
+Main sketch: ``capper.ino``.

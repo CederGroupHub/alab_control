@@ -267,6 +267,7 @@ void setup () {
     Serial.println(F("Failed to access Ethernet controller"));
   }
   ether.dhcpSetup();
+  ether.persistTcpConnection(true);
   linac1.attach(linacPin1);
   linac1.writeMicroseconds(linac1close);
   linac2.attach(linacPin2);

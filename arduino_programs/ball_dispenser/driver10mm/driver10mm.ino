@@ -398,6 +398,7 @@ void setup () {
     Serial.println(F("Failed to access Ethernet controller"));
   }
   ether.dhcpSetup();
+  ether.persistTcpConnection(true);
 
   attachInterrupt(digitalPinToInterrupt(IRPin1), addSphereCount, RISING);
 //  attachInterrupt(digitalPinToInterrupt(IRPin2), addSphereCount, RISING);

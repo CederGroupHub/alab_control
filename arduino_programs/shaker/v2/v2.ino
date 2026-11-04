@@ -487,6 +487,7 @@ void setup()
     Serial.println(F("Failed to access Ethernet controller"));
   else {
     ether.staticSetup(myip);
+    ether.persistTcpConnection(true);
     Serial.print(F("IP was set to: "));
     for (int i = 0; i < 4; i++) {
       Serial.print(String(myip[i]));
